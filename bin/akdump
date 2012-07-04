@@ -1,0 +1,6 @@
+#!/bin/bash
+JAR=$(ls $(dirname $0)/../target/akiban-client-tools-*.*.*-SNAPSHOT.jar)
+if [ -z "$JAR" ]; then
+  JAR=/usr/share/akiban/akiban-client-tools.jar
+fi
+java -cp /usr/share/java/postgresql-jdbc3.jar:$JAR com.akiban.client.dump.DumpClient "$@"
