@@ -295,7 +295,7 @@ public class DumpClient
     }
 
     protected void outputDropTable(Table table) throws IOException {
-        StringBuilder sql = new StringBuilder("DROP TABLE /*IF EXISTS*/ ");
+        StringBuilder sql = new StringBuilder("DROP TABLE IF EXISTS ");
         qualifiedName(table, sql);
         sql.append(";").append(NL);
         output.write(sql.toString());
