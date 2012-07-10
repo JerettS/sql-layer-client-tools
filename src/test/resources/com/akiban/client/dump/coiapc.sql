@@ -111,3 +111,4 @@ CREATE TABLE x_pk(
 
 INSERT INTO x_pk VALUES('alfa');
 INSERT INTO x_pk VALUES('bravo');
+
