@@ -4,11 +4,11 @@
 ---   items
 ---   shipments
 
-DROP TABLE /*IF EXISTS*/ addresses;
-DROP TABLE /*IF EXISTS*/ items;
-DROP TABLE /*IF EXISTS*/ shipments;
-DROP TABLE /*IF EXISTS*/ orders;
-DROP TABLE /*IF EXISTS*/ customers;
+DROP TABLE IF EXISTS addresses;
+DROP TABLE IF EXISTS items;
+DROP TABLE IF EXISTS shipments;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS customers;
 
 CREATE TABLE customers(
   cid INT NOT NULL PRIMARY KEY,
@@ -79,8 +79,8 @@ INSERT INTO items VALUES(6, 401, '1234', 150);
 --- parent
 ---  child
 
-DROP TABLE /*IF EXISTS*/ child;
-DROP TABLE /*IF EXISTS*/ parent;
+DROP TABLE IF EXISTS child;
+DROP TABLE IF EXISTS parent;
 
 CREATE TABLE parent(
   id INT NOT NULL PRIMARY KEY,
