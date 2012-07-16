@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 if [ -f "$(dirname $0)/../pom.xml" ]; then
     JAR=$(ls $(dirname $0)/../target/akiban-client-tools-*.*.*-SNAPSHOT.jar)
 else
