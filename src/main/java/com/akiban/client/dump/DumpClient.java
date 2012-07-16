@@ -187,6 +187,10 @@ public class DumpClient
         stmt.setString(2, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
+            // TODO: IS NOT NULL would have been simpler, but schema is wrong.
+            // Moreover, grouping_constraints table could have been
+            // used more intelligently to get whole groups.
+            if (rs.getString(4) == null) continue;
             Table child = findOrCreateTable(rs.getString(1), rs.getString(2), pending);
             Table parent = findOrCreateTable(rs.getString(3), rs.getString(4), pending);
             child.parent = parent;
