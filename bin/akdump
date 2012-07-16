@@ -1,12 +1,12 @@
 #!/bin/bash
 
 if [ -f "$(dirname $0)/../pom.xml" ]; then
-    JAR=$(ls $(dirname $0)/../target/akiban-client-tools-*.*.*-SNAPSHOT.jar)
+    JAR=$(ls $(dirname $0)/../target/akiban-client-tools-1.3.0-SNAPSHOT.jar)
 else
     JAR=/usr/share/akiban/akiban-client-tools.jar
 fi
 
-[ -r "$JAR" ] && { echo "$0: Error: Couldn't find akiban-client-tools.jar in /usr/share/akiban/"; exit 1; }
+[ -r "$JAR" ] || { echo "$0: Error: Couldn't find akiban-client-tools.jar in /usr/share/akiban/"; exit 1; }
 
 classpath="/usr/share/akiban/postgresql.jar:/usr/share/java/postgresql-jdbc3.jar:${JAR}"
 java -cp ${classpath} com.akiban.client.dump.DumpClient "$@"
