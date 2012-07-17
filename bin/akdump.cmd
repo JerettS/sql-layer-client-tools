@@ -2,7 +2,7 @@
 
 SETLOCAL
 
-SET CLIENT_JAR=akiban-client-tools-1.3.0-SNAPSHOT.jar
+SET CLIENT_JAR=akiban-client-tools-1.3.0.jar
 SET DRIVER_JAR=postgresql.jar
 
 IF EXIST "%~dp0..\pom.xml" GOTO FROM_BUILD
