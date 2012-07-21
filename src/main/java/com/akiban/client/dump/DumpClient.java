@@ -26,12 +26,14 @@ public class DumpClient
     protected static final String DRIVER_NAME = "org.postgresql.Driver";
     protected static final String DEFAULT_HOST = "localhost";
     protected static final int DEFAULT_PORT = 15432;
+    protected static final int DEFAULT_INSERT_MAX_ROW_COUNT = 100;
     private static final String NL = System.getProperty("line.separator");
     private boolean dumpSchema = true, dumpData = true;
     private File outputFile = null;
     private String host = DEFAULT_HOST;
     private int port = DEFAULT_PORT;
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
+    private int insertMaxRowCount = DEFAULT_INSERT_MAX_ROW_COUNT;
     private String defaultSchema = null;
     private Writer output;
     private Connection connection;
@@ -77,6 +79,9 @@ public class DumpClient
                 else if ("-p".equals(arg) || ("--port".equals(arg))) {
                     setPort(Integer.parseInt(args[i++]));
                 }
+                else if ("--insert-max-rows".equals(arg)) {
+                    setInsertMaxRowCount(Integer.parseInt(args[i++]));
+                }
                 else {
                     throw new Exception("Unknown switch: " + arg);
                 }
@@ -120,7 +125,13 @@ public class DumpClient
     public void setPort(int port) {
         this.port = port;
     }
-    
+    public int getInsertMaxRowCount() {
+        return insertMaxRowCount;
+    }
+    public void setInsertMaxRowCount(int insertMaxRowCount) {
+        this.insertMaxRowCount = insertMaxRowCount;
+    }
+
     public Collection<String> getSchemas() {
         return schemas.keySet();
     }
@@ -528,8 +539,11 @@ public class DumpClient
         sql.append(rootTable.schema.replace("'", "''"));
         sql.append("','");
         sql.append(rootTable.name.replace("'", "''"));
-        sql.append("')");
+        sql.append("',");
+        sql.append(insertMaxRowCount);
+        sql.append(")");
         copyManager.copyOut(sql.toString(), output);
+        output.write(NL);
     }
 
     protected void openOutput() throws Exception {

@@ -99,6 +99,7 @@ CREATE TABLE child(
 CREATE INDEX name ON child(name);
 CREATE INDEX pc_gi ON child(parent.name, name) USING LEFT JOIN;
 
+
 --- x_pk
 
 DROP TABLE IF EXISTS x_pk;
