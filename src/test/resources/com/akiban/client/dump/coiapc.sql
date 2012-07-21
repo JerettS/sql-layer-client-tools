@@ -61,8 +61,8 @@ CREATE INDEX ship_date ON shipments(ship_date);
 INSERT INTO customers VALUES(1, 'Smith');
 INSERT INTO addresses VALUES(101, 1, 'MA', 'Boston');
 INSERT INTO orders VALUES(101, 1, DATE '2011-03-01');
-INSERT INTO items VALUES(1, 101, '1234', 100);
-INSERT INTO items VALUES(2, 101, '4567', 50);
+INSERT INTO items VALUES(1, 101, '1234', 100),
+                        (2, 101, '4567', 50);
 INSERT INTO orders VALUES(102, 1, DATE '2011-03-02');
 INSERT INTO customers VALUES(2, 'Jones');
 INSERT INTO addresses VALUES(201, 2, 'NY', 'New York');
@@ -110,6 +110,6 @@ CREATE TABLE x_pk(
 
 
 
-INSERT INTO x_pk VALUES('alfa');
-INSERT INTO x_pk VALUES('bravo');
+INSERT INTO x_pk VALUES('alfa'),
+                       ('bravo');
 
