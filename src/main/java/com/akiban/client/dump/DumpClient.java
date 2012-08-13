@@ -422,7 +422,7 @@ public class DumpClient
     }
     
     protected void outputCreateIndexes(Table rootTable) throws SQLException, IOException {
-        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, is_unique, join_type FROM information_schema.indexes WHERE schema_name = ? AND table_name = ? AND index_type = 'INDEX' ORDER BY index_id");
+        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, is_unique, join_type, index_method FROM information_schema.indexes WHERE schema_name = ? AND table_name = ? AND index_type = 'INDEX' ORDER BY index_id");
         // TODO: Shouldn't there be a column_schema_name?
         PreparedStatement icstmt = connection.prepareStatement("SELECT schema_name, column_table_name, column_name, is_ascending FROM information_schema.index_columns WHERE schema_name = ? AND index_table_name = ? AND index_name = ? ORDER BY ordinal_position");
         outputCreateIndexes(istmt, icstmt, rootTable);
@@ -442,12 +442,12 @@ public class DumpClient
         istmt.setString(2, table.name);
         ResultSet rs = istmt.executeQuery();
         while (rs.next()) {
-            outputCreateIndex(icstmt, table, rs.getString(1), rs.getString(2), rs.getString(3));
+            outputCreateIndex(icstmt, table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4));
         }
         rs.close();
     }    
 
-    protected void outputCreateIndex(PreparedStatement icstmt, Table table, String index, String unique, String joinType) throws SQLException, IOException {
+    protected void outputCreateIndex(PreparedStatement icstmt, Table table, String index, String unique, String joinType, String indexMethod) throws SQLException, IOException {
         StringBuilder sql = new StringBuilder("CREATE ");
         if ("YES".equals(unique))
             sql.append("UNIQUE ");
@@ -456,6 +456,8 @@ public class DumpClient
         sql.append(" ON ");
         qualifiedName(table, sql);
         sql.append('(');
+        if (indexMethod != null)
+            sql.append(indexMethod).append("(");
         icstmt.setString(1, table.schema);
         icstmt.setString(2, table.name);
         icstmt.setString(3, index);
@@ -492,6 +494,8 @@ public class DumpClient
             }
         }
         rs.close();
+        if (indexMethod != null)
+            sql.append(")");
         sql.append(')');
         if (joinType != null) {
             sql.append(" USING ").append(joinType).append(" JOIN");
