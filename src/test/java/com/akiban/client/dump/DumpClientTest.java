@@ -63,7 +63,7 @@ public class DumpClientTest
     
     @After
     public void cleanUp() throws Exception {
-        openConnection().createStatement().execute("DROP SCHEMA " + SCHEMA_NAME + " CASCADE");
+        openConnection().createStatement().execute("DROP SCHEMA IF EXISTS " + SCHEMA_NAME + " CASCADE");
     }
 
     @Test

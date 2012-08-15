@@ -332,7 +332,7 @@ public class DumpClient
         // create sequences
         for (Sequence seq : sequences.get(schema).values()) {
             // these are sequences used for column identity generator
-            if (seq.name.startsWith("_sequence")) {
+            if (seq.name.startsWith("_sequence-")) {
                 continue;
             }
             sql.append("CREATE SEQUENCE ");
