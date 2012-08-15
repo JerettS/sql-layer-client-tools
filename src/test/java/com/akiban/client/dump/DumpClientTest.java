@@ -20,6 +20,7 @@ import com.akiban.junit.NamedParameterizedRunner;
 import com.akiban.junit.NamedParameterizedRunner.TestParameters;
 import com.akiban.junit.Parameterization;
 */
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,6 +59,11 @@ public class DumpClientTest
     public DumpClientTest(String caseName, File loadFile) {
         this.caseName = caseName;
         this.loadFile = loadFile;
+    }
+    
+    @After
+    public void cleanUp() throws Exception {
+        openConnection().createStatement().execute("DROP SCHEMA IF EXISTS " + SCHEMA_NAME + " CASCADE");
     }
 
     @Test

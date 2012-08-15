@@ -33,6 +33,7 @@ public class DumpClient
     private String host = DEFAULT_HOST;
     private int port = DEFAULT_PORT;
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
+    private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
     private int insertMaxRowCount = DEFAULT_INSERT_MAX_ROW_COUNT;
     private String defaultSchema = null;
     private Writer output;
@@ -137,6 +138,7 @@ public class DumpClient
     }
     public void addSchema(String schema) {
         schemas.put(schema, new TreeMap<String,Table>());
+        sequences.put(schema, new TreeMap<String,Sequence>());
     }
 
     public void dump() throws Exception {
@@ -162,6 +164,7 @@ public class DumpClient
         else {
             for (String schema : schemas.keySet()) {
                 loadTables(schema);
+                loadSequences(schema);
             }
             // Keep doing this as long as there are references to new schemas.
             Deque<String> pending = new ArrayDeque<String>(schemas.keySet());
@@ -169,6 +172,7 @@ public class DumpClient
                 loadGroups(pending.removeFirst(), pending);
             }
             for (String schema : schemas.keySet()) {
+                dumpSequences(schema);
                 for (Table table : schemas.get(schema).values()) {
                     if (table.parent == null) {
                         dumpGroup(table);
@@ -189,6 +193,24 @@ public class DumpClient
             tables.put(name, new Table(schema, name));
         }
         stmt.close();
+    }
+    
+    protected void loadSequences (String schema) throws SQLException {
+        Map<String, Sequence> seqs = sequences.get(schema);
+        PreparedStatement stmt = connection.prepareStatement(
+                "select sequence_schema, sequence_name, " + 
+                " nextval(sequence_schema, sequence_name), " +
+                " increment, minimum_value, maximum_value, cycle_option " +
+                " from information_schema.sequences where sequence_schema = ? order by sequence_name");
+        stmt.setString(1, schema);
+        ResultSet rs = stmt.executeQuery();
+        while (rs.next()) {
+            boolean cycle = rs.getString(7).equals("YES");
+            String name = rs.getString(2);
+            seqs.put(name, new Sequence (rs.getString(1), name, 
+                    rs.getLong(3), rs.getLong(4),rs.getLong(5), rs.getLong(6),
+                    cycle));
+        }
     }
 
     protected void loadGroups(String schema, Deque<String> pending) throws SQLException {
@@ -252,6 +274,26 @@ public class DumpClient
             this.name = name;
         }
     }
+    
+    protected static class Sequence {
+        String schema, name;
+        long startWith, incrementBy;
+        long minValue, maxValue;
+        boolean cycle;
+        
+        public Sequence (String schema, String name, 
+                long startWith, long incrementBy,
+                long minValue, long maxValue,
+                boolean cycle) {
+            this.schema = schema;
+            this.name = name;
+            this.startWith = startWith;
+            this.incrementBy = incrementBy;
+            this.minValue = minValue;
+            this.maxValue = maxValue;
+            this.cycle = cycle;
+        }
+    }
 
     protected Table findOrCreateTable(String schema, String name, Deque<String> pending) {
         Map<String,Table> tables = schemas.get(schema);
@@ -268,6 +310,44 @@ public class DumpClient
             tables.put(name, table);
         }
         return table;
+    }
+    
+    protected void dumpSequences(String schema) throws IOException {
+        StringBuilder sql = new StringBuilder();
+        
+        // drop sequences
+        for (Sequence seq : sequences.get(schema).values()) {
+            // these are sequences used for column identity generator
+            if (seq.name.startsWith("_sequence")) {
+                continue;
+            }
+            sql.append ("DROP SEQUENCE IF EXISTS ");
+            identifier (schema, sql, true);
+            sql.append(".");
+            identifier (seq.name, sql, true);
+            sql.append(" RESTRICT");
+            sql.append(";").append(NL);
+        }
+        sql.append(NL);
+        // create sequences
+        for (Sequence seq : sequences.get(schema).values()) {
+            // these are sequences used for column identity generator
+            if (seq.name.startsWith("_sequence-")) {
+                continue;
+            }
+            sql.append("CREATE SEQUENCE ");
+            identifier(schema, sql, true);
+            sql.append(".");
+            identifier(seq.name, sql, true);
+            sql.append(" START WITH ").append(seq.startWith);
+            sql.append(" INCREMENT BY ").append(seq.incrementBy);
+            sql.append(" MINVALUE ").append(seq.minValue);
+            sql.append(" MAXVALUE ").append(seq.maxValue);          
+            if (!seq.cycle) { sql.append(" NO"); }
+            sql.append(" CYCLE"); 
+            sql.append(";").append(NL);
+        }
+        output.write(sql.toString());
     }
     
     protected void dumpGroup(Table table) throws SQLException, IOException {
@@ -317,7 +397,12 @@ public class DumpClient
     }
 
     protected void outputCreateTables(Table rootTable) throws SQLException, IOException {
-        PreparedStatement stmt = connection.prepareStatement("SELECT column_name, type, length, precision, scale, character_set_name, collation_name, nullable  FROM information_schema.columns WHERE schema_name = ? AND table_name = ? ORDER BY position");
+        PreparedStatement stmt = connection.prepareStatement(
+                "SELECT column_name," +
+                " type, length, precision, scale," +
+                " character_set_name, collation_name, nullable," +
+                " sequence_schema, sequence_name, identity_generation" +
+                " FROM information_schema.columns WHERE schema_name = ? AND table_name = ? ORDER BY position");
         outputCreateTables(stmt, rootTable);
         stmt.close();
     }
@@ -365,6 +450,16 @@ public class DumpClient
             if ("NO".equals(rs.getString(8))) {
                 sql.append(" NOT NULL");
             }
+            String identityGenerate = rs.getString(11);
+            if (!rs.wasNull()) {
+                String sequenceSchema = rs.getString(9);
+                String sequenceName = rs.getString(10);
+                Sequence seq = sequences.get(sequenceSchema).get(sequenceName);
+                sql.append(" GENERATED ").append(identityGenerate);
+                sql.append(" AS IDENTITY (START WITH ").append(seq.startWith);
+                sql.append(", INCREMENT BY ").append(seq.incrementBy).append (")");
+            }
+            
             if (pkey != null) {
                 pkey.remove(column);
                 if (pkey.isEmpty()) {
