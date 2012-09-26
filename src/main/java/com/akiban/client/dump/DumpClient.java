@@ -517,9 +517,8 @@ public class DumpClient
     }
     
     protected void outputCreateIndexes(Table rootTable) throws SQLException, IOException {
-        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, is_unique, join_type, index_method FROM information_schema.indexes WHERE schema_name = ? AND table_name = ? AND index_type = 'INDEX' ORDER BY index_id");
-        // TODO: Shouldn't there be a column_schema_name?
-        PreparedStatement icstmt = connection.prepareStatement("SELECT schema_name, column_table_name, column_name, is_ascending FROM information_schema.index_columns WHERE schema_name = ? AND index_table_name = ? AND index_name = ? ORDER BY ordinal_position");
+        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, is_unique, join_type, index_method FROM information_schema.indexes WHERE schema_name = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') ORDER BY index_id");
+        PreparedStatement icstmt = connection.prepareStatement("SELECT column_schema_name, column_table_name, column_name, is_ascending FROM information_schema.index_columns WHERE schema_name = ? AND index_table_name = ? AND index_name = ? ORDER BY ordinal_position");
         outputCreateIndexes(istmt, icstmt, rootTable);
         icstmt.close();
         istmt.close();

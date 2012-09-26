@@ -54,6 +54,7 @@ CREATE INDEX `__akiban_fk_0` ON orders(cid);
 CREATE INDEX order_date ON orders(order_date);
 CREATE INDEX `__akiban_fk_1` ON items(oid);
 CREATE INDEX sku ON items(sku);
+CREATE UNIQUE INDEX order_sku ON items(oid, sku);
 CREATE INDEX cname_and_sku ON items(customers.name, sku) USING LEFT JOIN;
 CREATE INDEX sku_and_date ON items(sku, orders.order_date) USING LEFT JOIN;
 CREATE INDEX `__akiban_fk_3` ON shipments(oid);
