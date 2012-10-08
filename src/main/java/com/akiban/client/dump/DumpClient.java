@@ -493,6 +493,9 @@ public class DumpClient
     }
 
     protected void type(String type, int length, int precision, int scale, StringBuilder sql) {
+        boolean unsigned = type.endsWith(" unsigned");
+        if (unsigned)
+            type = type.substring(0, type.length() - 9);
         if (precision > 0) {
             sql.append(type.toUpperCase());
             sql.append('(').append(precision);
@@ -514,6 +517,8 @@ public class DumpClient
             // Fixed-size numerics have a length, but it doesn't mean much.
             sql.append(type.toUpperCase());
         }
+        if (unsigned)
+            sql.append(" UNSIGNED");
     }
     
     protected void outputCreateIndexes(Table rootTable) throws SQLException, IOException {
