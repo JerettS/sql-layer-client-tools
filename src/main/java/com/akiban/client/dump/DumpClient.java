@@ -633,7 +633,7 @@ public class DumpClient
     }
 
     protected void dumpData(Table rootTable) throws SQLException, IOException {
-        StringBuilder sql = new StringBuilder("CALL dump_group('");
+        StringBuilder sql = new StringBuilder("CALL sys.dump_group('");
         sql.append(rootTable.schema.replace("'", "''"));
         sql.append("','");
         sql.append(rootTable.name.replace("'", "''"));
