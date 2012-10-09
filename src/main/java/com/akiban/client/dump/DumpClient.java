@@ -469,6 +469,7 @@ public class DumpClient
         qualifiedName(table, sql);
         sql.append(";").append(NL);
         output.write(sql.toString());
+        table.dropped = true;
     }
 
     protected void outputCreateTables(Table rootTable) throws SQLException, IOException {
@@ -565,6 +566,7 @@ public class DumpClient
         assert (gkey == null);
         sql.append(NL).append(");").append(NL).append(NL);
         output.write(sql.toString());
+        table.dumped = true;
     }
 
     protected void type(String type, int length, int precision, int scale, StringBuilder sql) {
@@ -725,7 +727,7 @@ public class DumpClient
         
         ensureDropView(view);
         output.write(view.definition);
-        output.write(NL);
+        output.write(";"+NL+NL);
         view.dumped = true;
     }
 
