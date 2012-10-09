@@ -34,6 +34,7 @@ public class DumpClient
     private int port = DEFAULT_PORT;
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
     private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
+    private Map<String,Map<String,View>> views = new TreeMap<String,Map<String, View>>();
     private int insertMaxRowCount = DEFAULT_INSERT_MAX_ROW_COUNT;
     private String defaultSchema = null;
     private Writer output;
@@ -139,6 +140,7 @@ public class DumpClient
     public void addSchema(String schema) {
         schemas.put(schema, new TreeMap<String,Table>());
         sequences.put(schema, new TreeMap<String,Sequence>());
+        views.put(schema, new TreeMap<String,View>());
     }
 
     public void dump() throws Exception {
@@ -171,8 +173,13 @@ public class DumpClient
             while (!pending.isEmpty()) {
                 loadGroups(pending.removeFirst(), pending);
             }
+            // Have all the tables we will dump.
+            loadViews();
             for (String schema : schemas.keySet()) {
-                dumpSequences(schema);
+                if (dumpSchema) {
+                    dumpSequences(schema);
+                    dumpViews(schema);
+                }
                 for (Table table : schemas.get(schema).values()) {
                     if (table.parent == null) {
                         dumpGroup(table);
@@ -263,20 +270,87 @@ public class DumpClient
         return keys;
     }
 
-    protected static class Table {
+    protected void loadViews() throws SQLException {
+        PreparedStatement stmt = connection.prepareStatement("SELECT table_name, view_definition FROM information_schema.views WHERE schema_name = ? ORDER BY table_name");
+        for (Map.Entry<String,Map<String,View>> entry : views.entrySet()) {
+            String schema = entry.getKey();
+            Map<String,View> views = entry.getValue();
+            stmt.setString(1, schema);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String name = rs.getString(1);
+                views.put(name, new View(schema, name, rs.getString(2)));
+            }
+            rs.close();
+        }
+        stmt.close();
+        stmt = connection.prepareStatement("SELECT table_schema, table_name FROM information_schema.view_table_usage WHERE view_schema = ? AND view_name = ?");
+        for (Map.Entry<String,Map<String,View>> entry : views.entrySet()) {
+            stmt.setString(1, entry.getKey());
+            for (View view : entry.getValue().values()) {
+                stmt.setString(2, view.name);
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) {
+                    String schema = rs.getString(1);
+                    String name = rs.getString(2);
+                    Viewed viewed = null;
+                    Map<String,Table> stables = schemas.get(schema);
+                    if (stables != null)
+                        viewed = stables.get(name);
+                    if (viewed == null) {
+                        Map<String,View> sviews = views.get(schema);
+                        if (sviews != null)
+                            viewed = sviews.get(name);
+                    }
+                    if (viewed != null) {
+                        view.dependsOn.add(viewed);
+                        viewed.dependedOn.add(view);
+                    }
+                }
+                rs.close();
+            }
+        }        
+    }
+
+    protected static class Named {
         String schema, name;
+        
+        public Named(String schema, String name) {
+            this.schema = schema;
+            this.name = name;
+        }
+    }
+
+    protected static class Viewed extends Named {
+        Set<View> dependedOn = new HashSet<View>();
+        boolean dropped, dumped;
+        
+        public Viewed(String schema, String name) {
+            super(schema, name);
+        }
+    }
+
+    protected static class Table extends Viewed {
         Table parent;
         List<Table> children = new ArrayList<Table>();
         List<String> primaryKeys, childKeys, parentKeys;
         
         public Table(String schema, String name) {
-            this.schema = schema;
-            this.name = name;
+            super(schema, name);
         }
     }
     
-    protected static class Sequence {
-        String schema, name;
+    protected static class View extends Viewed {
+        String definition;
+        Set<Viewed> dependsOn = new HashSet<Viewed>();
+        
+        public View(String schema, String name, String definition) {
+            super(schema, name);
+            this.definition = definition;
+        }
+    }
+
+    protected static class Sequence extends Named {
         long startWith, incrementBy;
         long minValue, maxValue;
         boolean cycle;
@@ -285,8 +359,7 @@ public class DumpClient
                 long startWith, long incrementBy,
                 long minValue, long maxValue,
                 boolean cycle) {
-            this.schema = schema;
-            this.name = name;
+            super(schema, name);
             this.startWith = startWith;
             this.incrementBy = incrementBy;
             this.minValue = minValue;
@@ -322,9 +395,7 @@ public class DumpClient
                 continue;
             }
             sql.append ("DROP SEQUENCE IF EXISTS ");
-            identifier (schema, sql, true);
-            sql.append(".");
-            identifier (seq.name, sql, true);
+            qualifiedName(seq, sql);
             sql.append(" RESTRICT");
             sql.append(";").append(NL);
         }
@@ -336,9 +407,7 @@ public class DumpClient
                 continue;
             }
             sql.append("CREATE SEQUENCE ");
-            identifier(schema, sql, true);
-            sql.append(".");
-            identifier(seq.name, sql, true);
+            qualifiedName(seq, sql);
             sql.append(" START WITH ").append(seq.startWith);
             sql.append(" INCREMENT BY ").append(seq.incrementBy);
             sql.append(" MINVALUE ").append(seq.minValue);
@@ -354,12 +423,18 @@ public class DumpClient
         outputGroupSummary(table, 1);
         output.write(NL);
         if (dumpSchema) {
+            Set<View> views = new HashSet<View>();
+            dependentViews(table, views);
+            if (views != null)
+                ensureDropViews(views);
             outputDropTables(table);
             output.write(NL);
             outputCreateTables(table);
             output.write(NL);
             outputCreateIndexes(table);
             output.write(NL);
+            if (views != null)
+                dumpViews(views);
         }
         if (dumpData) {
             dumpData(table);
@@ -603,6 +678,64 @@ public class DumpClient
         output.write(sql.toString());
     }
 
+    protected void dependentViews(Table parentTable, Set<View> views) {
+        views.addAll(parentTable.dependedOn);
+        for (Table child : parentTable.children) {
+            dependentViews(child, views);
+        }
+    }
+
+    protected void ensureDropViews(Set<View> views) throws IOException {
+        for (View view : views) {
+            ensureDropView(view);
+        }
+    }
+
+    protected void ensureDropView(View view) throws IOException {
+        if (view.dropped) return;
+
+        ensureDropViews(view.dependedOn);
+        outputDropView(view);
+        view.dropped = true;
+    }
+
+    protected void dumpViews(String schema) throws IOException {
+        dumpViews(views.get(schema).values());
+    }
+
+    protected void dumpViews(Collection<View> views) throws IOException {
+        for (View view : views) {
+            dumpView(view);
+        }
+    }
+
+    protected void dumpView(View view) throws IOException {
+        if (view.dumped) return;
+
+        boolean available = true;
+        for (Viewed need : view.dependsOn) {
+            if (need instanceof View)
+                dumpView((View)need);
+            if (!need.dumped) {
+                available = false;
+                break;
+            }
+        }
+        if (!available) return;
+        
+        ensureDropView(view);
+        output.write(view.definition);
+        output.write(NL);
+        view.dumped = true;
+    }
+
+    protected void outputDropView(View view) throws IOException {
+        StringBuilder sql = new StringBuilder("DROP VIEW IF EXISTS ");
+        qualifiedName(view, sql);
+        sql.append(";").append(NL);
+        output.write(sql.toString());
+    }
+
     protected void keys(Collection<String> keys, StringBuilder sql) {
         sql.append('(');
         boolean first = true;
@@ -618,7 +751,7 @@ public class DumpClient
         sql.append(')');
     }
 
-    protected void qualifiedName(Table table, StringBuilder sql) {
+    protected void qualifiedName(Named table, StringBuilder sql) {
         if (!table.schema.equals(defaultSchema)) {
             identifier(table.schema, sql, true);
             sql.append('.');
