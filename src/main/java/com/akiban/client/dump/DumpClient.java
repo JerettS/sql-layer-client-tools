@@ -309,7 +309,8 @@ public class DumpClient
                 }
                 rs.close();
             }
-        }        
+        }
+        stmt.close();
     }
 
     protected static class Named {
