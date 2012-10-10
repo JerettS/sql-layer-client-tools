@@ -102,16 +102,3 @@ CREATE INDEX name ON child(name);
 CREATE INDEX pc_gi ON child(parent.name, name) USING LEFT JOIN;
 
 
---- x_pk
-
-DROP TABLE IF EXISTS x_pk;
-
-CREATE TABLE x_pk(
-  str VARCHAR(16) CHARACTER SET utf8 COLLATE utf8_bin
-);
-
-
-
-INSERT INTO x_pk VALUES('alfa'),
-                       ('bravo');
-
