@@ -262,7 +262,6 @@ public class DumpClient
         kstmt.setString(2, table);
         kstmt.setString(3, constraint);
         ResultSet rs = kstmt.executeQuery();
-        rs = kstmt.executeQuery();
         while (rs.next()) {
             keys.add(rs.getString(1));
         }
@@ -432,7 +431,7 @@ public class DumpClient
         if (dumpSchema) {
             Set<View> views = new TreeSet<View>();
             dependentViews(table, views);
-            if (views != null)
+            if (!views.isEmpty())
                 ensureDropViews(views);
             outputDropTables(table);
             output.write(NL);
@@ -440,7 +439,7 @@ public class DumpClient
             output.write(NL);
             outputCreateIndexes(table);
             output.write(NL);
-            if (views != null)
+            if (!views.isEmpty())
                 dumpViews(views);
         }
         if (dumpData) {
