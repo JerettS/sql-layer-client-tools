@@ -313,17 +313,23 @@ public class DumpClient
         stmt.close();
     }
 
-    protected static class Named {
+    protected static class Named implements Comparable<Named> {
         String schema, name;
         
         public Named(String schema, String name) {
             this.schema = schema;
             this.name = name;
         }
+
+        @Override
+        public int compareTo(Named o) {
+            int cmp = schema.compareTo(o.schema);
+            return cmp == 0 ? name.compareTo(o.name) : cmp;
+        }
     }
 
     protected static class Viewed extends Named {
-        Set<View> dependedOn = new HashSet<View>();
+        Set<View> dependedOn = new TreeSet<View>();
         boolean dropped, dumped;
         
         public Viewed(String schema, String name) {
@@ -343,7 +349,7 @@ public class DumpClient
     
     protected static class View extends Viewed {
         String definition;
-        Set<Viewed> dependsOn = new HashSet<Viewed>();
+        Set<Viewed> dependsOn = new TreeSet<Viewed>();
         
         public View(String schema, String name, String definition) {
             super(schema, name);
@@ -424,7 +430,7 @@ public class DumpClient
         outputGroupSummary(table, 1);
         output.write(NL);
         if (dumpSchema) {
-            Set<View> views = new HashSet<View>();
+            Set<View> views = new TreeSet<View>();
             dependentViews(table, views);
             if (views != null)
                 ensureDropViews(views);
