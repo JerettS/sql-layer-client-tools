@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CLIENT_JAR=akiban-client-tools-1.3.2-SNAPSHOT.jar
+CLIENT_JAR=akiban-client-tools-1.3.2.jar
 JDBC_JAR=postgresql.jar
 BASEDIR="$(dirname "$0")"
 
