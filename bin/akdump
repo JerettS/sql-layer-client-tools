@@ -13,12 +13,12 @@ elif [ -f "${BASEDIR}/../lib/${CLIENT_JAR}" ]; then
     JDIR="$CDIR/client"
 else
     # Package installation: hopefully in official places.
-    CLIENT_JAR=akiban-client-tools.jar # Until file header edited by packaging.
+    CLIENT_JAR=akiban-client-tools.jar
     CDIR=/usr/share/akiban
     JDIR=$CDIR/client
 fi
 
 [ -r "${CDIR}/${CLIENT_JAR}" ] || { echo "$0: Error: Couldn't find ${CDIR}/${CLIENT_JAR}"; exit 1; }
 
-CLASSPATH="${CDIR}/${CLIENT_JAR}:/${JDIR}/*"
+CLASSPATH="${CDIR}/${CLIENT_JAR}:${JDIR}/*"
 java -cp "${CLASSPATH}" com.akiban.client.dump.DumpClient "$@"
