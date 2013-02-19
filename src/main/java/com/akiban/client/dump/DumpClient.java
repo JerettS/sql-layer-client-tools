@@ -32,6 +32,8 @@ public class DumpClient
     private File outputFile = null;
     private String host = DEFAULT_HOST;
     private int port = DEFAULT_PORT;
+    private String user = "system";
+    private String password = "system";
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
     private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
     private Map<String,Map<String,View>> views = new TreeMap<String,Map<String, View>>();
@@ -81,6 +83,12 @@ public class DumpClient
                 else if ("-p".equals(arg) || ("--port".equals(arg))) {
                     setPort(Integer.parseInt(args[i++]));
                 }
+                else if ("-u".equals(arg) || ("--user".equals(arg))) {
+                    setUser(args[i++]);
+                }
+                else if ("-w".equals(arg) || ("--password".equals(arg))) {
+                    setPassword(args[i++]);
+                }
                 else if ("--insert-max-rows".equals(arg)) {
                     setInsertMaxRowCount(Integer.parseInt(args[i++]));
                 }
@@ -126,6 +134,18 @@ public class DumpClient
     }
     public void setPort(int port) {
         this.port = port;
+    }
+    public String getUser() {
+        return user;
+    }
+    public void setUser(String user) {
+        this.user = user;
+    }
+    public String getPassword() {
+        return password;
+    }
+    public void setPassword(String password) {
+        this.password = password;
     }
     public int getInsertMaxRowCount() {
         return insertMaxRowCount;
@@ -802,7 +822,7 @@ public class DumpClient
         String url = String
             .format("jdbc:postgresql://%s:%d/%s",
                     host, port, (defaultSchema != null) ? defaultSchema : "information_schema");
-        connection = DriverManager.getConnection(url, "system", "system");
+        connection = DriverManager.getConnection(url, user, password);
         if (dumpData)
             copyManager = new CopyManager((org.postgresql.core.BaseConnection)connection);
     }
