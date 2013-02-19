@@ -55,7 +55,7 @@ public class DumpClient
     }
 
     protected void usage() {
-        System.out.println("DumpClient [--no-schemas] [-no-data] [-o file] [-h host] [-p port] schemas...");
+        System.out.println("DumpClient [--no-schemas] [-no-data] [-o file] [-h host] [-p port] [-u user] [-w password] schemas...");
         System.out.println("If no schemas are given, all are dumped.");
     }
 
