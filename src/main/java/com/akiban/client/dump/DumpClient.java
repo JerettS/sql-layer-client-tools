@@ -37,6 +37,7 @@ public class DumpClient
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
     private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
     private Map<String,Map<String,View>> views = new TreeMap<String,Map<String, View>>();
+    private Queue<String> afterDataStatements = new ArrayDeque<String>();
     private int insertMaxRowCount = DEFAULT_INSERT_MAX_ROW_COUNT;
     private String defaultSchema = null;
     private Writer output;
@@ -464,6 +465,13 @@ public class DumpClient
         }
         if (dumpData) {
             dumpData(table);
+            if (!afterDataStatements.isEmpty()) {
+                String stmt;
+                while ((stmt = afterDataStatements.poll()) != null) {
+                    output.write(stmt);
+                }
+                output.write(NL);
+            }
         }
     }
 
@@ -557,9 +565,20 @@ public class DumpClient
                 String sequenceSchema = rs.getString(9);
                 String sequenceName = rs.getString(10);
                 Sequence seq = sequences.get(sequenceSchema).get(sequenceName);
-                sql.append(" GENERATED ").append(identityGenerate);
-                sql.append(" AS IDENTITY (START WITH ").append(seq.startWith);
-                sql.append(", INCREMENT BY ").append(seq.incrementBy).append (")");
+                String generated = " GENERATED " + identityGenerate +
+                    " AS IDENTITY (START WITH " + seq.startWith +
+                    ", INCREMENT BY " + seq.incrementBy + ")";
+                if (dumpData && "ALWAYS".equals(identityGenerate)) {
+                    StringBuilder sql2 = new StringBuilder("ALTER TABLE ");
+                    qualifiedName(table, sql2);
+                    sql2.append(" ALTER COLUMN ");
+                    identifier(column, sql2, false);
+                    sql2.append(" SET").append(generated).append(";").append(NL);
+                    afterDataStatements.add(sql2.toString());
+                }
+                else {
+                    sql.append(generated);
+                }
             }
             
             if (pkey != null) {
