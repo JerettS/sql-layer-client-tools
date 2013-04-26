@@ -630,10 +630,14 @@ public class DumpClient
             sql.append(type.toUpperCase());
             sql.append('(').append(length).append(')');
         }
-        else if ("varbinary".equals(type)) {
-            sql.append("VARCHAR");
+        else if ("varbinary".equals(type) ||
+                 "binary".equals(type)) {
+            sql.append("binary".equals(type) ? "CHAR" : "VARCHAR");
             sql.append('(').append(length).append(')');
             sql.append(" FOR BIT DATA");
+        }
+        else if ("float".equals(type)) {
+            sql.append("REAL");
         }
         else {
             // Fixed-size numerics have a length, but it doesn't mean much.
