@@ -2,7 +2,7 @@
 
 SETLOCAL
 
-SET CLIENT_JAR=akiban-client-tools-1.3.6-SNAPSHOT.jar
+SET CLIENT_JAR=akiban-client-tools-1.3.6.jar
 
 IF EXIST "%~dp0..\pom.xml" GOTO FROM_BUILD
 
