@@ -13,7 +13,7 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.akiban.client.dump;
+package com.foundationdb.client.dump;
 
 import java.io.*;
 import java.sql.*;
