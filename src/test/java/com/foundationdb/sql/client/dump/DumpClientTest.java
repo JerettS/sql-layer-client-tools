@@ -13,7 +13,7 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.foundationdb.client.dump;
+package com.foundationdb.sql.client.dump;
 
 /* (Not separate from server yet.)
 import com.foundationdb.junit.NamedParameterizedRunner;

@@ -2,7 +2,7 @@
 
 SETLOCAL
 
-SET CLIENT_JAR=foundationdb-client-tools-1.3.7-SNAPSHOT.jar
+SET CLIENT_JAR=foundationdb-sql-layer-client-tools-1.3.7-SNAPSHOT.jar
 
 IF EXIST "%~dp0..\pom.xml" GOTO FROM_BUILD
 
@@ -25,7 +25,7 @@ SET CLASSPATH=%BUILD_HOME%\target\%CLIENT_JAR%;%BUILD_HOME%\target\dependency\*
 GOTO RUN_CMD
 
 :RUN_CMD
-java %JVM_OPTS% -cp "%CLASSPATH%" com.foundationdb.client.dump.DumpClient %*
+java %JVM_OPTS% -cp "%CLASSPATH%" com.foundationdb.sql.client.dump.DumpClient %*
 GOTO EOF
 
 :EOF
