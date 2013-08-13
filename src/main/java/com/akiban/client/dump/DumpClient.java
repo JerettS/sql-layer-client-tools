@@ -175,7 +175,8 @@ public class DumpClient
             ResultSet rs = stmt.executeQuery("SELECT schema_name FROM information_schema.schemata");
             while (rs.next()) {
                 String name = rs.getString(1);
-                if (!"information_schema".equals(name)) {
+                if (!"information_schema".equals(name) &&
+                    !"security_schema".equals(name)) {
                     addSchema(name);
                 }
             }
@@ -454,6 +455,8 @@ public class DumpClient
             dependentViews(table, views);
             if (!views.isEmpty())
                 ensureDropViews(views);
+            if (!table.children.isEmpty())
+                outputDropGroup(table);
             outputDropTables(table);
             output.write(NL);
             outputCreateTables(table);
@@ -489,6 +492,13 @@ public class DumpClient
         for (Table child : table.children) {
             outputGroupSummary(child, depth + 1);
         }
+    }
+
+    protected void outputDropGroup(Table table) throws IOException {
+        StringBuilder sql = new StringBuilder("DROP GROUP IF EXISTS ");
+        qualifiedName(table, sql);
+        sql.append(";").append(NL);
+        output.write(sql.toString());
     }
 
     protected void outputDropTables(Table parentTable) throws IOException {
