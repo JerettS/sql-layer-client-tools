@@ -1,29 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.akiban</groupId>
-    <artifactId>akiban-client-tools</artifactId>
+    <groupId>com.foundationdb</groupId>
+    <artifactId>foundationdb-sql-layer-client-tools</artifactId>
     <packaging>jar</packaging>
     <version>1.3.7-SNAPSHOT</version>
-    <name>akiban-client-tools</name>
+    <name>FoundationDB SQL Layer Client Tools</name>
     <properties>
-        <!-- this is the default version number, hudson job sets this to the official number -->
-        <BZR_REVISION></BZR_REVISION>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>akiban</id>
-            <name>akiban-snapshots</name>
-            <url>http://akiban.artifactoryonline.com/akiban/libs-snapshots-local</url>
-        </snapshotRepository>
-        <repository>
-            <id>akiban</id>
-            <name>akiban-releases</name>
-            <url>http://akiban.artifactoryonline.com/akiban/libs-releases-local</url>
-        </repository>
-    </distributionManagement>
     <dependencies>
         <dependency>
             <groupId>junit</groupId>

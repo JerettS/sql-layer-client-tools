@@ -2,15 +2,15 @@
 
 SETLOCAL
 
-SET CLIENT_JAR=akiban-client-tools-1.3.7-SNAPSHOT.jar
+SET CLIENT_JAR=foundationdb-sql-layer-client-tools-1.3.7-SNAPSHOT.jar
 
 IF EXIST "%~dp0..\pom.xml" GOTO FROM_BUILD
 
 REM Installation Configuration
 
-FOR %%P IN ("%~dp0..") DO SET AKIBAN_HOME=%%~fP
+FOR %%P IN ("%~dp0..") DO SET FOUNDATIONDB_HOME=%%~fP
 
-SET CLASSPATH=%AKIBAN_HOME%\lib\%CLIENT_JAR%;%AKIBAN_HOME%\lib\client\*
+SET CLASSPATH=%FOUNDATIONDB_HOME%\lib\%CLIENT_JAR%;%FOUNDATIONDB_HOME%\lib\client\*
 
 GOTO RUN_CMD
 
@@ -25,7 +25,7 @@ SET CLASSPATH=%BUILD_HOME%\target\%CLIENT_JAR%;%BUILD_HOME%\target\dependency\*
 GOTO RUN_CMD
 
 :RUN_CMD
-java %JVM_OPTS% -cp "%CLASSPATH%" com.akiban.client.dump.DumpClient %*
+java %JVM_OPTS% -cp "%CLASSPATH%" com.foundationdb.sql.client.dump.DumpClient %*
 GOTO EOF
 
 :EOF
