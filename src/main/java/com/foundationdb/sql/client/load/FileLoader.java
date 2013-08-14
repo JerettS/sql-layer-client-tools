@@ -39,7 +39,7 @@ abstract class FileLoader
 
     abstract SegmentLoader wholeFile() throws IOException;
 
-    abstract List<SegmentLoader> split(int nsegments) throws IOException;
+    abstract List<? extends SegmentLoader> split(int nsegments) throws IOException;
 
     protected Connection getConnection(boolean autoCommit) throws SQLException {
         return client.getConnection(autoCommit);

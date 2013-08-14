@@ -20,6 +20,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.postgresql.copy.CopyIn;
 
@@ -88,10 +90,43 @@ class CopyLoader extends SegmentLoader
             if (position + buffer.limit() > end) {
                 buffer.limit((int)(end - position));
             }
-            channel.read(buffer);
+            channel.read(buffer, position);
             copy.writeToCopy(buffer.array(), 0, buffer.position());
             position += buffer.position();
         }
+    }
+
+    /** Split this <code>CopyLoader</code> at the given position. */
+    public CopyLoader split(long at) {
+        assert ((at > start) && (at < end));
+        CopyLoader second = new CopyLoader(client, channel, sql, at, end);
+        end = at;
+        return second;
+    }
+
+    public List<CopyLoader> splitByLines(int nsegments) throws IOException {
+        List<CopyLoader> segments = new ArrayList<>(nsegments);
+        segments.add(this);
+        CopyLoader last = this;
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                                          FileLoader.SMALL_BUFFER_SIZE, 1,
+                                          last.start, last.end);
+        while (nsegments > 1) {
+            long mid = last.start + (last.end - last.start) / nsegments;
+            mid = lines.newLineNear(mid);
+            if ((mid <= last.start) || (mid >= last.end)) break; // Not enough lines.
+            last = last.split(mid);
+            segments.add(last);
+            lines.position(mid);
+            nsegments--;
+        }
+        return segments;
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(" +
+            sql + " from " + channel + "[" + start + ", " + end + "])";
     }
 
 }

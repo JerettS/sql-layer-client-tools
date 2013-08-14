@@ -55,6 +55,7 @@ public class LoadClient
     private String schema = System.getProperty("user.name");
     private String target = null;
     private Format format = Format.AUTO;
+    private String encoding = "UTF-8";
     private int nthreads = 1;
     private long commitFrequency = 0;
     private List<File> files = new ArrayList<>();
@@ -182,6 +183,12 @@ public class LoadClient
     public void setFormat(Format format) {
         this.format = format;
     }
+    public String getEncoding() {
+        return encoding;
+    }
+    public void setEncoding(String encoding) {
+        this.encoding = encoding;
+    }
     public int getThreads() {
         return nthreads;
     }
@@ -263,7 +270,7 @@ public class LoadClient
             if (!quiet) {
                 System.out.println("Loading " + format.name + " file " + file + "...");
             }
-            List<SegmentLoader> segments;
+            List<? extends SegmentLoader> segments;
             if (nthreads == 1)
                 segments = Collections.singletonList(loader.wholeFile());
             else

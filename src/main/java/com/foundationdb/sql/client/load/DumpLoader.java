@@ -20,6 +20,7 @@ import java.nio.channels.FileChannel;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 class DumpLoader extends FileLoader
@@ -32,9 +33,9 @@ class DumpLoader extends FileLoader
 
     @Override
     public void checkFormat() throws IOException {
-        LineReader reader = new LineReader(channel);
+        LineReader lines = new LineReader(channel, client.getEncoding());
         while (true) {
-            String line = reader.readLine();
+            String line = lines.readLine();
             if (line == null) break;
             if (line.startsWith("INSERT INTO "))
                 return;         // Good.
@@ -47,8 +48,7 @@ class DumpLoader extends FileLoader
                 hasDDL = true;
                 break;
             }
-            if ((line.length() == 0) ||
-                line.startsWith("--- "))
+            if (line.isEmpty() || line.startsWith("--- "))
                 continue;
             throw new UnsupportedOperationException("File contains " + line + " and cannot be fast loaded. Try psql -f instead.");
         }
@@ -79,7 +79,9 @@ class DumpLoader extends FileLoader
 
     protected long executeSegment(long start, long end) 
             throws SQLException, IOException {
-        LineReader reader = new LineReader(channel, "UTF-8", BUFFER_SIZE, BUFFER_SIZE);
+        LineReader lines = new LineReader(channel, client.getEncoding(), 
+                                          BUFFER_SIZE, BUFFER_SIZE, 
+                                          start, end);
         StringBuilder str = new StringBuilder();
         Connection conn = getConnection(hasDDL);
         Statement stmt = conn.createStatement();
@@ -90,7 +92,7 @@ class DumpLoader extends FileLoader
             top: while (true) {
                 str.setLength(0);
                 while (true) {
-                    if (!reader.readLine(str)) {
+                    if (!lines.readLine(str)) {
                         if (str.length() == 0) break top;
                         else break;
                     }
@@ -146,7 +148,23 @@ class DumpLoader extends FileLoader
         return new DumpSegmentLoader(start, end);
     }
 
-    public List<SegmentLoader> split(int nsegments) throws IOException {
-        throw new UnsupportedOperationException();
+    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
+        List<DumpSegmentLoader> segments = new ArrayList<>(nsegments);
+        long start = 0;
+        long end = channel.size();
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                                          FileLoader.SMALL_BUFFER_SIZE, 1,
+                                          start, end);
+        while (nsegments > 1) {
+            long mid = start + (end - start) / nsegments;
+            mid = lines.newLineNear(mid, ';');
+            if ((mid <= start) || (mid >= end)) break; // Not enough lines.
+            segments.add(new DumpSegmentLoader(start, mid));
+            start = mid;
+            lines.position(mid);
+            nsegments--;
+        }
+        segments.add(new DumpSegmentLoader(start, end));
+        return segments;
     }
 }

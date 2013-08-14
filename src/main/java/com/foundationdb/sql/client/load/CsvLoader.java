@@ -33,27 +33,32 @@ class CsvLoader extends FileLoader
     }
 
     public SegmentLoader wholeFile() throws IOException {
+        return getCopyLoader();
+    }
+
+    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
+        return getCopyLoader().splitByLines(nsegments);
+    }
+
+    protected CopyLoader getCopyLoader() throws IOException {
         long start = 0;
         long end = channel.size();
         String headerLine = null;
         if (header) {
-            LineReader reader = new LineReader(channel, 1); // Need accurate position.
-            headerLine = reader.readLine();
-            start = reader.position();
+            LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
+            headerLine = lines.readLine();
+            start = lines.position();
         }
         StringBuilder sql = new StringBuilder();
         sql.append("COPY ").append(target);
         if ((headerLine != null) && (target.indexOf('(') < 0))
             sql.append("(").append(headerLine).append(")");
-        sql.append(" FROM STDIN WITH (FORMAT CSV");
-        // TODO: DELIMITER, QUOTE, ESCAPE, ENCODING, ...?
+        sql.append(" FROM STDIN WITH (ENCODING '") .append(client.getEncoding())
+           .append("', FORMAT CSV");
+        // TODO: DELIMITER, QUOTE, ESCAPE, ...?
         if (client.getCommitFrequency() > 0)
             sql.append(", COMMIT ").append(client.getCommitFrequency());
         sql.append(")");
         return new CopyLoader(client, channel, sql.toString(), start, end);
-    }
-
-    public List<SegmentLoader> split(int nsegments) throws IOException {
-        throw new UnsupportedOperationException();
     }
 }

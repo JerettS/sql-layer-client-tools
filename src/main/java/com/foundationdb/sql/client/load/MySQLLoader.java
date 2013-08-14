@@ -30,6 +30,14 @@ class MySQLLoader extends FileLoader
     }
 
     public SegmentLoader wholeFile() throws IOException {
+        return getCopyLoader();
+    }
+
+    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
+        return getCopyLoader().splitByLines(nsegments);
+    }
+
+    protected CopyLoader getCopyLoader() throws IOException {
         long start = 0;
         long end = channel.size();
         StringBuilder sql = new StringBuilder();
@@ -41,25 +49,21 @@ class MySQLLoader extends FileLoader
         return new CopyLoader(client, channel, sql.toString(), start, end);
     }
 
-    public List<SegmentLoader> split(int nsegments) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
     /** Is this .sql file really a MySQL dump file? */
     public boolean isMySQLDump() throws IOException {
-        LineReader reader = new LineReader(channel);
-        String header = reader.readLine();
-        return header.startsWith("-- MySQL dump ");
+        LineReader lines = new LineReader(channel, client.getEncoding());
+        String header = lines.readLine();
+        return ((header != null) && header.startsWith("-- MySQL dump "));
     }
 
     @Override
     public void checkFormat() throws IOException {
-        LineReader reader = new LineReader(channel);
+        LineReader lines = new LineReader(channel, client.getEncoding());
         while (true) {
-            String line = reader.readLine();
+            String line = lines.readLine();
             if (line == null) break;
             if ((line.length() == 0) ||
-                line.startsWith("-- ") ||
+                line.startsWith("--") ||
                 line.startsWith("/*"))
                 continue;
             if (line.startsWith("LOCK ") ||
