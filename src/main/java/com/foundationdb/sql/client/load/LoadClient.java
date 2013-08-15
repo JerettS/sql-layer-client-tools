@@ -210,11 +210,14 @@ public class LoadClient
     public Collection<File> getFiles() {
         return files;
     }
+    public void addFile(File file) {
+        files.add(file);
+    }
     public void addFile(String filename) {
-        files.add(new File(filename));
+        addFile(new File(filename));
     }
 
-    public void load(File file) throws Exception {
+    public long load(File file) throws Exception {
         FileInputStream stream = new FileInputStream(file);
         try {
             FileChannel channel = stream.getChannel();
@@ -264,7 +267,7 @@ public class LoadClient
             }
             catch (UnsupportedOperationException ex) {
                 System.err.println(ex.getMessage());
-                return;
+                return -1;
             }
             long startTime = System.currentTimeMillis();
             if (!quiet) {
@@ -302,6 +305,7 @@ public class LoadClient
                 System.out.println("... loaded " + total + " rows in " +
                                    (endTime - startTime) / 1.0e3 + " s.");
             }
+            return total;
         }
         finally {
             stream.close();

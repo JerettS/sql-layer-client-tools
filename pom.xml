@@ -128,6 +128,7 @@
                         <!-- General files that can't have or don't need header -->
                         <exclude>.bzrignore</exclude>
                         <exclude>**/*.sql</exclude>
+                        <exclude>**/*.properties</exclude>
                         <!-- No extension. Manually add header and ignore -->
                         <exclude>bin/*</exclude>
                     </excludes>
