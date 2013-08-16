@@ -15,6 +15,8 @@
 
 package com.foundationdb.sql.client.dump;
 
+import com.foundationdb.sql.client.ClientTestBase;
+
 /* (Not separate from server yet.)
 import com.foundationdb.junit.NamedParameterizedRunner;
 import com.foundationdb.junit.NamedParameterizedRunner.TestParameters;
@@ -31,22 +33,19 @@ import static org.junit.Assert.*;
 import java.io.*;
 import java.sql.*;
 import java.util.*;
-import java.util.regex.Pattern;
 
 @RunWith(Parameterized.class)
-public class DumpClientTest
+public class DumpClientTest extends ClientTestBase
 {
     public static final File RESOURCE_DIR =
         new File("src/test/resources/"
                  + DumpClientTest.class.getPackage().getName().replace('.', '/'));
-    public static final String SCHEMA_NAME = "dump_test";
-    public static final String USER_NAME = "test";
-    public static final String USER_PASSWORD = "test";
+    public static final String SQL_PATTERN = ".*\\.sql";
 
     @Parameters
     public static Collection<Object[]> dumps() throws Exception {
         List<Object[]> result = new ArrayList<Object[]>();
-        for (File sqlFile : listSQLFiles(RESOURCE_DIR)) {
+        for (File sqlFile : listMatchingFiles(RESOURCE_DIR, SQL_PATTERN)) {
             String caseName = sqlFile.getName().replace(".sql", "");
             result.add(new Object[] { caseName, sqlFile });
         }
@@ -63,7 +62,7 @@ public class DumpClientTest
     
     @After
     public void cleanUp() throws Exception {
-        openConnection().createStatement().execute("DROP SCHEMA IF EXISTS " + SCHEMA_NAME + " CASCADE");
+        dropSchema();
     }
 
     @Test
@@ -75,13 +74,7 @@ public class DumpClientTest
         Connection conn = openConnection();
         Statement stmt = conn.createStatement();
         for (String sql : loaded.split("\\;\\s*")) {
-            try {
-                stmt.execute(sql);
-            }
-            catch (SQLException ex) {
-                if (sql.indexOf("DROP TABLE") < 0) // No IF EXISTS yet.
-                    throw ex;
-            }
+            stmt.execute(sql);
         }
         stmt.close();
         conn.close();
@@ -95,62 +88,6 @@ public class DumpClientTest
         String dumped = fileContents(dumpFile);
 
         assertEquals(caseName, loaded, dumped);
-    }
-
-    protected Connection openConnection() throws Exception {
-        String url = String.format("jdbc:postgresql://%s:%d/%s",
-                                   DumpClient.DEFAULT_HOST, DumpClient.DEFAULT_PORT,
-                                   SCHEMA_NAME);
-        Class.forName(DumpClient.DRIVER_NAME);
-        return DriverManager.getConnection(url, USER_NAME, USER_PASSWORD);
-    }
-
-    public static File[] listSQLFiles(File dir) {
-        File[] result = dir.listFiles(new RegexFilenameFilter(".*\\.sql"));
-        Arrays.sort(result, new Comparator<File>() {
-                        public int compare(File f1, File f2) {
-                            return f1.getName().compareTo(f2.getName());
-                        }
-                    });
-        return result;
-    }
-
-    public static String fileContents(File file) throws IOException {
-        FileReader reader = null;
-        try {
-            reader = new FileReader(file);
-            StringBuilder str = new StringBuilder();
-            char[] buf = new char[128];
-            while (true) {
-                int nc = reader.read(buf);
-                if (nc < 0) break;
-                str.append(buf, 0, nc);
-            }
-            return str.toString();
-        }
-        finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                }
-                catch (IOException ex) {
-                }
-            }
-        }
-    }
-
-    public static class RegexFilenameFilter implements FilenameFilter
-    {
-        Pattern pattern;
-
-        public RegexFilenameFilter(String regex) {
-            this.pattern = Pattern.compile(regex);
-        }
-
-        @Override
-        public boolean accept(File dir, String name) {
-            return pattern.matcher(name).matches();
-        }
     }
 
 }
