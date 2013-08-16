@@ -122,13 +122,22 @@
                 <version>1.10.b1</version>
                 <configuration>
                     <header>src/etc/header.txt</header>
+                    <headerSections>
+                        <headerSection>
+                            <key>__YEAR_SECTION__</key>
+                            <defaultValue>2013</defaultValue>
+                            <ensureMatch>20(12|13)\-2013|2013</ensureMatch>
+                        </headerSection>
+                    </headerSections>
                     <strictCheck>true</strictCheck>
                     <failIfMissing>true</failIfMissing>
                     <excludes>
                         <!-- General files that can't have or don't need header -->
-                        <exclude>.bzrignore</exclude>
+                        <exclude>.gitignore</exclude>
+                        <exclude>README.md</exclude>
                         <exclude>**/*.sql</exclude>
                         <exclude>**/*.properties</exclude>
+                        <exclude>**/src/test/resources/</exclude>
                         <!-- No extension. Manually add header and ignore -->
                         <exclude>bin/*</exclude>
                     </excludes>
