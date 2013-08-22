@@ -45,6 +45,8 @@ class MySQLLoader extends FileLoader
         sql.append(" FROM STDIN WITH (FORMAT MYSQL_DUMP");
         if (client.getCommitFrequency() > 0)
             sql.append(", COMMIT ").append(client.getCommitFrequency());
+        if (client.getMaxRetries() > 1)
+            sql.append(", RETRY ").append(client.getMaxRetries());
         sql.append(")");
         return new CopyLoader(client, channel, sql.toString(), start, end);
     }

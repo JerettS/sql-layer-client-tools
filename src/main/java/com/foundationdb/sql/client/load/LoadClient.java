@@ -58,6 +58,7 @@ public class LoadClient
     private String encoding = "UTF-8";
     private int nthreads = 1;
     private long commitFrequency = 0;
+    private int maxRetries = 1;
     private List<File> files = new ArrayList<>();
     private boolean quiet = false;
     private Deque<Connection> connections = new ConcurrentLinkedDeque<>();
@@ -124,6 +125,9 @@ public class LoadClient
                 else if ("-c".equals(arg) || ("--commit".equals(arg))) {
                     arg = args[i++];
                     setCommitFrequency("auto".equals(arg) ? COMMIT_AUTO : Long.parseLong(arg));
+                }
+                else if ("-r".equals(arg) || ("--retry".equals(arg))) {
+                    setMaxRetries(Integer.parseInt(args[i++]));
                 }
                 else if ("-q".equals(arg) || ("--quiet".equals(arg))) {
                     setQuiet(true);
@@ -200,6 +204,12 @@ public class LoadClient
     }
     public void setCommitFrequency(long commitFrequency) {
         this.commitFrequency = commitFrequency;
+    }
+    public int getMaxRetries() {
+        return maxRetries;
+    }
+    public void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
     }
     public boolean isQuiet() {
         return quiet;
