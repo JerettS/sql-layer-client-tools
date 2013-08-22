@@ -101,6 +101,7 @@ public class LineReaderTest
 
     protected File writeLines(int nlines, int lineWidth, String nl) throws IOException {
         File file = File.createTempFile("lines", ".txt");
+        file.deleteOnExit();
         FileOutputStream ostr = new FileOutputStream(file);
         for (int i = 0; i < nlines; i++) {
             byte[] b = String.format("%d", i+1).getBytes(encoding);

@@ -80,6 +80,7 @@ public class DumpClientTest extends ClientTestBase
         conn.close();
 
         File dumpFile = File.createTempFile("dump-", ".sql");
+        dumpFile.deleteOnExit();
         DumpClient client = new DumpClient();
         client.setOutputFile(dumpFile);
         client.addSchema(SCHEMA_NAME);
