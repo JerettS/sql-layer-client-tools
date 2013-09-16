@@ -12,9 +12,16 @@ elif [ -f "${BASEDIR}/../lib/${CLIENT_JAR}" ]; then
     CDIR="${BASEDIR}/../lib"
     JDIR="$CDIR/client"
 else
-    # Package installation: hopefully in official places.
+    # Package installation, Linux and OSX
+    if [ -d /usr/share/foundationdb/sql ]; then
+        CDIR=/usr/share/foundationdb/sql
+    elif [ -d /usr/local/foundationdb/sql ]; then
+        CDIR=/usr/local/foundationdb/sql
+    else
+        echo "Unknown install location"
+        exit 1
+    fi
     CLIENT_JAR=fdb-sql-layer-client-tools.jar
-    CDIR=/usr/share/foundationdb-sql
     JDIR=$CDIR/client
 fi
 
