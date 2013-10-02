@@ -37,7 +37,7 @@ class DumpLoader extends FileLoader
         while (true) {
             String line = lines.readLine();
             if (line == null) break;
-            if (line.startsWith("INSERT INTO "))
+            if (line.toUpperCase().startsWith("INSERT INTO "))
                 return;         // Good.
             if (line.startsWith("DROP ")) {
                 if (client.getThreads() > 1)

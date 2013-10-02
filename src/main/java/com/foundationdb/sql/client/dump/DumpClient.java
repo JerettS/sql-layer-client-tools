@@ -15,25 +15,31 @@
 
 package com.foundationdb.sql.client.dump;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+
+import org.postgresql.copy.CopyManager;
+
 import java.io.*;
 import java.sql.*;
 import java.util.*;
-
-import org.postgresql.copy.CopyManager;
 
 public class DumpClient
 {
     protected static final String DRIVER_NAME = "org.postgresql.Driver";
     protected static final String DEFAULT_HOST = "localhost";
     protected static final int DEFAULT_PORT = 15432;
+    protected static final String DEFAULT_USER = "system";
+    protected static final String DEFAULT_PASSWORD = "system";
     protected static final int DEFAULT_INSERT_MAX_ROW_COUNT = 100;
     private static final String NL = System.getProperty("line.separator");
     private boolean dumpSchema = true, dumpData = true;
     private File outputFile = null;
     private String host = DEFAULT_HOST;
     private int port = DEFAULT_PORT;
-    private String user = "system";
-    private String password = "system";
+    private String user = DEFAULT_USER;
+    private String password = DEFAULT_PASSWORD;
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
     private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
     private Map<String,Map<String,View>> views = new TreeMap<String,Map<String, View>>();
@@ -44,9 +50,55 @@ public class DumpClient
     private Connection connection;
     private CopyManager copyManager;
 
+    static class CommandOptions {
+        @Parameter(names = "--help", help = true)
+        boolean help;
+
+        @Parameter(description = "schema(s)")
+        List<String> schemas = new ArrayList<>();
+
+        @Parameter(names = { "-s", "--no-schemas" }, description = "omit DDL from output")
+        boolean noSchemas;
+
+        @Parameter(names = { "-d", "--no-data" }, description = "omit data from output")
+        boolean noData;
+
+        @Parameter(names = { "-o", "--output" }, description = "name of output file")
+        File output;
+
+        @Parameter(names = { "-h", "--host" }, description = "name of server host")
+        String host = DEFAULT_HOST;
+
+        @Parameter(names = { "-p", "--port" }, description = "Postgres server port")
+        int port = DEFAULT_PORT;
+        
+        @Parameter(names = { "-u", "--user" }, description = "server user name")
+        String user = DEFAULT_USER;
+
+        @Parameter(names = { "-w", "--password" }, description = "server user password")
+        String password = DEFAULT_PASSWORD;
+
+        @Parameter(names = "--insert-max-rows", description = "number of rows per INSERT statement")
+        int insertMaxRows = DEFAULT_INSERT_MAX_ROW_COUNT;
+    }
+
     public static void main(String[] args) throws Exception {
-        DumpClient dumpClient = new DumpClient();
-        dumpClient.parseArgs(args);
+        CommandOptions options = new CommandOptions();
+        JCommander jc;
+        try {
+            jc = new JCommander(options, args);
+        }
+        catch (ParameterException ex) {
+            System.out.println(ex.getMessage());
+            return;
+        }
+        if (options.help) {
+            jc.setProgramName("fdbsqldump");
+            jc.usage();
+            System.out.println("If no schemas are given, all are dumped.");
+            return;
+        }
+        DumpClient dumpClient = new DumpClient(options);
         try {
             dumpClient.dump();
         }
@@ -55,55 +107,22 @@ public class DumpClient
         }
     }
 
-    protected void usage() {
-        System.out.println("DumpClient [--no-schemas] [--no-data] [-o file] [-h host] [-p port] [-u user] [-w password] schemas...");
-        System.out.println("If no schemas are given, all are dumped.");
-    }
-
-    protected void parseArgs(String[] args) throws Exception {
-        int i = 0;
-        while (i < args.length) {
-            String arg = args[i++];
-            if (arg.startsWith("-")) {
-                if ("--help".equals(arg)) {
-                    usage();
-                    System.exit(0);
-                }
-                else if ("-s".equals(arg) || ("--no-schemas".equals(arg))) {
-                    setDumpSchema(false);
-                }
-                else if ("-d".equals(arg) || ("--no-data".equals(arg))) {
-                    setDumpData(false);
-                }
-                else if ("-o".equals(arg) || ("--output".equals(arg))) {
-                    setOutputFile(new File(args[i++]));
-                }
-                else if ("-h".equals(arg) || ("--host".equals(arg))) {
-                    setHost(args[i++]);
-                }
-                else if ("-p".equals(arg) || ("--port".equals(arg))) {
-                    setPort(Integer.parseInt(args[i++]));
-                }
-                else if ("-u".equals(arg) || ("--user".equals(arg))) {
-                    setUser(args[i++]);
-                }
-                else if ("-w".equals(arg) || ("--password".equals(arg))) {
-                    setPassword(args[i++]);
-                }
-                else if ("--insert-max-rows".equals(arg)) {
-                    setInsertMaxRowCount(Integer.parseInt(args[i++]));
-                }
-                else {
-                    throw new Exception("Unknown switch: " + arg);
-                }
-            }
-            else {
-                addSchema(arg);
-            }
-        }
-    }
-
     public DumpClient() {
+    }
+
+    public DumpClient(CommandOptions options) {
+        setDumpSchema(!options.noSchemas);
+        setDumpData(!options.noData);
+        if (options.output != null)
+            setOutputFile(options.output);
+        setHost(options.host);
+        setPort(options.port);
+        setUser(options.user);
+        setPassword(options.password);
+        setInsertMaxRowCount(options.insertMaxRows);
+        for (String schema : options.schemas) {
+            addSchema(schema);
+        }
     }
 
     public boolean isDumpSchema() {
