@@ -83,6 +83,7 @@ public class LoadClientTest extends ClientTestBase
         long expectedCount = -1;
         String query = null;
         File expectedFile = null;
+        List<File> files = new ArrayList<>();
 
         for (String key : properties.stringPropertyNames()) {
             String value = properties.getProperty(key);
@@ -98,7 +99,7 @@ public class LoadClientTest extends ClientTestBase
                 client.setCommitFrequency(Long.parseLong(value));
             else if ("file".equals(key) ||
                      key.startsWith("file."))
-                client.addFile(new File(dir, value));
+                files.add(new File(dir, value));
             else if ("ddl".equals(key))
                 ddlFile = new File(dir, value);
             else if ("count".equals(key))
@@ -116,7 +117,7 @@ public class LoadClientTest extends ClientTestBase
 
         long count = 0;
         try {
-            for (File file : client.getFiles()) {
+            for (File file : files) {
                 count += client.load(file);
             }
         }
