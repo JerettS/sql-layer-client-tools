@@ -15,6 +15,7 @@
 
 package com.foundationdb.sql.client.dump;
 
+import com.beust.jcommander.converters.BaseConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -33,6 +34,7 @@ public class DumpClient
     protected static final String DEFAULT_USER = "system";
     protected static final String DEFAULT_PASSWORD = "system";
     protected static final int DEFAULT_INSERT_MAX_ROW_COUNT = 100;
+    protected static final int COMMIT_AUTO = -1;
     private static final String NL = System.getProperty("line.separator");
     private boolean dumpSchema = true, dumpData = true;
     private File outputFile = null;
@@ -46,9 +48,21 @@ public class DumpClient
     private Queue<String> afterDataStatements = new ArrayDeque<String>();
     private int insertMaxRowCount = DEFAULT_INSERT_MAX_ROW_COUNT;
     private String defaultSchema = null;
+    private long commitFrequency = 0;
     private Writer output;
     private Connection connection;
     private CopyManager copyManager;
+
+    public static class CommitConverter extends BaseConverter<Long> {
+        public CommitConverter(String optionName) {
+            super(optionName);
+        }
+
+        @Override
+        public Long convert(String value) {
+            return ("auto".equals(value) ? COMMIT_AUTO : Long.parseLong(value));
+        }
+    }
 
     static class CommandOptions {
         @Parameter(names = "--help", help = true)
@@ -80,6 +94,9 @@ public class DumpClient
 
         @Parameter(names = "--insert-max-rows", description = "number of rows per INSERT statement")
         int insertMaxRows = DEFAULT_INSERT_MAX_ROW_COUNT;
+
+        @Parameter(names = { "-c", "--commit" }, description = "commit every n rows", converter = CommitConverter.class)
+        Long commit;
     }
 
     public static void main(String[] args) throws Exception {
@@ -120,6 +137,8 @@ public class DumpClient
         setUser(options.user);
         setPassword(options.password);
         setInsertMaxRowCount(options.insertMaxRows);
+        if (options.commit != null)
+            setCommitFrequency(options.commit);
         for (String schema : options.schemas) {
             addSchema(schema);
         }
@@ -172,6 +191,12 @@ public class DumpClient
     }
     public void setInsertMaxRowCount(int insertMaxRowCount) {
         this.insertMaxRowCount = insertMaxRowCount;
+    }
+    public long getCommitFrequency() {
+        return commitFrequency;
+    }
+    public void setCommitFrequency(long commitFrequency) {
+        this.commitFrequency = commitFrequency;
     }
 
     public Collection<String> getSchemas() {
@@ -857,6 +882,10 @@ public class DumpClient
         sql.append(rootTable.name.replace("'", "''"));
         sql.append("',");
         sql.append(insertMaxRowCount);
+        if (commitFrequency > 0) {
+            sql.append(",");
+            sql.append(commitFrequency);
+        }
         sql.append(")");
         copyManager.copyOut(sql.toString(), output);
         output.write(NL);
@@ -875,6 +904,11 @@ public class DumpClient
             .format("jdbc:postgresql://%s:%d/%s",
                     host, port, (defaultSchema != null) ? defaultSchema : "information_schema");
         connection = DriverManager.getConnection(url, user, password);
+        if (commitFrequency == COMMIT_AUTO) {
+            Statement stmt = connection.createStatement();
+            stmt.execute("SET transactionPeriodicallyCommit TO 'true'");
+            stmt.close();
+        }
         if (dumpData)
             copyManager = new CopyManager((org.postgresql.core.BaseConnection)connection);
     }
