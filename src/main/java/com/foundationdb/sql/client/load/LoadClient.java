@@ -16,6 +16,7 @@
 package com.foundationdb.sql.client.load;
 
 import com.beust.jcommander.converters.BaseConverter;
+import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -72,6 +73,7 @@ public class LoadClient
     private long commitFrequency = 0;
     private int maxRetries = 1;
     private boolean quiet = false;
+    private String constraintCheckTime = "DEFERRED_WITH_RANGE_CACHE";
     private Deque<Connection> connections = new ConcurrentLinkedDeque<>();
 
     public static class FormatConverter extends BaseConverter<Format> {
@@ -93,6 +95,15 @@ public class LoadClient
         @Override
         public Long convert(String value) {
             return ("auto".equals(value) ? COMMIT_AUTO : Long.parseLong(value));
+        }
+    }
+
+    public static class ConstraintCheckTimeValidator implements IParameterValidator {
+        @Override
+        public void validate(String name, String value) throws ParameterException {
+            if (!value.matches("\\w+")) {
+                throw new ParameterException("Parameter " + name + " is not a keyword");
+            }
         }
     }
 
@@ -138,6 +149,9 @@ public class LoadClient
 
         @Parameter(names = { "-q", "--quiet" }, description = "no progress output")
         boolean quiet;
+
+        @Parameter(names = { "--constraint-check-time" }, description = "when to check uniqueness constraints", validateWith = ConstraintCheckTimeValidator.class)
+        String constraintCheckTime = "DEFERRED_WITH_RANGE_CACHE";
     }
 
     public static void main(String[] args) throws Exception {
@@ -183,6 +197,7 @@ public class LoadClient
             setCommitFrequency(options.commit);
         setMaxRetries(options.retry);
         setQuiet(options.quiet);
+        setConstraintCheckTime(options.constraintCheckTime);
     }
 
     public String getHost() {
@@ -256,6 +271,12 @@ public class LoadClient
     }
     public void setQuiet(boolean quiet) {
         this.quiet = quiet;
+    }
+    public String getConstraintCheckTime() {
+        return constraintCheckTime;
+    }
+    public void setConstraintCheckTime(String constraintCheckTime) {
+        this.constraintCheckTime = constraintCheckTime;
     }
 
     public long load(File file) throws Exception {
@@ -360,11 +381,18 @@ public class LoadClient
             connection = DriverManager.getConnection(url, user, password);
         }
         connection.setAutoCommit(autoCommit);
+        Statement stmt = null;
         if (commitFrequency == COMMIT_AUTO) {
-            Statement stmt = connection.createStatement();
+            stmt = connection.createStatement();
             stmt.execute("SET transactionPeriodicallyCommit TO 'true'");
-            stmt.close();
         }
+        if (commitFrequency != 0) {
+            if (stmt == null)
+                stmt = connection.createStatement();
+            stmt.execute("SET constraintCheckTime TO '" + constraintCheckTime + "'");
+        }
+        if (stmt != null)
+            stmt.close();
         if (!autoCommit)
             connection.rollback();
         return connection;
