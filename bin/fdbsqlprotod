@@ -1,0 +1,31 @@
+#!/bin/bash
+
+CLIENT_JAR=fdb-sql-layer-client-tools-1.3.7-SNAPSHOT.jar
+BASEDIR="$(dirname "$0")"
+
+if [ -f "${BASEDIR}/../pom.xml" ]; then
+    # Developer running bin/fdbsqlprotoc from working dir: use just built / copied.
+    CDIR="${BASEDIR}/../target"
+    JDIR="${BASEDIR}/../target/dependency"
+elif [ -f "${BASEDIR}/../lib/${CLIENT_JAR}" ]; then
+    # Installed outside FHS: assume from bin and jars are in lib.
+    CDIR="${BASEDIR}/../lib"
+    JDIR="$CDIR/client"
+else
+    # Package installation, Linux and OSX
+    if [ -d /usr/share/foundationdb/sql ]; then
+        CDIR=/usr/share/foundationdb/sql
+    elif [ -d /usr/local/foundationdb/sql ]; then
+        CDIR=/usr/local/foundationdb/sql
+    else
+        echo "Unknown install location"
+        exit 1
+    fi
+    CLIENT_JAR=fdb-sql-layer-client-tools.jar
+    JDIR=$CDIR/client
+fi
+
+[ -r "${CDIR}/${CLIENT_JAR}" ] || { echo "$0: Error: Couldn't find ${CDIR}/${CLIENT_JAR}"; exit 1; }
+
+CLASSPATH="${CDIR}/${CLIENT_JAR}:${JDIR}/*"
+java -cp "${CLASSPATH}" com.foundationdb.sql.client.protobuf.ProtobufClient "$@"
