@@ -111,7 +111,7 @@ public class ProtobufClient
             System.out.println("Cannot specify output file for more than one group");
         }
         ProtobufClient protoClient = new ProtobufClient(options);
-        protoClient.writeGroups();
+        protoClient.writeProtobuf();
     }
 
     public ProtobufClient() {
@@ -182,7 +182,7 @@ public class ProtobufClient
         groups.add(group);
     }
 
-    public void writeGroups() throws Exception {
+    public void writeProtobuf() throws Exception {
         try {
             openConnection();
             for (String group : groups) {
