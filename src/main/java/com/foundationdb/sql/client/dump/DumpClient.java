@@ -287,36 +287,37 @@ public class DumpClient
     }
 
     protected void loadGroups(String schema, Deque<String> pending) throws SQLException {
-        PreparedStatement kstmt = connection.prepareStatement("SELECT column_name FROM information_schema.key_column_usage WHERE schema_name = ? and table_name = ? AND constraint_name = ? ORDER BY ordinal_position");
-        PreparedStatement stmt = connection.prepareStatement("SELECT constraint_schema_name, constraint_table_name, unique_schema_name, unique_table_name, constraint_name, unique_constraint_name FROM information_schema.grouping_constraints WHERE constraint_schema_name = ? OR unique_schema_name = ?");
+        PreparedStatement kstmt = connection.prepareStatement("SELECT column_name FROM information_schema.key_column_usage WHERE table_schema = ? AND table_name = ? AND constraint_name = ? ORDER BY ordinal_position");
+        PreparedStatement stmt = connection.prepareStatement("SELECT c.constraint_schema, c.constraint_table_name, p.table_schema, "+
+                                                             "p.table_name, c.constraint_name, c.unique_constraint_name, p.constraint_type = 'PRIMARY KEY'"+
+                                                             "FROM information_schema.grouping_constraints c "+
+                                                             "LEFT JOIN information_schema.table_constraints p "+
+                                                             "  ON  c.unique_schema = p.constraint_schema "+
+                                                             "  AND c.unique_constraint_name = p.constraint_name "+
+                                                             "WHERE p.table_name IS NOT NULL AND (c.constraint_schema = ? OR c.unique_schema = ?)");
         stmt.setString(1, schema);
         stmt.setString(2, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
-            // TODO: IS NOT NULL would have been simpler, but schema is wrong.
-            // Moreover, grouping_constraints table could have been
-            // used more intelligently to get whole groups.
-            if (rs.getString(4) == null) continue;
             Table child = findOrCreateTable(rs.getString(1), rs.getString(2), pending);
             Table parent = findOrCreateTable(rs.getString(3), rs.getString(4), pending);
             child.parent = parent;
             parent.children.add(child);
-            String constraint = rs.getString(5);
-            child.childKeys = loadKeys(kstmt, child.schema, child.name, constraint);
-            constraint = rs.getString(6);
+            child.childKeys = loadKeys(kstmt, child.schema, child.name, rs.getString(5));
+            boolean parentIsPrimary = rs.getBoolean(7);
             List<String> keys = null;
-            if ("PRIMARY".equals(constraint))
+            if (parentIsPrimary)
                 keys = parent.primaryKeys;
             if (keys == null)
-                keys = loadKeys(kstmt, parent.schema, parent.name, constraint);
+                keys = loadKeys(kstmt, parent.schema, parent.name, rs.getString(6));
             child.parentKeys = keys;
-            if ((parent.primaryKeys == null) && "PRIMARY".equals(constraint))
+            if ((parent.primaryKeys == null) && parentIsPrimary)
                 parent.primaryKeys = keys;
         }
         stmt.close();
         for (Table table : schemas.get(schema).values()) {
             if (table.primaryKeys == null) {
-                table.primaryKeys = loadKeys(kstmt, table.schema, table.name, "PRIMARY");
+                table.primaryKeys = loadKeys(kstmt, table.schema, table.name, table.name+".PRIMARY");
             }
         }
         kstmt.close();
@@ -336,7 +337,7 @@ public class DumpClient
     }
 
     protected void loadViews() throws SQLException {
-        PreparedStatement stmt = connection.prepareStatement("SELECT table_name, view_definition FROM information_schema.views WHERE schema_name = ? ORDER BY table_name");
+        PreparedStatement stmt = connection.prepareStatement("SELECT table_name, view_definition FROM information_schema.views WHERE table_schema = ? ORDER BY table_name");
         for (Map.Entry<String,Map<String,View>> entry : views.entrySet()) {
             String schema = entry.getKey();
             Map<String,View> views = entry.getValue();
@@ -563,10 +564,10 @@ public class DumpClient
     protected void outputCreateTables(Table rootTable) throws SQLException, IOException {
         PreparedStatement stmt = connection.prepareStatement(
                 "SELECT column_name," +
-                " type, length, precision, scale," +
-                " character_set_name, collation_name, nullable," +
+                " data_type, character_maximum_length, numeric_precision, numeric_scale," +
+                " character_set_name, collation_name, is_nullable," +
                 " sequence_schema, sequence_name, identity_generation" +
-                " FROM information_schema.columns WHERE schema_name = ? AND table_name = ? ORDER BY position");
+                " FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position");
         outputCreateTables(stmt, rootTable);
         stmt.close();
     }
@@ -702,8 +703,8 @@ public class DumpClient
     }
     
     protected void outputCreateIndexes(Table rootTable) throws SQLException, IOException {
-        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, is_unique, join_type, index_method FROM information_schema.indexes WHERE schema_name = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') ORDER BY index_id");
-        PreparedStatement icstmt = connection.prepareStatement("SELECT column_schema_name, column_table_name, column_name, is_ascending FROM information_schema.index_columns WHERE schema_name = ? AND index_table_name = ? AND index_name = ? ORDER BY ordinal_position");
+        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, is_unique, join_type, index_method FROM information_schema.indexes WHERE table_schema = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') ORDER BY index_id");
+        PreparedStatement icstmt = connection.prepareStatement("SELECT column_schema, column_table, column_name, is_ascending FROM information_schema.index_columns WHERE column_schema = ? AND index_table_name = ? AND index_name = ? ORDER BY ordinal_position");
         outputCreateIndexes(istmt, icstmt, rootTable);
         icstmt.close();
         istmt.close();
