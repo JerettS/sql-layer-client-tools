@@ -23,9 +23,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>9.1-901.jdbc4</version>
+            <groupId>com.foundationdb</groupId>
+            <artifactId>fdb-sql-layer-jdbc</artifactId>
+            <version>1.9-1-jdbc41-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <build>
