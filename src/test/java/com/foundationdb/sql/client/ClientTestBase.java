@@ -22,7 +22,6 @@ import java.util.regex.Pattern;
 
 public abstract class ClientTestBase
 {
-    public static final String DRIVER_NAME = "org.postgresql.Driver";
     public static final String DEFAULT_HOST = "localhost";
     public static final int DEFAULT_PORT = 15432;
     public static final String SCHEMA_NAME = "dump_test";
@@ -30,9 +29,8 @@ public abstract class ClientTestBase
     public static final String USER_PASSWORD = "test";
 
     protected Connection openConnection() throws Exception {
-        String url = String.format("jdbc:postgresql://%s:%d/%s",
+        String url = String.format("jdbc:fdbsql://%s:%d/%s",
                                    DEFAULT_HOST, DEFAULT_PORT, SCHEMA_NAME);
-        Class.forName(DRIVER_NAME);
         return DriverManager.getConnection(url, USER_NAME, USER_PASSWORD);
     }
 

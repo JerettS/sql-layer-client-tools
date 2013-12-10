@@ -54,7 +54,6 @@ public class LoadClient
         }
     }
 
-    protected static final String DRIVER_NAME = "org.postgresql.Driver";
     protected static final String DEFAULT_HOST = "localhost";
     protected static final int DEFAULT_PORT = 15432;
     protected static final String DEFAULT_USER = "system";
@@ -117,7 +116,7 @@ public class LoadClient
         @Parameter(names = { "-h", "--host" }, description = "name of server host")
         String host = DEFAULT_HOST;
 
-        @Parameter(names = { "-p", "--port" }, description = "Postgres server port")
+        @Parameter(names = { "-p", "--port" }, description = "SQL Layer port")
         int port = DEFAULT_PORT;
         
         @Parameter(names = { "-u", "--user" }, description = "server user name")
@@ -169,7 +168,6 @@ public class LoadClient
             jc.usage();
             return;
         }
-        Class.forName(DRIVER_NAME);
         LoadClient loadClient = new LoadClient(options);
         try {
             for (File file : options.files) {
@@ -377,7 +375,7 @@ public class LoadClient
     protected Connection getConnection(boolean autoCommit) throws SQLException {
         Connection connection = connections.poll();
         if (connection == null) {
-            String url = String.format("jdbc:postgresql://%s:%d/%s", host, port, schema);
+            String url = String.format("jdbc:fdbsql://%s:%d/%s", host, port, schema);
             connection = DriverManager.getConnection(url, user, password);
         }
         connection.setAutoCommit(autoCommit);

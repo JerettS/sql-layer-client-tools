@@ -28,7 +28,6 @@ import java.util.*;
 
 public class DumpClient
 {
-    protected static final String DRIVER_NAME = "org.postgresql.Driver";
     protected static final String DEFAULT_HOST = "localhost";
     protected static final int DEFAULT_PORT = 15432;
     protected static final String DEFAULT_USER = "system";
@@ -83,7 +82,7 @@ public class DumpClient
         @Parameter(names = { "-h", "--host" }, description = "name of server host")
         String host = DEFAULT_HOST;
 
-        @Parameter(names = { "-p", "--port" }, description = "Postgres server port")
+        @Parameter(names = { "-p", "--port" }, description = "SQL Layer port")
         int port = DEFAULT_PORT;
         
         @Parameter(names = { "-u", "--user" }, description = "server user name")
@@ -900,9 +899,8 @@ public class DumpClient
     }
 
     protected void openConnection() throws Exception {
-        Class.forName(DRIVER_NAME);
         String url = String
-            .format("jdbc:postgresql://%s:%d/%s",
+            .format("jdbc:fdbsql://%s:%d/%s",
                     host, port, (defaultSchema != null) ? defaultSchema : "information_schema");
         connection = DriverManager.getConnection(url, user, password);
         if (commitFrequency == COMMIT_AUTO) {

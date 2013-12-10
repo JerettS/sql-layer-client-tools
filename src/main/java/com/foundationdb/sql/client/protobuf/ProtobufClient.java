@@ -29,7 +29,6 @@ import java.util.*;
 
 public class ProtobufClient
 {
-    protected static final String DRIVER_NAME = "org.postgresql.Driver";
     protected static final String DEFAULT_HOST = "localhost";
     protected static final int DEFAULT_PORT = 15432;
     protected static final String DEFAULT_USER = "system";
@@ -72,7 +71,7 @@ public class ProtobufClient
         @Parameter(names = { "-h", "--host" }, description = "name of server host")
         String host = DEFAULT_HOST;
 
-        @Parameter(names = { "-p", "--port" }, description = "Postgres server port")
+        @Parameter(names = { "-p", "--port" }, description = "SQL Layer port")
         int port = DEFAULT_PORT;
         
         @Parameter(names = { "-u", "--user" }, description = "server user name")
@@ -243,8 +242,7 @@ public class ProtobufClient
     }
 
     protected void openConnection() throws Exception {
-        Class.forName(DRIVER_NAME);
-        String url = String.format("jdbc:postgresql://%s:%d/%s", 
+        String url = String.format("jdbc:fdbsql://%s:%d/%s",
                                    host, port, defaultSchema);
         connection = DriverManager.getConnection(url, user, password);
         copyManager = new CopyManager((org.postgresql.core.BaseConnection)connection);
