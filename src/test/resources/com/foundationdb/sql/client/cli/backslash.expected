@@ -1,0 +1,158 @@
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ Schema | Name | Type 
+--------+------+------
+(0 rows)
+
+ Schema | Name |   Type   
+--------+------+----------
+ test   | s1   | SEQUENCE 
+ test   | s2   | SEQUENCE 
+ test   | t1   | TABLE    
+ test   | t2   | TABLE    
+ test   | v1   | VIEW     
+ test   | v2   | VIEW     
+(6 rows)
+
+ Schema | Name |   Type   
+--------+------+----------
+ test   | s1   | SEQUENCE 
+ test   | t1   | TABLE    
+ test   | v1   | VIEW     
+(3 rows)
+
+ Schema | Name | Type  
+--------+------+-------
+ test   | t1   | TABLE 
+(1 row)
+
+ Schema | Name |   Type   
+--------+------+----------
+ test   | s1   | SEQUENCE 
+(1 row)
+
+ Schema | Name | Type 
+--------+------+------
+ test   | v1   | VIEW 
+(1 row)
+
+ Schema | Table | Name 
+--------+-------+------
+ test   | t1    | i1   
+ test   | t2    | i2   
+(2 rows)
+
+ Schema | Table | Name 
+--------+-------+------
+ test   | t1    | i1   
+(1 row)
+
+ Schema | Table | Name 
+--------+-------+------
+ test   | t1    | i1   
+(1 row)
+
+ Schema | Name 
+--------+------
+ test   | s1   
+ test   | s2   
+(2 rows)
+
+ Schema | Name 
+--------+------
+ test   | s1   
+(1 row)
+
+ Schema | Name 
+--------+------
+ test   | t1   
+ test   | t2   
+(2 rows)
+
+ Schema | Name 
+--------+------
+ test   | t1   
+(1 row)
+
+ Schema | Name 
+--------+------
+ test   | v1   
+ test   | v2   
+(2 rows)
+
+ Schema | Name 
+--------+------
+ test   | v1   
+(1 row)
+
+ Table test.t1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+ Table test.t2
+ Column |     Type      | Nullable 
+--------+---------------+----------
+ c1     | decimal(10,5) | YES      
+ c2     | varbinary(10) | YES      
+(2 rows)
+
+ Table test.t1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+ Table test.t1
+ Column |    Type     | Nullable | Default | Charset | Collation | Sequence 
+--------+-------------+----------+---------+---------+-----------+----------
+ c1     | int         | YES      | 10      |         |           |          
+ c2     | varchar(32) | YES      |         | utf8    | en_ci     |          
+(2 rows)
+
+ View test.v1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+ View test.v2
+ Column |     Type      | Nullable 
+--------+---------------+----------
+ c1     | decimal(10,5) | YES      
+ c2     | varbinary(10) | YES      
+(2 rows)
+
+ View test.v1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+ View test.v1
+ Column |    Type     | Nullable | Default | Charset | Collation | Sequence 
+--------+-------------+----------+---------+---------+-----------+----------
+ c1     | int         | YES      |         |         |           |          
+ c2     | varchar(32) | YES      |         | utf8    | en_ci     |          
+(2 rows)
+
+Invalid command: \xfoox. Try \? for help.

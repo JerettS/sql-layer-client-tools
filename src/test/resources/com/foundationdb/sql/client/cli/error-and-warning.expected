@@ -1,0 +1,7 @@
+ERROR: Unrecognized configuration parameter `foo`
+
+ERROR: Cannot find the table `test`.`bar`
+
+WARNING: ISOLATION LEVEL READ UNCOMMITTED ignored; remains SERIALIZABLE
+ROWS: 0
+

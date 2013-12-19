@@ -1,0 +1,19 @@
+ROWS: 0
+
+ s |   v   
+---+-------
+ 1 | one   
+ 2 | two   
+ 3 | three 
+(3 rows)
+
+   v    
+--------
+ twotwo 
+(1 row)
+
+   v    
+--------
+ twotwo 
+(1 row)
+

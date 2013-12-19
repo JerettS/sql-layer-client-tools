@@ -1,0 +1,25 @@
+ROWS: 0
+
+ id | v 
+----+---
+(0 rows)
+
+ROWS: 3
+
+ id |  v  
+----+-----
+  1 | foo 
+  2 | bar 
+  3 | zap 
+(3 rows)
+
+ROWS: 1
+
+ROWS: 1
+
+ col1 | col2 
+------+------
+    1 | pop  
+    2 | bar  
+(2 rows)
+
