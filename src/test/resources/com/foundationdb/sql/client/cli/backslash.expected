@@ -1,0 +1,179 @@
+test=> CREATE TABLE t1(c1 int default 10, c2 varchar(32) character set utf8 coll ate en_ci);
+ROWS: 0
+test=> CREATE TABLE t2(c1 decimal(10,5), c2 varchar(10) for bit data);
+ROWS: 0
+test=> CREATE INDEX i1 ON t1(c1);
+ROWS: 0
+test=> CREATE INDEX i2 ON t2(c1);
+ROWS: 0
+test=> CREATE SEQUENCE s1;
+ROWS: 0
+test=> CREATE SEQUENCE s2;
+ROWS: 0
+test=> CREATE VIEW v1 AS SELECT * FROM t1;
+ROWS: 0
+test=> CREATE VIEW v2 AS SELECT * FROM t2;
+ROWS: 0
+test=>   \l test.foo
+ Schema | Name | Type 
+--------+------+------
+(0 rows)
+
+test=> \l test.%
+ Schema | Name |   Type   
+--------+------+----------
+ test   | s1   | SEQUENCE 
+ test   | s2   | SEQUENCE 
+ test   | t1   | TABLE    
+ test   | t2   | TABLE    
+ test   | v1   | VIEW     
+ test   | v2   | VIEW     
+(6 rows)
+
+test=> \l test.%1
+ Schema | Name |   Type   
+--------+------+----------
+ test   | s1   | SEQUENCE 
+ test   | t1   | TABLE    
+ test   | v1   | VIEW     
+(3 rows)
+
+test=> \l test.t1
+ Schema | Name | Type  
+--------+------+-------
+ test   | t1   | TABLE 
+(1 row)
+
+test=> \l test.s1
+ Schema | Name |   Type   
+--------+------+----------
+ test   | s1   | SEQUENCE 
+(1 row)
+
+test=> \l test.v1
+ Schema | Name | Type 
+--------+------+------
+ test   | v1   | VIEW 
+(1 row)
+
+test=> \li test.%.%
+ Schema | Table | Name 
+--------+-------+------
+ test   | t1    | i1   
+ test   | t2    | i2   
+(2 rows)
+
+test=> \li test.t1.%
+ Schema | Table | Name 
+--------+-------+------
+ test   | t1    | i1   
+(1 row)
+
+test=> \li test.t1.i1
+ Schema | Table | Name 
+--------+-------+------
+ test   | t1    | i1   
+(1 row)
+
+test=> \lq test.%
+ Schema | Name 
+--------+------
+ test   | s1   
+ test   | s2   
+(2 rows)
+
+test=> \lq test.s1
+ Schema | Name 
+--------+------
+ test   | s1   
+(1 row)
+
+test=> \lt test.%
+ Schema | Name 
+--------+------
+ test   | t1   
+ test   | t2   
+(2 rows)
+
+test=> \lt test.t1
+ Schema | Name 
+--------+------
+ test   | t1   
+(1 row)
+
+test=> \lv test.%
+ Schema | Name 
+--------+------
+ test   | v1   
+ test   | v2   
+(2 rows)
+
+test=> \lv test.v1
+ Schema | Name 
+--------+------
+ test   | v1   
+(1 row)
+
+test=> \dt test.%
+ Table test.t1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+ Table test.t2
+ Column |     Type      | Nullable 
+--------+---------------+----------
+ c1     | decimal(10,5) | YES      
+ c2     | varbinary(10) | YES      
+(2 rows)
+
+test=> \dt test.t1
+ Table test.t1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+test=> \dt+ test.t1
+ Table test.t1
+ Column |    Type     | Nullable | Default | Charset | Collation | Sequence 
+--------+-------------+----------+---------+---------+-----------+----------
+ c1     | int         | YES      | 10      |         |           |          
+ c2     | varchar(32) | YES      |         | utf8    | en_ci     |          
+(2 rows)
+
+test=> \dv test.%
+ View test.v1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+ View test.v2
+ Column |     Type      | Nullable 
+--------+---------------+----------
+ c1     | decimal(10,5) | YES      
+ c2     | varbinary(10) | YES      
+(2 rows)
+
+test=> \dv test.v1
+ View test.v1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | int         | YES      
+ c2     | varchar(32) | YES      
+(2 rows)
+
+test=> \dv+ test.v1
+ View test.v1
+ Column |    Type     | Nullable | Default | Charset | Collation | Sequence 
+--------+-------------+----------+---------+---------+-----------+----------
+ c1     | int         | YES      |         |         |           |          
+ c2     | varchar(32) | YES      |         | utf8    | en_ci     |          
+(2 rows)
+
+test=> \q

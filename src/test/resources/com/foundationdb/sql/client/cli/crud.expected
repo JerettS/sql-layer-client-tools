@@ -1,0 +1,29 @@
+test=> CREATE TABLE t(id INT, v VARCHAR(32));
+ROWS: 0
+test=> SELECT * FROM t;
+ id | v 
+----+---
+(0 rows)
+
+test=> INSERT INTO t VALUES (1, 'foo'), (2, 'bar'), (3, 'zap');
+ROWS: 3
+test=> SELECT * FROM t;
+ id |  v  
+----+-----
+  1 | foo 
+  2 | bar 
+  3 | zap 
+(3 rows)
+
+test=> UPDATE t SET v='pop' WHERE id=1;
+ROWS: 1
+test=> DELETE FROM t WHERE id=3;
+ROWS: 1
+test=> SELECT id col1, v col2 FROM t;
+ col1 | col2 
+------+------
+    1 | pop  
+    2 | bar  
+(2 rows)
+
+test=> 

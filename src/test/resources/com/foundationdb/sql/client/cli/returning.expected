@@ -1,0 +1,23 @@
+test=> CREATE TABLE t(s SERIAL, v VARCHAR(32));
+ROWS: 0
+test=> INSERT INTO t(v) VALUES ('one'), ('two'), ('three') RETURNING *;
+ s |   v   
+---+-------
+ 1 | one   
+ 2 | two   
+ 3 | three 
+(3 rows)
+
+test=> UPDATE t SET v=CONCAT(v,v) WHERE s=2 RETURNING v;
+   v    
+--------
+ twotwo 
+(1 row)
+
+test=> DELETE FROM t WHERE s=2 RETURNING v;
+   v    
+--------
+ twotwo 
+(1 row)
+
+test=> 

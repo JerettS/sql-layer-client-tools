@@ -1,0 +1,36 @@
+test=> CREATE TABLE t(id INT);
+ROWS: 0
+test=> INSERT INTO t VALUES (1);
+ROWS: 1
+test=> BEGIN;
+ROWS: 0
+test=> INSERT INTO t VALUES (2);
+ROWS: 1
+test=> SELECT * FROM t;
+ id 
+----
+  1 
+  2 
+(2 rows)
+
+test=> ROLLBACK;
+ROWS: 0
+test=> SELECT * FROM t;
+ id 
+----
+  1 
+(1 row)
+
+test=> BEGIN;
+ROWS: 0
+test=> UPDATE t SET id=2 WHERE id=1;
+ROWS: 1
+test=> COMMIT;
+ROWS: 0
+test=> SELECT * FROM t;
+ id 
+----
+  2 
+(1 row)
+
+test=> 

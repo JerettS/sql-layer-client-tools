@@ -1,0 +1,49 @@
+test=> SELECT NULL;
+ _SQL_COL_1 
+------------
+            
+(1 row)
+
+test=> SELECT 1;
+ _SQL_COL_1 
+------------
+          1 
+(1 row)
+
+test=> SELECT 3.14;
+ _SQL_COL_1 
+------------
+       3.14 
+(1 row)
+
+test=> SELECT 'asdf';
+ _SQL_COL_1 
+------------
+ asdf       
+(1 row)
+
+test=> SELECT x'000102';
+  _SQL_COL_1  
+--------------
+ \000\001\002 
+(1 row)
+
+test=> SELECT DATE '2013-12-16';
+ _SQL_COL_1 
+------------
+ 2013-12-16 
+(1 row)
+
+test=> SELECT 1 "one", 2 "two", 3 "three";
+ one | two | three 
+-----+-----+-------
+   1 |   2 |     3 
+(1 row)
+
+test=> SELECT 100, 200, 300;
+ _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 
+------------+------------+------------
+        100 |        200 |        300 
+(1 row)
+
+test=> 
