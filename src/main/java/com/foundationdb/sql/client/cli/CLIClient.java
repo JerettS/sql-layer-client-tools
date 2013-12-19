@@ -158,7 +158,10 @@ public class CLIClient
                     }
                     break;
                 }
-                if(!qb.isEmpty() || hasNonSpace(str)) {
+                if(!qb.isEmpty()) {
+                    qb.append(' '); // Collapsing multiple lines into one, add space
+                    qb.append(str);
+                } else if(hasNonSpace(str)) {
                     qb.append(str);
                 }
             } catch(UserInterruptException e) {
