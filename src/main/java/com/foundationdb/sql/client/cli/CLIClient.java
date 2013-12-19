@@ -32,6 +32,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -61,8 +62,8 @@ public class CLIClient
                 return;
             }
         } catch(ParameterException ex) {
-            System.out.println(ex.getMessage());
-            return;
+            System.err.println(ex.getMessage());
+            System.exit(1);
         }
         // Positional arg overrides named parameter
         if(!options.positional.isEmpty()) {
@@ -87,7 +88,17 @@ public class CLIClient
             }
         }
         CLIClient client = new CLIClient(options);
-        client.openInternal(null, null, options.file, options.file == null, options.file == null);
+        try {
+            client.openInternal(null, null, options.file, options.file == null, options.file == null);
+        } catch(Exception e) {
+            if(e.getCause() instanceof ConnectException) {
+                System.err.println(e.getCause().getMessage());
+                System.err.println("Please check connection to: " + client.getConnectionDescription());
+                System.exit(1);
+            } else {
+                System.err.println(e.getCause().getMessage());
+            }
+        }
         try {
             client.printTerminalInfo();
             client.printVersionInfo();
@@ -255,7 +266,7 @@ public class CLIClient
     }
 
     private void printConnectionInfo() throws IOException {
-        console.println(String.format("%s@%s:%d/%s", options.user, options.host, options.port, options.schema));
+        console.println(getConnectionDescription());
     }
 
     private void printBackslashHelp() throws IOException {
@@ -374,6 +385,10 @@ public class CLIClient
             preparedStatements.put(key, pStmt);
         }
         return pStmt;
+    }
+
+    private String getConnectionDescription() {
+        return String.format("%s@%s:%d/%s", options.user, options.host, options.port, options.schema);
     }
 
     //
