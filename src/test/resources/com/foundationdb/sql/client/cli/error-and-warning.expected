@@ -1,8 +1,7 @@
-test=> SET foo TO 'bar';
 ERROR: Unrecognized configuration parameter `foo`
-test=> SELECT foo FROM bar;
+
 ERROR: Cannot find the table `test`.`bar`
-test=> SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
 WARNING: ISOLATION LEVEL READ UNCOMMITTED ignored; remains SERIALIZABLE
 ROWS: 0
-test=> 
+

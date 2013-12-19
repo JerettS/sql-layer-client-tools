@@ -1,12 +1,8 @@
-test=> SELECT 'a',
->        'b',
->        'c';
  _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 
 ------------+------------+------------
  a          | b          | c          
 (1 row)
 
-test=> SELECT 1; SELECT 2; SELECT 4,
  _SQL_COL_1 
 ------------
           1 
@@ -17,35 +13,23 @@ test=> SELECT 1; SELECT 2; SELECT 4,
           2 
 (1 row)
 
->                            5;
  _SQL_COL_1 | _SQL_COL_2 
 ------------+------------
           4 |          5 
 (1 row)
 
-test=> SELECT 6; SELECT
  _SQL_COL_1 
 ------------
           6 
 (1 row)
 
->                  7;
  _SQL_COL_1 
 ------------
           7 
 (1 row)
 
-test=> S
-> E
-> L
-> E
-> C
-> T
->  8
-> ;
  _SQL_COL_1 
 ------------
           8 
 (1 row)
 
-test=> 

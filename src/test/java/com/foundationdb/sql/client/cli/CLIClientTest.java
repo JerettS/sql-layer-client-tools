@@ -23,6 +23,7 @@ import com.foundationdb.junit.NamedParameterizedRunner.TestParameters;
 import com.foundationdb.junit.Parameterization;
 */
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
@@ -71,6 +72,12 @@ public class CLIClientTest extends ClientTestBase
         this.expectedFile = expectedFile;
     }
 
+    @Before
+    public void setSimpleJlineTerminal() {
+        // Disable echo to avoid system-specific wrapping
+        System.setProperty("jline.terminal", "none");
+    }
+
     @After
     public void cleanUp() throws Exception {
         dropSchema(OPTIONS.schema);
@@ -78,10 +85,10 @@ public class CLIClientTest extends ClientTestBase
 
     @Test
     public void test() throws Exception {
-        try(InputStream in = new FileInputStream(sqlFile)) {
+        try(InputStream in = new BufferedInputStream(new FileInputStream(sqlFile))) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             CLIClient cli = new CLIClient(OPTIONS);
-            cli.openInternal(in, out, null, true, false);
+            cli.openInternal(in, out, null, false, false);
             try {
                 cli.runLoop();
             } finally {

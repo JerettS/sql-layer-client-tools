@@ -36,11 +36,12 @@ public class CLIClientFileTest extends CLIClientTest
         OPTIONS.file = null;
     }
 
+    @Override
     @Test
     public void test() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         CLIClient cli = new CLIClient(OPTIONS);
-        cli.openInternal(null, out, sqlFile.getAbsolutePath(), true, false);
+        cli.openInternal(null, out, sqlFile.getAbsolutePath(), false, false);
         try {
             cli.runLoop();
         } finally {

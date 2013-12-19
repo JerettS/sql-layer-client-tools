@@ -71,17 +71,20 @@ public class ResultPrinter
             ++rowCount;
         }
         rowsFinish(rowCount);
+        output.append(NL);
     }
 
     public void printUpdate(int updateCount) throws IOException {
         output.append("ROWS: ");
         output.append(Integer.toString(updateCount));
         output.append(NL);
+        output.append(NL);
     }
 
     public void printError(SQLException ex) throws IOException {
         // Message from server already includes 'ERROR: '
         appendException(ex, "");
+        output.append(NL);
     }
 
     public void printWarning(SQLException ex) throws IOException {
@@ -138,7 +141,6 @@ public class ResultPrinter
             output.append('s');
         }
         output.append(')');
-        output.append(NL);
         output.append(NL);
     }
 
