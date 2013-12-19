@@ -401,7 +401,7 @@ public class CLIClient
                 return c;
             }
         }
-        throw new SQLException(String.format("Invalid command: \\%s. Try %s for help.", parsed.command, BackslashCommand.HELP.cmd));
+        throw new SQLException(String.format("Invalid command: \\%s. Try %s for help.", parsed.command, BackslashCommand.HELP.helpCmd));
     }
 
     private static String[] reverseFillParams(BackslashParser.Parsed parsed, int expected) {

@@ -27,5 +27,6 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 \dv test.%
 \dv test.v1
 \dv+ test.v1
+\xfoox
 \q
 SELECT 'should not get here';

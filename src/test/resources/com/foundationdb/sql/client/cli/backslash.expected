@@ -155,3 +155,4 @@ ROWS: 0
  c2     | varchar(32) | YES      |         | utf8    | en_ci     |          
 (2 rows)
 
+Invalid command: \xfoox. Try \? for help.
