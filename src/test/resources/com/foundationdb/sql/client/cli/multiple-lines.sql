@@ -13,3 +13,7 @@ C
 T
  8
 ;
+
+CREATE TABLE t(id int);
+SELECT * FROM
+ t;
