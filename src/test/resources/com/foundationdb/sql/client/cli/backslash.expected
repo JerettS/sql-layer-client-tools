@@ -1,4 +1,4 @@
-test=> CREATE TABLE t1(c1 int default 10, c2 varchar(32) character set utf8 coll ate en_ci);
+test=> CREATE TABLE t1(c1 int default 10, c2 varchar(32) character set utf8 collate en_ci);
 ROWS: 0
 test=> CREATE TABLE t2(c1 decimal(10,5), c2 varchar(10) for bit data);
 ROWS: 0
