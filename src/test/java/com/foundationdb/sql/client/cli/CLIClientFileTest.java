@@ -46,7 +46,7 @@ public class CLIClientFileTest extends CLIClientTest
             cli.close();
         }
         String expected = expectedFile.exists() ? fileContents(expectedFile).trim() : "";
-        String actual = out.toString("UTF-8").trim();
+        String actual = out.toString("UTF-8").trim().replace("\r", "");
         assertEquals(caseName, expected, actual);
     }
 }

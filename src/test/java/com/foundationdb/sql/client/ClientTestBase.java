@@ -63,6 +63,12 @@ public abstract class ClientTestBase
                 if (nc < 0) break;
                 str.append(buf, 0, nc);
             }
+            int cridx = 0;
+            while (true) {
+                cridx = str.indexOf("\r", cridx);
+                if (cridx < 0) break;
+                str.deleteCharAt(cridx);
+            }
             return str.toString();
         }
         finally {
