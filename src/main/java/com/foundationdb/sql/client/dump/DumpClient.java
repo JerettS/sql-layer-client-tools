@@ -669,7 +669,7 @@ public class DumpClient
     }
 
     protected void type(String type, int length, int precision, int scale, StringBuilder sql) {
-        boolean unsigned = type.endsWith(" unsigned");
+        boolean unsigned = type.endsWith(" UNSIGNED");
         if (unsigned)
             type = type.substring(0, type.length() - 9);
         if (precision > 0) {
@@ -679,18 +679,18 @@ public class DumpClient
                 sql.append(',').append(scale);
             sql.append(')');
         }
-        else if ("varchar".equals(type) ||
-                 "char".equals(type)) {
+        else if ("VARCHAR".equals(type) ||
+                 "CHAR".equals(type)) {
             sql.append(type.toUpperCase());
             sql.append('(').append(length).append(')');
         }
-        else if ("varbinary".equals(type) ||
-                 "binary".equals(type)) {
-            sql.append("binary".equals(type) ? "CHAR" : "VARCHAR");
+        else if ("VARBINARY".equals(type) ||
+                 "BINARY".equals(type)) {
+            sql.append("BINARY".equals(type) ? "CHAR" : "VARCHAR");
             sql.append('(').append(length).append(')');
             sql.append(" FOR BIT DATA");
         }
-        else if ("float".equals(type)) {
+        else if ("FLOAT".equals(type)) {
             sql.append("REAL");
         }
         else {

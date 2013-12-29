@@ -102,57 +102,57 @@ ROWS: 0
  Table test.t1
  Column |    Type     | Nullable 
 --------+-------------+----------
- c1     | int         | YES      
- c2     | varchar(32) | YES      
+ c1     | INT         | YES      
+ c2     | VARCHAR(32) | YES      
 (2 rows)
 
  Table test.t2
  Column |     Type      | Nullable 
 --------+---------------+----------
- c1     | decimal(10,5) | YES      
- c2     | varbinary(10) | YES      
+ c1     | DECIMAL(10,5) | YES      
+ c2     | VARBINARY(10) | YES      
 (2 rows)
 
  Table test.t1
  Column |    Type     | Nullable 
 --------+-------------+----------
- c1     | int         | YES      
- c2     | varchar(32) | YES      
+ c1     | INT         | YES      
+ c2     | VARCHAR(32) | YES      
 (2 rows)
 
  Table test.t1
  Column |    Type     | Nullable | Default | Charset | Collation | Sequence 
 --------+-------------+----------+---------+---------+-----------+----------
- c1     | int         | YES      | 10      |         |           |          
- c2     | varchar(32) | YES      |         | utf8    | en_ci     |          
+ c1     | INT         | YES      | 10      |         |           |          
+ c2     | VARCHAR(32) | YES      |         | utf8    | en_ci     |          
 (2 rows)
 
  View test.v1
  Column |    Type     | Nullable 
 --------+-------------+----------
- c1     | int         | YES      
- c2     | varchar(32) | YES      
+ c1     | INT         | YES      
+ c2     | VARCHAR(32) | YES      
 (2 rows)
 
  View test.v2
  Column |     Type      | Nullable 
 --------+---------------+----------
- c1     | decimal(10,5) | YES      
- c2     | varbinary(10) | YES      
+ c1     | DECIMAL(10,5) | YES      
+ c2     | VARBINARY(10) | YES      
 (2 rows)
 
  View test.v1
  Column |    Type     | Nullable 
 --------+-------------+----------
- c1     | int         | YES      
- c2     | varchar(32) | YES      
+ c1     | INT         | YES      
+ c2     | VARCHAR(32) | YES      
 (2 rows)
 
  View test.v1
  Column |    Type     | Nullable | Default | Charset | Collation | Sequence 
 --------+-------------+----------+---------+---------+-----------+----------
- c1     | int         | YES      |         |         |           |          
- c2     | varchar(32) | YES      |         | utf8    | en_ci     |          
+ c1     | INT         | YES      |         |         |           |          
+ c2     | VARCHAR(32) | YES      |         | utf8    | en_ci     |          
 (2 rows)
 
 Invalid command: \xfoox. Try \? for help.
