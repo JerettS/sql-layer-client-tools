@@ -30,7 +30,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.ConnectException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -59,8 +58,8 @@ public class CLIClient
                 jc.usage();
                 return;
             }
-        } catch(ParameterException ex) {
-            System.err.println(ex.getMessage());
+        } catch(ParameterException e) {
+            System.err.println(e.getMessage());
             System.exit(1);
         }
         // Positional arg overrides named parameter
@@ -72,30 +71,15 @@ public class CLIClient
             System.err.println(options.positional.subList(1, options.positional.size()));
         }
         if(options.file != null) {
-            File file = new File(options.file);
-            String error = null;
-            if(!file.exists()) {
-                error = "no such file";
-            }
-            if(file.isDirectory()) {
-                error = "is a directory";
-            }
-            if(error != null) {
-                System.err.println(options.file + ": " + error);
-                System.exit(1);
-            }
+            checkOptionsFile(options.file);
         }
         CLIClient client = new CLIClient(options);
         try {
             client.openInternal(null, null, options.file, options.file == null, options.file == null);
         } catch(Exception e) {
-            if(e.getCause() instanceof ConnectException) {
-                System.err.println(e.getCause().getMessage());
-                System.err.println("Please check connection to: " + client.getConnectionDescription());
-                System.exit(1);
-            } else {
-                System.err.println(e.getCause().getMessage());
-            }
+            System.err.println(e.getMessage());
+            System.err.println("Connection details: " + client.getConnectionDescription());
+            System.exit(1);
         }
         try {
             client.printTerminalInfo();
@@ -120,16 +104,6 @@ public class CLIClient
 
     public CLIClient(CLIClientOptions options) {
         this.options = options;
-    }
-
-    public void open(InputStream in, OutputStream out) throws IOException, SQLException {
-        if(in == null) {
-            throw new NullPointerException("in");
-        }
-        if(out == null) {
-            throw new NullPointerException("out");
-        }
-        openInternal(in, out, null, true, true);
     }
 
     public void close() throws Exception {
@@ -177,11 +151,7 @@ public class CLIClient
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
                         boolean res = statement.execute(query);
-                        SQLWarning warning = statement.getWarnings();
-                        while(warning != null) {
-                            resultPrinter.printWarning(warning);
-                            warning = warning.getNextWarning();
-                        }
+                        printWarnings(resultPrinter, statement);
                         if(res) {
                             ResultSet rs = statement.getResultSet();
                             resultPrinter.printResultSet(rs);
@@ -191,6 +161,7 @@ public class CLIClient
                         }
                     }
                 } catch(SQLException e) {
+                    printWarnings(resultPrinter, statement);
                     resultPrinter.printError(e);
                 }
                 console.flush();
@@ -421,5 +392,29 @@ public class CLIClient
             }
         }
         return false;
+    }
+
+    private static void printWarnings(ResultPrinter printer, Statement s) throws SQLException, IOException {
+        SQLWarning warning = s.getWarnings();
+        while(warning != null) {
+            printer.printWarning(warning);
+            warning = warning.getNextWarning();
+        }
+        s.clearWarnings();
+    }
+
+    private static void checkOptionsFile(String filename) {
+        File file = new File(filename);
+        String error = null;
+        if(!file.exists()) {
+            error = "no such file";
+        }
+        if(file.isDirectory()) {
+            error = "is a directory";
+        }
+        if(error != null) {
+            System.err.println(filename + ": " + error);
+            System.exit(1);
+        }
     }
 }
