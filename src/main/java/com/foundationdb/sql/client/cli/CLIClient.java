@@ -46,7 +46,7 @@ import static com.foundationdb.sql.client.cli.BackslashQueries.*;
 public class CLIClient
 {
     private final static String APP_NAME = "fdbsqlcli";
-    private final static String HISTORY_FILE = String.format("%s/.%s_history", System.getProperty("user.home"), APP_NAME);
+    private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + APP_NAME + "_history");
 
 
     public static void main(String[] args) throws Exception {
@@ -196,7 +196,7 @@ public class CLIClient
         // Manually managed
         console.setHistoryEnabled(false);
         if(withHistory) {
-            this.fileHistory = new FileHistory(new File(HISTORY_FILE));
+            this.fileHistory = new FileHistory(HISTORY_FILE);
             console.setHistory(fileHistory);
         }
         // To catch ctrl-c
