@@ -88,7 +88,7 @@ public class CLIClientTest extends ClientTestBase
         try(InputStream in = new BufferedInputStream(new FileInputStream(sqlFile))) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             CLIClient cli = new CLIClient(OPTIONS);
-            cli.openInternal(in, out, null, false, false);
+            cli.openInternal(in, out, false, false);
             try {
                 cli.runLoop();
             } finally {

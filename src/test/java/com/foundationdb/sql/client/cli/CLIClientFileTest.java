@@ -20,6 +20,7 @@ import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 
 import static org.junit.Assert.assertEquals;
 
@@ -39,7 +40,7 @@ public class CLIClientFileTest extends CLIClientTest
     public void test() throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         CLIClient cli = new CLIClient(OPTIONS);
-        cli.openInternal(null, out, sqlFile.getAbsolutePath(), false, false);
+        cli.openInternal(new FileInputStream(sqlFile.getAbsolutePath()), out, false, false);
         try {
             cli.runLoop();
         } finally {

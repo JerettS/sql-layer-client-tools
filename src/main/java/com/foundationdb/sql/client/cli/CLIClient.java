@@ -25,6 +25,7 @@ import jline.console.history.FileHistory;
 import org.postgresql.util.PSQLState;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
@@ -71,12 +72,17 @@ public class CLIClient
             System.err.print("extra command-line arguments ignored: ");
             System.err.println(options.positional.subList(1, options.positional.size()));
         }
-        if(options.file != null) {
-            checkOptionsFile(options.file);
-        }
         CLIClient client = new CLIClient(options);
         try {
-            client.openInternal(null, null, options.file, options.file == null, options.file == null);
+            // --file takes preference over --command
+            if(options.file != null) {
+                checkOptionsFile(options.file);
+                client.open_File(options.file);
+            } else if(options.command != null) {
+                client.open_String(options.command);
+            } else {
+                client.open_Standard();
+            }
         } catch(Exception e) {
             System.err.println(e.getMessage());
             System.err.println("Connection details: " + client.getConnectionDescription());
@@ -185,18 +191,23 @@ public class CLIClient
     // Internal
     //
 
-    void openInternal(InputStream in, OutputStream out, String fileIn, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
-        if(in == null) {
-            if(fileIn == null) {
-                // This is what the generic ConsoleReader() constructor does. Would System.in work?
-                in = new FileInputStream(FileDescriptor.in);
-            } else {
-                in = new BufferedInputStream(new FileInputStream(fileIn));
-            }
-        }
-        if(out == null) {
-            out = System.out;
-        }
+    void open_Standard() throws IOException, SQLException {
+        // This is what the generic ConsoleReader() constructor does. Would System.in work?
+        openInternal(new FileInputStream(FileDescriptor.in), System.out, true, true);
+    }
+
+    void open_String(String str) throws IOException, SQLException {
+        str = str + "\n"; // Hack around ConsoleReader requirement
+        openInternal(new ByteArrayInputStream(str.getBytes()), System.out, false, false);
+    }
+
+    void open_File(String fileIn) throws IOException, SQLException {
+        openInternal(new BufferedInputStream(new FileInputStream(fileIn)), System.out, false, false);
+    }
+
+    void openInternal(InputStream in, OutputStream out, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
+        assert in != null;
+        assert out != null;
         this.terminal = TerminalFactory.create();
         this.console = new ConsoleReader(APP_NAME, in, out, terminal);
         this.withPrompt = withPrompt;
@@ -209,7 +220,6 @@ public class CLIClient
         // To catch ctrl-c
         console.setHandleUserInterrupt(true);
         connect();
-
     }
 
     private void connect() throws SQLException {

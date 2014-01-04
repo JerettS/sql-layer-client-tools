@@ -41,6 +41,9 @@ public class CLIClientOptions
     @Parameter(names = { "-s", "--schema" }, description = "server user name")
     String schema = env("FDBSQL_SCHEMA", user);
 
+    @Parameter(names = { "-c", "--command" }, description = "execute command(s) and then exit")
+    String command = null;
+
     @Parameter(names = { "-f", "--file" }, description = "execute commands from file and then exit")
     String file = null;
 
