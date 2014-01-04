@@ -79,6 +79,11 @@ public class ResultPrinter
         output.append(NL);
     }
 
+    public void printError(String msg) throws IOException {
+        output.append(msg);
+        output.append(NL);
+    }
+
     public void printError(SQLException ex) throws IOException {
         // Message from server already includes 'ERROR: '
         appendException(ex, "");

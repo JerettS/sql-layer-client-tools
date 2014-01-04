@@ -22,6 +22,7 @@ import jline.TerminalFactory;
 import jline.console.ConsoleReader;
 import jline.console.UserInterruptException;
 import jline.console.history.FileHistory;
+import org.postgresql.util.PSQLState;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -161,8 +162,14 @@ public class CLIClient
                         }
                     }
                 } catch(SQLException e) {
-                    printWarnings(resultPrinter, statement);
-                    resultPrinter.printError(e);
+                    String state = e.getSQLState();
+                    if(PSQLState.CONNECTION_FAILURE.getState().equals(state) ||
+                       PSQLState.CONNECTION_FAILURE_DURING_TRANSACTION.getState().equals(state)) {
+                        isRunning = tryReconnect(resultPrinter);
+                    } else {
+                        printWarnings(resultPrinter, statement);
+                        resultPrinter.printError(e);
+                    }
                 }
                 console.flush();
             }
@@ -213,14 +220,20 @@ public class CLIClient
     }
 
     private void disconnect() throws SQLException {
-        statement.close();
-        statement = null;
-        for(PreparedStatement pStmt : preparedStatements.values()) {
-            pStmt.close();
+        if(statement != null) {
+            statement.close();
+            statement = null;
         }
-        preparedStatements = null;
-        connection.close();
-        connection = null;
+        if(preparedStatements != null) {
+            for(PreparedStatement pStmt : preparedStatements.values()) {
+                pStmt.close();
+            }
+            preparedStatements = null;
+        }
+        if(connection != null) {
+            connection.close();
+            connection = null;
+        }
     }
 
     private void printTerminalInfo() throws SQLException, IOException {
@@ -361,6 +374,20 @@ public class CLIClient
 
     private String getConnectionDescription() {
         return String.format("%s@%s:%d/%s", options.user, options.host, options.port, options.schema);
+    }
+
+    private boolean tryReconnect(ResultPrinter printer) throws IOException {
+        printer.printError("Lost connection to server... ");
+        // Try to reconnect
+        try {
+            disconnect();
+            connect();
+            printer.printError("Reconnected");
+            return true;
+        } catch(SQLException e2) {
+            printer.printError("Unable to reconnect");
+            return false;
+        }
     }
 
     //
