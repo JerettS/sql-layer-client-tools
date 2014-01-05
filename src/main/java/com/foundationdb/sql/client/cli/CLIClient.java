@@ -89,8 +89,10 @@ public class CLIClient
             System.exit(1);
         }
         try {
-            client.printTerminalInfo();
-            client.printVersionInfo();
+            if(!options.quiet) {
+                client.printTerminalInfo();
+                client.printVersionInfo();
+            }
             client.runLoop();
         } finally {
             client.close();

@@ -47,6 +47,9 @@ public class CLIClientOptions
     @Parameter(names = { "-f", "--file" }, description = "execute commands from file and then exit")
     String file = null;
 
+    @Parameter(names = { "-q", "--quiet" }, description = "output only query results")
+    boolean quiet = false;
+
     @Parameter(description="[schema]")
     public List<String> positional = new ArrayList<>();
 
