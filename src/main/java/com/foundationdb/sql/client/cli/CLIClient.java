@@ -234,6 +234,8 @@ public class CLIClient
         this.withPrompt = withPrompt;
         // Manually managed
         console.setHistoryEnabled(false);
+        // No '!' event expansion
+        console.setExpandEvents(false);
         if(withHistory) {
             this.fileHistory = new FileHistory(HISTORY_FILE);
             console.setHistory(fileHistory);
