@@ -84,19 +84,29 @@ public class CLIClientTest extends ClientTestBase
     }
 
     @Test
-    public void test() throws Exception {
-        try(InputStream in = new BufferedInputStream(new FileInputStream(sqlFile))) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            CLIClient cli = new CLIClient(OPTIONS);
-            cli.openInternal(in, out, false, false);
-            try {
-                cli.runLoop();
-            } finally {
-                cli.close();
-            }
-            String expected = expectedFile.exists() ? fileContents(expectedFile).trim() : "";
-            String actual = out.toString("UTF-8").trim().replace("\r", "");
-            assertEquals(caseName, expected, actual);
+    public void testTerminalSource() throws Exception {
+        try(InputStream in = new BufferedInputStream(new FileInputStream(sqlFile));
+            TerminalSource source = new TerminalSource("test", in, System.out)) {
+            runAndCheck(source);
         }
+    }
+
+    @Test
+    public void testFileSource() throws Exception {
+        try(FileSource source = new FileSource(sqlFile.getAbsolutePath())) {
+            runAndCheck(source);
+        }
+    }
+
+    private void runAndCheck(InputSource source) throws Exception {
+        CharArrayWriter charWriter = new CharArrayWriter();
+        WriterSink sink = new WriterSink(charWriter);
+        try(CLIClient cli = new CLIClient(OPTIONS)) {
+            cli.openInternal(source, sink, false, false);
+            cli.runLoop();
+        }
+        String expected = expectedFile.exists() ? fileContents(expectedFile).trim() : "";
+        String actual = charWriter.toString().trim().replace("\r", "");
+        assertEquals(caseName, expected, actual);
     }
 }

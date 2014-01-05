@@ -17,21 +17,12 @@ package com.foundationdb.sql.client.cli;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
-import jline.Terminal;
-import jline.TerminalFactory;
-import jline.console.ConsoleReader;
-import jline.console.UserInterruptException;
-import jline.console.history.FileHistory;
 import org.postgresql.util.PSQLState;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
+import java.io.Closeable;
 import java.io.File;
-import java.io.FileDescriptor;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -45,7 +36,7 @@ import java.util.Map;
 
 import static com.foundationdb.sql.client.cli.BackslashQueries.*;
 
-public class CLIClient
+public class CLIClient implements Closeable
 {
     private final static String APP_NAME = "fdbsqlcli";
     private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + APP_NAME + "_history");
@@ -72,6 +63,10 @@ public class CLIClient
             System.err.print("extra command-line arguments ignored: ");
             System.err.println(options.positional.subList(1, options.positional.size()));
         }
+        // Auto-quiet for -c or -f
+        if((options.command != null) || (options.file != null)) {
+            options.quiet = true;
+        }
         CLIClient client = new CLIClient(options);
         try {
             // --file takes preference over --command
@@ -81,7 +76,7 @@ public class CLIClient
             } else if(options.command != null) {
                 client.openString(options.command);
             } else {
-                client.openStandard();
+                client.openTerminal();
             }
         } catch(Exception e) {
             System.err.println(e.getMessage());
@@ -90,7 +85,10 @@ public class CLIClient
         }
         try {
             if(!options.quiet) {
-                client.printTerminalInfo();
+                String inputInfo = client.source.getInfo();
+                if(inputInfo != null) {
+                    client.sink.println(inputInfo);
+                }
                 client.printVersionInfo();
             }
             client.runLoop();
@@ -101,13 +99,14 @@ public class CLIClient
 
 
     private CLIClientOptions options;
-    private Terminal terminal;
-    private ConsoleReader console;
+    private InputSource source;
+    private OutputSink sink;
+
+    private ResultPrinter resultPrinter;
     private Connection connection;
     private Statement statement;
     private Map<String,PreparedStatement> preparedStatements;
     private boolean withPrompt = true;
-    private FileHistory fileHistory = null;
     private boolean isRunning = true;
 
 
@@ -115,30 +114,29 @@ public class CLIClient
         this.options = options;
     }
 
-    public void close() throws Exception {
-        if(fileHistory != null) {
-            fileHistory.flush();
+    public void close() {
+        source.close();
+        try {
+            disconnect();
+        } catch(SQLException e) {
+            // Ignore
         }
-        fileHistory = null;
-        disconnect();
-        console.flush();
-        console.shutdown();
-        terminal.restore();
-        console = null;
     }
 
     public void runLoop() throws SQLException, IOException {
-        ResultPrinter resultPrinter = new ResultPrinter(console.getOutput());
         QueryBuffer qb = new QueryBuffer();
         while(isRunning) {
             boolean isLast = false;
             try {
-                String prompt = withPrompt ? (qb.isEmpty() ? connection.getCatalog() + "=> " : "> ") : null;
-                String str = console.readLine(prompt);
+                if(withPrompt) {
+                    String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
+                    source.setPrompt(prompt);
+                }
+                String str = source.readLine();
                 if(str == null) {
                     // ctrl-d, exit
                     if(withPrompt) {
-                        console.println();
+                        sink.println();
                     }
                     // Send whatever is remaining in buffer.
                     // Won't happen interactively but lets -c and -f not require a semi-colon.
@@ -155,7 +153,7 @@ public class CLIClient
                         qb.append(str);
                     }
                 }
-            } catch(UserInterruptException e) {
+            } catch(PartialLineException e) {
                 // ctrl-c, abort current query
                 qb.reset();
             }
@@ -198,12 +196,10 @@ public class CLIClient
                         resultPrinter.printError(e);
                     }
                 }
-                console.flush();
+                sink.flush();
             }
             String completed = qb.trimCompleted();
-            if(fileHistory != null) {
-                fileHistory.add(completed);
-            }
+            source.addHistory(completed);
         }
     }
 
@@ -212,37 +208,32 @@ public class CLIClient
     // Internal
     //
 
-    void openStandard() throws IOException, SQLException {
+    void openTerminal() throws IOException, SQLException {
         // This is what the generic ConsoleReader() constructor does. Would System.in work?
-        openInternal(new FileInputStream(FileDescriptor.in), System.out, true, true);
+        TerminalSource terminalSource = new TerminalSource(APP_NAME);
+        WriterSink writerSink = new WriterSink(terminalSource.getConsoleWriter(), new PrintWriter(System.err));
+        openInternal(terminalSource, writerSink, true, true);
     }
 
     void openString(String str) throws IOException, SQLException {
-        str = str + "\n"; // Hack around ConsoleReader requirement
-        openInternal(new ByteArrayInputStream(str.getBytes()), System.out, false, false);
+        openInternal(new StringSource(str), new PrintStreamSink(System.out, System.err), false, false);
     }
 
     void openFile(String fileIn) throws IOException, SQLException {
-        openInternal(new BufferedInputStream(new FileInputStream(fileIn)), System.out, false, false);
+        openInternal(new FileSource(fileIn), new PrintStreamSink(System.out, System.err), false, false);
     }
 
-    void openInternal(InputStream in, OutputStream out, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
-        assert in != null;
-        assert out != null;
-        this.terminal = TerminalFactory.create();
-        this.console = new ConsoleReader(APP_NAME, in, out, terminal);
+    void openInternal(InputSource source, OutputSink sink, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
+        assert source != null;
+        assert sink != null;
         this.withPrompt = withPrompt;
-        // Manually managed
-        console.setHistoryEnabled(false);
-        // No '!' event expansion
-        console.setExpandEvents(false);
+        this.source = source;
+        this.sink = sink;
         if(withHistory) {
-            this.fileHistory = new FileHistory(HISTORY_FILE);
-            console.setHistory(fileHistory);
+            source.openHistory(HISTORY_FILE);
         }
-        // To catch ctrl-c
-        console.setHandleUserInterrupt(true);
         connect();
+        this.resultPrinter = new ResultPrinter(sink);
     }
 
     private void connect() throws SQLException {
@@ -269,22 +260,16 @@ public class CLIClient
         }
     }
 
-    private void printTerminalInfo() throws SQLException, IOException {
-        if(!terminal.isSupported()) {
-            console.println("Warning: Unsupported terminal, line editing unavailable.");
-        }
-    }
-
     private void printVersionInfo() throws SQLException, IOException {
         DatabaseMetaData md = connection.getMetaData();
-        console.println(String.format("fdbsql (driver %d.%d, layer %s)",
-                                      md.getDriverMajorVersion(),
-                                      md.getDriverMinorVersion(),
-                                      md.getDatabaseProductVersion()));
+        sink.println(String.format("fdbsql (driver %d.%d, layer %s)",
+                                         md.getDriverMajorVersion(),
+                                         md.getDriverMinorVersion(),
+                                         md.getDatabaseProductVersion()));
     }
 
     private void printConnectionInfo() throws IOException {
-        console.println(getConnectionDescription());
+        sink.println(getConnectionDescription());
     }
 
     private void printBackslashHelp() throws IOException {
@@ -295,9 +280,9 @@ public class CLIClient
             maxArg = Math.max(maxArg, cmd.helpArgs.length());
         }
         for(BackslashCommand cmd : BackslashCommand.values()) {
-            console.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", cmd.helpCmd, cmd.helpArgs, cmd.helpDesc));
+            sink.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", cmd.helpCmd, cmd.helpArgs, cmd.helpDesc));
         }
-        console.println();
+        sink.println();
     }
 
     private void runBackslash(ResultPrinter printer, String input) throws SQLException, IOException {
