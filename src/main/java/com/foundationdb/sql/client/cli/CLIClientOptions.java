@@ -26,10 +26,10 @@ public class CLIClientOptions
     @Parameter(names = "--help", help = true)
     boolean help;
 
-    @Parameter(names = { "-h", "--host" }, description = "name of server host")
+    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP")
     String host = env("FDBSQL_HOST", "localhost");
 
-    @Parameter(names = { "-p", "--port" }, description = "SQL Layer port")
+    @Parameter(names = { "-p", "--port" }, description = "server port")
     int port = Integer.parseInt(env("FDBSQL_PORT", "15432"));
 
     @Parameter(names = { "-u", "--user" }, description = "server user name")
