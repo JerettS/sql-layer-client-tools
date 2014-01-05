@@ -77,11 +77,11 @@ public class CLIClient
             // --file takes preference over --command
             if(options.file != null) {
                 checkOptionsFile(options.file);
-                client.open_File(options.file);
+                client.openFile(options.file);
             } else if(options.command != null) {
-                client.open_String(options.command);
+                client.openString(options.command);
             } else {
-                client.open_Standard();
+                client.openStandard();
             }
         } catch(Exception e) {
             System.err.println(e.getMessage());
@@ -129,6 +129,7 @@ public class CLIClient
         ResultPrinter resultPrinter = new ResultPrinter(console.getOutput());
         QueryBuffer qb = new QueryBuffer();
         while(isRunning) {
+            boolean isLast = false;
             try {
                 String prompt = withPrompt ? (qb.isEmpty() ? connection.getCatalog() + "=> " : "> ") : null;
                 String str = console.readLine(prompt);
@@ -137,21 +138,39 @@ public class CLIClient
                     if(withPrompt) {
                         console.println();
                     }
-                    break;
-                }
-                if(!qb.isEmpty()) {
-                    qb.append(' '); // Collapsing multiple lines into one, add space
-                    qb.append(str);
-                } else if(hasNonSpace(str)) {
-                    qb.append(str);
+                    // Send whatever is remaining in buffer.
+                    // Won't happen interactively but lets -c and -f not require a semi-colon.
+                    if(!qb.isEmpty()) {
+                        isLast = true;
+                    } else {
+                        break;
+                    }
+                } else {
+                    if(!qb.isEmpty()) {
+                        qb.append(' '); // Collapsing multiple lines into one, add space
+                        qb.append(str);
+                    } else if(hasNonSpace(str)) {
+                        qb.append(str);
+                    }
                 }
             } catch(UserInterruptException e) {
                 // ctrl-c, abort current query
                 qb.reset();
             }
-            while(isRunning && qb.hasQuery()) {
+            while(isRunning && (qb.hasQuery() || isLast)) {
                 boolean isBackslash = qb.isBackslash();
-                String query = qb.nextQuery();
+                String query;
+                if(qb.hasQuery()) {
+                    query = qb.nextQuery();
+                } else {
+                    assert isLast;
+                    query = qb.getRemaining();
+                    isRunning = isLast = false;
+                }
+                // User friendly: don't send empty or only semi, which will give a parse error
+                if(hasOnlySpaceAndSemi(query)) {
+                    continue;
+                }
                 try {
                     if(isBackslash) {
                         runBackslash(resultPrinter, query);
@@ -191,17 +210,17 @@ public class CLIClient
     // Internal
     //
 
-    void open_Standard() throws IOException, SQLException {
+    void openStandard() throws IOException, SQLException {
         // This is what the generic ConsoleReader() constructor does. Would System.in work?
         openInternal(new FileInputStream(FileDescriptor.in), System.out, true, true);
     }
 
-    void open_String(String str) throws IOException, SQLException {
+    void openString(String str) throws IOException, SQLException {
         str = str + "\n"; // Hack around ConsoleReader requirement
         openInternal(new ByteArrayInputStream(str.getBytes()), System.out, false, false);
     }
 
-    void open_File(String fileIn) throws IOException, SQLException {
+    void openFile(String fileIn) throws IOException, SQLException {
         openInternal(new BufferedInputStream(new FileInputStream(fileIn)), System.out, false, false);
     }
 
@@ -429,6 +448,16 @@ public class CLIClient
             }
         }
         return false;
+    }
+
+    private static boolean hasOnlySpaceAndSemi(String s) {
+        for(int i = 0; i < s.length(); ++i) {
+            char c = s.charAt(i);
+            if(!Character.isWhitespace(c) && c != ';') {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void printWarnings(ResultPrinter printer, Statement s) throws SQLException, IOException {
