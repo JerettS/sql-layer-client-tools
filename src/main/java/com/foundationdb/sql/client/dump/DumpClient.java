@@ -239,6 +239,7 @@ public class DumpClient
                 loadGroups(pending.removeFirst(), pending);
             }
             // Have all the tables we will dump.
+            loadForeignKeys();
             loadViews();
             for (String schema : schemas.keySet()) {
                 if (dumpSchema) {
@@ -248,6 +249,16 @@ public class DumpClient
                 for (Table table : schemas.get(schema).values()) {
                     if (table.parent == null) {
                         dumpGroup(table);
+                    }
+                }
+            }
+            if (dumpSchema && dumpData) {
+                // Add foreign keys after all the data so that references are satisfied.
+                for (String schema : schemas.keySet()) {
+                    for (Table table : schemas.get(schema).values()) {
+                        if (table.parent == null) {
+                            outputAddForeignKeys(table);
+                        }
                     }
                 }
             }
@@ -378,6 +389,52 @@ public class DumpClient
         stmt.close();
     }
 
+    protected void loadForeignKeys() throws SQLException {
+        PreparedStatement stmt = connection.prepareStatement("SELECT kcu1.position_in_unique_constraint, rc.constraint_name, rc.match_option, rc.update_rule, rc.delete_rule, kcu1.table_schema, kcu1.table_name, kcu1.column_name, kcu2.table_schema, kcu2.table_name, kcu2.column_name FROM information_schema.referential_constraints rc INNER JOIN information_schema.key_column_usage kcu1 USING (constraint_schema, constraint_name) INNER JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_schema = kcu2.constraint_schema AND rc.unique_constraint_name = kcu2.constraint_name AND kcu1.position_in_unique_constraint = kcu2.ordinal_position WHERE kcu1.table_schema = ? OR (kcu2.table_schema = ? AND kcu1.table_schema <> kcu2.table_schema)");
+        ForeignKey fkey = null;
+        Set<String> schemas = this.schemas.keySet();
+        for (String schema : schemas) {
+            stmt.setString(1, schema);
+            stmt.setString(2, schema);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                int pos = rs.getInt(1);
+                String name = rs.getString(2);
+                String match = rs.getString(3);
+                String update = rs.getString(4);
+                String delete = rs.getString(5);
+                String referencingSchema = rs.getString(6);
+                String referencingTable = rs.getString(7);
+                String referencingColumn = rs.getString(8);
+                String referencedSchema = rs.getString(9);
+                String referencedTable = rs.getString(10);
+                String referencedColumn = rs.getString(11);
+                if (!schema.equals(referencingSchema) &&
+                    schemas.contains(referencedSchema))
+                    continue; // Will get to it then.
+                assert name.startsWith(referencingTable + ".");
+                name = name.substring(referencingTable.length() + 1);
+                if (pos == 0) {
+                    fkey = new ForeignKey(findOrCreateTable(referencingSchema, referencingTable, null),
+                                          findOrCreateTable(referencedSchema, referencedTable, null),
+                                          name, match, update, delete);
+                }
+                else {
+                    assert ((fkey != null) &&
+                            name.equals(fkey.name) &&
+                            (pos == fkey.referencingColumns.size()) &&
+                            referencingSchema.equals(fkey.referencingTable.schema) &&
+                            referencingTable.equals(fkey.referencingTable.name) &&
+                            referencedSchema.equals(fkey.referencedTable.schema) &&
+                            referencedTable.equals(fkey.referencedTable.name));
+                }
+                fkey.referencingColumns.add(referencingColumn);
+                fkey.referencedColumns.add(referencedColumn);
+            }
+        }
+        stmt.close();
+    }
+
     protected static class Named implements Comparable<Named> {
         String schema, name;
         
@@ -406,6 +463,7 @@ public class DumpClient
         Table parent;
         List<Table> children = new ArrayList<Table>();
         List<String> primaryKeys, childKeys, parentKeys;
+        Set<ForeignKey> foreignKeys = new TreeSet<ForeignKey>();
         
         public Table(String schema, String name) {
             super(schema, name);
@@ -440,9 +498,37 @@ public class DumpClient
         }
     }
 
-    protected Table findOrCreateTable(String schema, String name, Deque<String> pending) {
+    protected static class ForeignKey implements Comparable<ForeignKey> {
+        Table referencingTable, referencedTable;
+        String name, match, update, delete;
+        List<String> referencingColumns, referencedColumns;
+        boolean dumped;
+
+        public ForeignKey(Table referencingTable, Table referencedTable,
+                          String name, String match, String update, String delete) {
+            this.referencingTable = referencingTable;
+            this.referencedTable = referencedTable;
+            this.name = name;
+            this.match = match;
+            this.update = update;
+            this.delete = delete;
+            this.referencingColumns = new ArrayList<String>();
+            this.referencedColumns = new ArrayList<String>();
+            referencingTable.foreignKeys.add(this);
+            referencedTable.foreignKeys.add(this);
+        }
+        
+        @Override
+        public int compareTo(ForeignKey o) {
+            int cmp = referencingTable.compareTo(o.referencingTable);
+            return cmp == 0 ? name.compareTo(o.name) : cmp;
+        }
+    }
+
+    protected Table findOrCreateTable(String schema, String name,
+                                      Deque<String> pending) {
         Map<String,Table> tables = schemas.get(schema);
-        if (tables == null) {
+        if ((tables == null) && (pending != null)) {
             // This is the odd case of a reference to some table not in a schema that
             // was requested. Have to get that schema anyway.
             tables = new TreeMap<String,Table>();
@@ -452,7 +538,11 @@ public class DumpClient
         Table table = tables.get(name);
         if (table == null) {
             table = new Table(schema, name);
-            tables.put(name, table);
+            if (tables != null)
+                tables.put(name, table);
+            else
+                // A table only referenced by foreign keys.
+                table.dropped = table.dumped = true;
         }
         return table;
     }
@@ -499,12 +589,15 @@ public class DumpClient
             dependentViews(table, views);
             if (!views.isEmpty())
                 ensureDropViews(views);
+            outputDropForeignKeys(table, table);
             if (!table.children.isEmpty())
                 outputDropGroup(table);
             outputDropTables(table);
             output.write(NL);
             outputCreateTables(table);
             output.write(NL);
+            if (!dumpData)
+                outputAddForeignKeys(table);
             outputCreateIndexes(table);
             output.write(NL);
             if (!views.isEmpty())
@@ -553,6 +646,8 @@ public class DumpClient
     }
 
     protected void outputDropTable(Table table) throws IOException {
+        if (table.dropped) return;
+
         StringBuilder sql = new StringBuilder("DROP TABLE IF EXISTS ");
         qualifiedName(table, sql);
         sql.append(";").append(NL);
@@ -727,6 +822,12 @@ public class DumpClient
     }    
 
     protected void outputCreateIndex(PreparedStatement icstmt, Table table, String index, String unique, String joinType, String indexMethod) throws SQLException, IOException {
+        for (ForeignKey fkey : table.foreignKeys) {
+            if ((fkey.referencingTable == table) &&
+                index.equals(fkey.name)) {
+                return;         // Implicit in FOREIGN KEY definition.
+            }
+        }
         StringBuilder sql = new StringBuilder("CREATE ");
         if ("YES".equals(unique))
             sql.append("UNIQUE ");
@@ -781,6 +882,102 @@ public class DumpClient
         }
         sql.append(';').append(NL);
         output.write(sql.toString());
+    }
+
+    protected void outputDropForeignKeys(Table parentTable, Table rootTable) throws IOException {
+        for (ForeignKey fkey : parentTable.foreignKeys) {
+            if ((parentTable == fkey.referencedTable) &&
+                !fkey.referencingTable.dropped &&
+                !sameGroup(fkey.referencingTable, rootTable)) {
+                outputDropForeignKey(fkey);
+            }
+        }
+        for (Table child : parentTable.children) {
+            outputDropForeignKeys(child, rootTable);
+        }        
+    }
+
+    protected boolean sameGroup(Table table, Table rootTable) {
+        while (table != null) {
+            if (table == rootTable)
+                return true;
+            table = table.parent;
+        }
+        return false;
+    }
+
+    protected void outputDropForeignKey(ForeignKey fkey) throws IOException {
+        // Two possible strategies:
+        // (1) drop the referencing table(s) ahead of their normal order.
+        // (2) drop the foreign key by itself.
+        // The first is preferred, but not possible in the case of circularities and
+        // grouping.
+        Deque<Table> toDrop = new ArrayDeque<Table>();
+        if (gatherDropForeignKey(fkey.referencingTable, toDrop)) {
+            for (Table table : toDrop) {
+                outputDropTable(table);
+            }
+            return;
+        }
+        // Unfortunately, this form does not have an IF EXISTS form, so an error
+        // needs to be ignored.
+        StringBuilder sql = new StringBuilder();
+        sql.append("-- IGNORE ERRORS").append(NL);
+        sql.append("ALTER TABLE ");
+        qualifiedName(fkey.referencingTable, sql);
+        sql.append(" DROP FOREIGN KEY ");
+        identifier(fkey.name, sql, true);
+        sql.append(';').append(NL);
+        output.write(sql.toString());
+    }
+
+    protected boolean gatherDropForeignKey(Table table, Deque<Table> toDrop) {
+        if (toDrop.contains(table))
+            return false;       // Circularity.
+        if ((table.parent != null) && !table.children.isEmpty())
+            return false;       // Grouping.
+        toDrop.addFirst(table);
+        for (ForeignKey fkey : table.foreignKeys) {
+            if ((table == fkey.referencedTable) &&
+                !fkey.referencingTable.dropped &&
+                !gatherDropForeignKey(fkey.referencingTable, toDrop)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    protected void outputAddForeignKeys(Table parentTable) throws IOException {
+        for (ForeignKey fkey : parentTable.foreignKeys) {
+            if (fkey.referencingTable.dumped && fkey.referencedTable.dumped &&
+                !fkey.dumped) {
+                outputAddForeignKey(fkey);
+            }
+        }
+        for (Table child : parentTable.children) {
+            outputAddForeignKeys(child);
+        }        
+    }
+
+    protected void outputAddForeignKey(ForeignKey fkey) throws IOException {
+        StringBuilder sql = new StringBuilder("ALTER TABLE ");
+        qualifiedName(fkey.referencingTable, sql);
+        sql.append(" ADD CONSTRAINT ");
+        identifier(fkey.name, sql, true);
+        sql.append(" FOREIGN KEY");
+        keys(fkey.referencingColumns, sql);
+        sql.append(" REFERENCES ");
+        qualifiedName(fkey.referencedTable, sql);
+        keys(fkey.referencedColumns, sql);
+        if (!"NONE".equals(fkey.match))
+            sql.append(" MATCH ").append(fkey.match);
+        if (!"NO ACTION".equals(fkey.update))
+            sql.append(" ON UPDATE ").append(fkey.update);
+        if (!"NO ACTION".equals(fkey.delete))
+            sql.append(" ON DELETE ").append(fkey.delete);
+        sql.append(';').append(NL);
+        output.write(sql.toString());
+        fkey.dumped = true;
     }
 
     protected void dependentViews(Table parentTable, Set<View> views) {
