@@ -20,6 +20,7 @@ package com.foundationdb.sql.client.cli;
 import jline.Terminal;
 import jline.TerminalFactory;
 import jline.console.ConsoleReader;
+import jline.console.UserInterruptException;
 import jline.console.history.FileHistory;
 
 import java.io.File;
@@ -81,7 +82,11 @@ public class TerminalSource implements InputSource
 
     @Override
     public String readLine() throws IOException {
-        return console.readLine();
+        try {
+            return console.readLine();
+        } catch(UserInterruptException e) {
+            throw new PartialLineException(e.getPartialLine());
+        }
     }
 
     @Override
