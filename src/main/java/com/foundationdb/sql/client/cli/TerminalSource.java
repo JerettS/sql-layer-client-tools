@@ -37,7 +37,7 @@ public class TerminalSource implements InputSource
     private FileHistory fileHistory;
 
     public TerminalSource(String appName) throws IOException {
-        // This is what ConsoleReader does by default. Would System.in work?
+        // This is what the generic ConsoleReader() constructor does. Would System.in work?
         this(appName, new FileInputStream(FileDescriptor.in), System.out);
     }
 

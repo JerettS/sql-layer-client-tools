@@ -17,11 +17,15 @@ package com.foundationdb.sql.client.cli;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
+// jansi-native is bundled with jline
+import org.fusesource.jansi.internal.CLibrary;
 import org.postgresql.util.PSQLState;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -63,20 +67,25 @@ public class CLIClient implements Closeable
             System.err.print("extra command-line arguments ignored: ");
             System.err.println(options.positional.subList(1, options.positional.size()));
         }
-        // Auto-quiet for -c or -f
-        if((options.command != null) || (options.file != null)) {
-            options.quiet = true;
-        }
         CLIClient client = new CLIClient(options);
         try {
             // --file takes preference over --command
+            // Auto-quiet if non-interactive input source.
             if(options.file != null) {
                 checkOptionsFile(options.file);
+                options.quiet = true;
                 client.openFile(options.file);
             } else if(options.command != null) {
+                options.quiet = true;
                 client.openString(options.command);
             } else {
-                client.openTerminal();
+                // Disable fancy terminal if input is not interactive.
+                if(CLibrary.HAVE_ISATTY && (CLibrary.isatty(CLibrary.STDIN_FILENO) == 0)) {
+                    options.quiet = true;
+                    client.openSimpleTerminal();
+                } else {
+                    client.openTerminal();
+                }
             }
         } catch(Exception e) {
             System.err.println(e.getMessage());
@@ -108,6 +117,7 @@ public class CLIClient implements Closeable
     private Map<String,PreparedStatement> preparedStatements;
     private boolean withPrompt = true;
     private boolean isRunning = true;
+    private boolean withQueryEcho = false;
 
 
     public CLIClient(CLIClientOptions options) {
@@ -172,6 +182,9 @@ public class CLIClient implements Closeable
                     continue;
                 }
                 try {
+                    if(withQueryEcho) {
+                        sink.println(query);
+                    }
                     if(isBackslash) {
                         runBackslash(resultPrinter, query);
                     } else {
@@ -208,25 +221,30 @@ public class CLIClient implements Closeable
     // Internal
     //
 
+    void openSimpleTerminal() throws IOException, SQLException {
+        openInternal(new ReaderSource(new InputStreamReader(System.in)), new PrintStreamSink(System.out, System.err), false, false, true);
+    }
+
     void openTerminal() throws IOException, SQLException {
         // This is what the generic ConsoleReader() constructor does. Would System.in work?
         TerminalSource terminalSource = new TerminalSource(APP_NAME);
         WriterSink writerSink = new WriterSink(terminalSource.getConsoleWriter(), new PrintWriter(System.err));
-        openInternal(terminalSource, writerSink, true, true);
+        openInternal(terminalSource, writerSink, true, true, false);
     }
 
     void openString(String str) throws IOException, SQLException {
-        openInternal(new StringSource(str), new PrintStreamSink(System.out, System.err), false, false);
+        openInternal(new StringSource(str), new PrintStreamSink(System.out, System.err), false, false, false);
     }
 
     void openFile(String fileIn) throws IOException, SQLException {
-        openInternal(new FileSource(fileIn), new PrintStreamSink(System.out, System.err), false, false);
+        openInternal(new ReaderSource(new FileReader(fileIn)), new PrintStreamSink(System.out, System.err), false, false, true);
     }
 
-    void openInternal(InputSource source, OutputSink sink, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
+    void openInternal(InputSource source, OutputSink sink, boolean withPrompt, boolean withHistory, boolean withQueryEcho) throws IOException, SQLException {
         assert source != null;
         assert sink != null;
         this.withPrompt = withPrompt;
+        this.withQueryEcho = withQueryEcho;
         this.source = source;
         this.sink = sink;
         if(withHistory) {

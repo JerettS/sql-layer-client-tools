@@ -31,7 +31,6 @@ import org.junit.runners.Parameterized;
 import static org.junit.Assert.*;
 
 import java.io.*;
-import java.sql.*;
 import java.util.*;
 
 @RunWith(Parameterized.class)
@@ -93,7 +92,7 @@ public class CLIClientTest extends ClientTestBase
 
     @Test
     public void testFileSource() throws Exception {
-        try(FileSource source = new FileSource(sqlFile.getAbsolutePath())) {
+        try(ReaderSource source = new ReaderSource(new FileReader(sqlFile.getAbsolutePath()))) {
             runAndCheck(source);
         }
     }
@@ -102,7 +101,7 @@ public class CLIClientTest extends ClientTestBase
         CharArrayWriter charWriter = new CharArrayWriter();
         WriterSink sink = new WriterSink(charWriter);
         try(CLIClient cli = new CLIClient(OPTIONS)) {
-            cli.openInternal(source, sink, false, false);
+            cli.openInternal(source, sink, false, false, false);
             cli.runLoop();
         }
         String expected = expectedFile.exists() ? fileContents(expectedFile).trim() : "";

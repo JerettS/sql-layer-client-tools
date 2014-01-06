@@ -19,16 +19,15 @@ package com.foundationdb.sql.client.cli;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
 
-public class FileSource implements InputSource
+public class ReaderSource implements InputSource
 {
     private final BufferedReader input;
 
-    public FileSource(String fileName) throws FileNotFoundException {
-        this.input = new BufferedReader(new FileReader(fileName));
+    public ReaderSource(Reader reader) {
+        this.input = new BufferedReader(reader);
     }
 
     @Override
