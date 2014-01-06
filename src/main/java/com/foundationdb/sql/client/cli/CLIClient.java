@@ -111,14 +111,14 @@ public class CLIClient implements Closeable
     private CLIClientOptions options;
     private InputSource source;
     private OutputSink sink;
-
     private ResultPrinter resultPrinter;
-    private Connection connection;
-    private Statement statement;
-    private Map<String,PreparedStatement> preparedStatements;
     private boolean withPrompt = true;
     private boolean isRunning = true;
     private boolean withQueryEcho = false;
+
+    private Connection connection;
+    private Statement statement;
+    private Map<String,PreparedStatement> preparedStatements;
 
 
     public CLIClient(CLIClientOptions options) {
@@ -282,9 +282,9 @@ public class CLIClient implements Closeable
     private void printVersionInfo() throws SQLException, IOException {
         DatabaseMetaData md = connection.getMetaData();
         sink.println(String.format("fdbsql (driver %d.%d, layer %s)",
-                                         md.getDriverMajorVersion(),
-                                         md.getDriverMinorVersion(),
-                                         md.getDatabaseProductVersion()));
+                                   md.getDriverMajorVersion(),
+                                   md.getDriverMinorVersion(),
+                                   md.getDatabaseProductVersion()));
     }
 
     private void printConnectionInfo() throws IOException {
