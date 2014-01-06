@@ -76,13 +76,13 @@ public class ResultPrinter
     }
 
     public void printError(String msg) throws IOException {
-        sink.println(msg);
+        sink.printlnError(msg);
     }
 
     public void printError(SQLException ex) throws IOException {
         // Message from server already includes 'ERROR: '
         appendException(ex, "");
-        sink.println();
+        sink.printlnError();
     }
 
     public void printWarning(SQLException ex) throws IOException {
@@ -145,8 +145,8 @@ public class ResultPrinter
     private void appendException(SQLException ex, String prefix) throws IOException {
         // TODO: Option to show code?
         String msg = ex.getMessage().replaceAll("\n  Position.*", "");
-        sink.print(prefix);
-        sink.println(msg);
+        sink.printError(prefix);
+        sink.printlnError(msg);
     }
 
     private static void appendCell(OutputSink sink, boolean isFirst, int width, ALIGN align, String value) throws IOException {

@@ -191,7 +191,7 @@ public class CLIClient implements Closeable
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
                         boolean res = statement.execute(query);
-                        printWarnings(resultPrinter, statement);
+                        printWarnings(statement);
                         if(res) {
                             ResultSet rs = statement.getResultSet();
                             resultPrinter.printResultSet(rs);
@@ -204,9 +204,9 @@ public class CLIClient implements Closeable
                     String state = e.getSQLState();
                     if(PSQLState.CONNECTION_FAILURE.getState().equals(state) ||
                        PSQLState.CONNECTION_FAILURE_DURING_TRANSACTION.getState().equals(state)) {
-                        isRunning = tryReconnect(resultPrinter);
+                        isRunning = tryReconnect();
                     } else {
-                        printWarnings(resultPrinter, statement);
+                        printWarnings(statement);
                         resultPrinter.printError(e);
                     }
                 }
@@ -413,18 +413,27 @@ public class CLIClient implements Closeable
         return String.format("%s@%s:%d/%s", options.user, options.host, options.port, options.schema);
     }
 
-    private boolean tryReconnect(ResultPrinter printer) throws IOException {
-        printer.printError("Lost connection to server... ");
+    private boolean tryReconnect() throws IOException {
+        resultPrinter.printError("Lost connection to server... ");
         // Try to reconnect
         try {
             disconnect();
             connect();
-            printer.printError("Reconnected");
+            resultPrinter.printError("Reconnected");
             return true;
         } catch(SQLException e2) {
-            printer.printError("Unable to reconnect");
+            resultPrinter.printError("Unable to reconnect");
             return false;
         }
+    }
+
+    private void printWarnings(Statement s) throws SQLException, IOException {
+        SQLWarning warning = s.getWarnings();
+        while(warning != null) {
+            resultPrinter.printWarning(warning);
+            warning = warning.getNextWarning();
+        }
+        s.clearWarnings();
     }
 
     //
@@ -466,14 +475,5 @@ public class CLIClient implements Closeable
             }
         }
         return true;
-    }
-
-    private static void printWarnings(ResultPrinter printer, Statement s) throws SQLException, IOException {
-        SQLWarning warning = s.getWarnings();
-        while(warning != null) {
-            printer.printWarning(warning);
-            warning = warning.getNextWarning();
-        }
-        s.clearWarnings();
     }
 }
