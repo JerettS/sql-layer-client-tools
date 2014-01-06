@@ -69,10 +69,9 @@ public class CLIClient implements Closeable
         }
         CLIClient client = new CLIClient(options);
         try {
-            // --file takes preference over --command
             // Auto-quiet if non-interactive input source.
+            // --file takes preference over --command
             if(options.file != null) {
-                checkOptionsFile(options.file);
                 options.quiet = true;
                 client.openFile(options.file);
             } else if(options.command != null) {
@@ -89,7 +88,9 @@ public class CLIClient implements Closeable
             }
         } catch(Exception e) {
             System.err.println(e.getMessage());
-            System.err.println("Connection details: " + client.getConnectionDescription());
+            if(e instanceof SQLException) {
+                System.err.println("Connection details: " + client.getConnectionDescription());
+            }
             System.exit(1);
         }
         try {
@@ -474,20 +475,5 @@ public class CLIClient implements Closeable
             warning = warning.getNextWarning();
         }
         s.clearWarnings();
-    }
-
-    private static void checkOptionsFile(String filename) {
-        File file = new File(filename);
-        String error = null;
-        if(!file.exists()) {
-            error = "no such file";
-        }
-        if(file.isDirectory()) {
-            error = "is a directory";
-        }
-        if(error != null) {
-            System.err.println(filename + ": " + error);
-            System.exit(1);
-        }
     }
 }
