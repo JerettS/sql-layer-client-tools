@@ -223,7 +223,7 @@ public class CLIClient implements Closeable
     //
 
     void openSimpleTerminal() throws IOException, SQLException {
-        openInternal(new ReaderSource(new InputStreamReader(System.in)), new PrintStreamSink(System.out, System.err), false, false, true);
+        openInternal(new ReaderSource(new InputStreamReader(System.in)), createStandardSink(), false, false, true);
     }
 
     void openTerminal() throws IOException, SQLException {
@@ -234,11 +234,11 @@ public class CLIClient implements Closeable
     }
 
     void openString(String str) throws IOException, SQLException {
-        openInternal(new StringSource(str), new PrintStreamSink(System.out, System.err), false, false, false);
+        openInternal(new StringSource(str), createStandardSink(), false, false, false);
     }
 
     void openFile(String fileIn) throws IOException, SQLException {
-        openInternal(new ReaderSource(new FileReader(fileIn)), new PrintStreamSink(System.out, System.err), false, false, true);
+        openInternal(new ReaderSource(new FileReader(fileIn)), createStandardSink(), false, false, true);
     }
 
     void openInternal(InputSource source, OutputSink sink, boolean withPrompt, boolean withHistory, boolean withQueryEcho) throws IOException, SQLException {
@@ -475,5 +475,9 @@ public class CLIClient implements Closeable
             }
         }
         return true;
+    }
+
+    private static OutputSink createStandardSink() {
+        return new PrintStreamSink(System.out, System.err);
     }
 }
