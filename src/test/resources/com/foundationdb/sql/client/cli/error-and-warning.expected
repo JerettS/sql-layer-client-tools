@@ -5,3 +5,8 @@ ERROR: Cannot find the table `test`.`bar`
 WARNING: ISOLATION LEVEL READ UNCOMMITTED ignored; remains SERIALIZABLE
 ROWS: 0
 
+ROWS: 0
+
+WARNING: Invalid datetime format: asdf
+ERROR: NULL value not permitted for `test`.`t`.`d`
+

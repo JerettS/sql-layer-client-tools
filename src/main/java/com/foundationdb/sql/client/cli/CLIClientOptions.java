@@ -26,10 +26,10 @@ public class CLIClientOptions
     @Parameter(names = "--help", help = true)
     boolean help;
 
-    @Parameter(names = { "-h", "--host" }, description = "name of server host")
+    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP")
     String host = env("FDBSQL_HOST", "localhost");
 
-    @Parameter(names = { "-p", "--port" }, description = "SQL Layer port")
+    @Parameter(names = { "-p", "--port" }, description = "server port")
     int port = Integer.parseInt(env("FDBSQL_PORT", "15432"));
 
     @Parameter(names = { "-u", "--user" }, description = "server user name")
@@ -41,8 +41,14 @@ public class CLIClientOptions
     @Parameter(names = { "-s", "--schema" }, description = "server user name")
     String schema = env("FDBSQL_SCHEMA", user);
 
+    @Parameter(names = { "-c", "--command" }, description = "execute command(s) and then exit")
+    String command = null;
+
     @Parameter(names = { "-f", "--file" }, description = "execute commands from file and then exit")
     String file = null;
+
+    @Parameter(names = { "-q", "--quiet" }, description = "output only query results")
+    boolean quiet = false;
 
     @Parameter(description="[schema]")
     public List<String> positional = new ArrayList<>();

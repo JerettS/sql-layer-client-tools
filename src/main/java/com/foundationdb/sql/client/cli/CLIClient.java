@@ -22,15 +22,16 @@ import jline.TerminalFactory;
 import jline.console.ConsoleReader;
 import jline.console.UserInterruptException;
 import jline.console.history.FileHistory;
+import org.postgresql.util.PSQLState;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.ConnectException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -47,7 +48,7 @@ import static com.foundationdb.sql.client.cli.BackslashQueries.*;
 public class CLIClient
 {
     private final static String APP_NAME = "fdbsqlcli";
-    private final static String HISTORY_FILE = String.format("%s/.%s_history", System.getProperty("user.home"), APP_NAME);
+    private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + APP_NAME + "_history");
 
 
     public static void main(String[] args) throws Exception {
@@ -59,8 +60,8 @@ public class CLIClient
                 jc.usage();
                 return;
             }
-        } catch(ParameterException ex) {
-            System.err.println(ex.getMessage());
+        } catch(ParameterException e) {
+            System.err.println(e.getMessage());
             System.exit(1);
         }
         // Positional arg overrides named parameter
@@ -71,35 +72,27 @@ public class CLIClient
             System.err.print("extra command-line arguments ignored: ");
             System.err.println(options.positional.subList(1, options.positional.size()));
         }
-        if(options.file != null) {
-            File file = new File(options.file);
-            String error = null;
-            if(!file.exists()) {
-                error = "no such file";
-            }
-            if(file.isDirectory()) {
-                error = "is a directory";
-            }
-            if(error != null) {
-                System.err.println(options.file + ": " + error);
-                System.exit(1);
-            }
-        }
         CLIClient client = new CLIClient(options);
         try {
-            client.openInternal(null, null, options.file, options.file == null, options.file == null);
-        } catch(Exception e) {
-            if(e.getCause() instanceof ConnectException) {
-                System.err.println(e.getCause().getMessage());
-                System.err.println("Please check connection to: " + client.getConnectionDescription());
-                System.exit(1);
+            // --file takes preference over --command
+            if(options.file != null) {
+                checkOptionsFile(options.file);
+                client.openFile(options.file);
+            } else if(options.command != null) {
+                client.openString(options.command);
             } else {
-                System.err.println(e.getCause().getMessage());
+                client.openStandard();
             }
+        } catch(Exception e) {
+            System.err.println(e.getMessage());
+            System.err.println("Connection details: " + client.getConnectionDescription());
+            System.exit(1);
         }
         try {
-            client.printTerminalInfo();
-            client.printVersionInfo();
+            if(!options.quiet) {
+                client.printTerminalInfo();
+                client.printVersionInfo();
+            }
             client.runLoop();
         } finally {
             client.close();
@@ -122,16 +115,6 @@ public class CLIClient
         this.options = options;
     }
 
-    public void open(InputStream in, OutputStream out) throws IOException, SQLException {
-        if(in == null) {
-            throw new NullPointerException("in");
-        }
-        if(out == null) {
-            throw new NullPointerException("out");
-        }
-        openInternal(in, out, null, true, true);
-    }
-
     public void close() throws Exception {
         if(fileHistory != null) {
             fileHistory.flush();
@@ -148,6 +131,7 @@ public class CLIClient
         ResultPrinter resultPrinter = new ResultPrinter(console.getOutput());
         QueryBuffer qb = new QueryBuffer();
         while(isRunning) {
+            boolean isLast = false;
             try {
                 String prompt = withPrompt ? (qb.isEmpty() ? connection.getCatalog() + "=> " : "> ") : null;
                 String str = console.readLine(prompt);
@@ -156,32 +140,46 @@ public class CLIClient
                     if(withPrompt) {
                         console.println();
                     }
-                    break;
-                }
-                if(!qb.isEmpty()) {
-                    qb.append(' '); // Collapsing multiple lines into one, add space
-                    qb.append(str);
-                } else if(hasNonSpace(str)) {
-                    qb.append(str);
+                    // Send whatever is remaining in buffer.
+                    // Won't happen interactively but lets -c and -f not require a semi-colon.
+                    if(!qb.isEmpty()) {
+                        isLast = true;
+                    } else {
+                        break;
+                    }
+                } else {
+                    if(!qb.isEmpty()) {
+                        qb.append(' '); // Collapsing multiple lines into one, add space
+                        qb.append(str);
+                    } else if(hasNonSpace(str)) {
+                        qb.append(str);
+                    }
                 }
             } catch(UserInterruptException e) {
                 // ctrl-c, abort current query
                 qb.reset();
             }
-            while(isRunning && qb.hasQuery()) {
+            while(isRunning && (qb.hasQuery() || isLast)) {
                 boolean isBackslash = qb.isBackslash();
-                String query = qb.nextQuery();
+                String query;
+                if(qb.hasQuery()) {
+                    query = qb.nextQuery();
+                } else {
+                    assert isLast;
+                    query = qb.getRemaining();
+                    isRunning = isLast = false;
+                }
+                // User friendly: don't send empty or only semi, which will give a parse error
+                if(hasOnlySpaceAndSemi(query)) {
+                    continue;
+                }
                 try {
                     if(isBackslash) {
                         runBackslash(resultPrinter, query);
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
                         boolean res = statement.execute(query);
-                        SQLWarning warning = statement.getWarnings();
-                        while(warning != null) {
-                            resultPrinter.printWarning(warning);
-                            warning = warning.getNextWarning();
-                        }
+                        printWarnings(resultPrinter, statement);
                         if(res) {
                             ResultSet rs = statement.getResultSet();
                             resultPrinter.printResultSet(rs);
@@ -191,7 +189,14 @@ public class CLIClient
                         }
                     }
                 } catch(SQLException e) {
-                    resultPrinter.printError(e);
+                    String state = e.getSQLState();
+                    if(PSQLState.CONNECTION_FAILURE.getState().equals(state) ||
+                       PSQLState.CONNECTION_FAILURE_DURING_TRANSACTION.getState().equals(state)) {
+                        isRunning = tryReconnect(resultPrinter);
+                    } else {
+                        printWarnings(resultPrinter, statement);
+                        resultPrinter.printError(e);
+                    }
                 }
                 console.flush();
             }
@@ -207,31 +212,37 @@ public class CLIClient
     // Internal
     //
 
-    void openInternal(InputStream in, OutputStream out, String fileIn, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
-        if(in == null) {
-            if(fileIn == null) {
-                // This is what the generic ConsoleReader() constructor does. Would System.in work?
-                in = new FileInputStream(FileDescriptor.in);
-            } else {
-                in = new BufferedInputStream(new FileInputStream(fileIn));
-            }
-        }
-        if(out == null) {
-            out = System.out;
-        }
+    void openStandard() throws IOException, SQLException {
+        // This is what the generic ConsoleReader() constructor does. Would System.in work?
+        openInternal(new FileInputStream(FileDescriptor.in), System.out, true, true);
+    }
+
+    void openString(String str) throws IOException, SQLException {
+        str = str + "\n"; // Hack around ConsoleReader requirement
+        openInternal(new ByteArrayInputStream(str.getBytes()), System.out, false, false);
+    }
+
+    void openFile(String fileIn) throws IOException, SQLException {
+        openInternal(new BufferedInputStream(new FileInputStream(fileIn)), System.out, false, false);
+    }
+
+    void openInternal(InputStream in, OutputStream out, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
+        assert in != null;
+        assert out != null;
         this.terminal = TerminalFactory.create();
         this.console = new ConsoleReader(APP_NAME, in, out, terminal);
         this.withPrompt = withPrompt;
         // Manually managed
         console.setHistoryEnabled(false);
+        // No '!' event expansion
+        console.setExpandEvents(false);
         if(withHistory) {
-            this.fileHistory = new FileHistory(new File(HISTORY_FILE));
+            this.fileHistory = new FileHistory(HISTORY_FILE);
             console.setHistory(fileHistory);
         }
         // To catch ctrl-c
         console.setHandleUserInterrupt(true);
         connect();
-
     }
 
     private void connect() throws SQLException {
@@ -242,14 +253,20 @@ public class CLIClient
     }
 
     private void disconnect() throws SQLException {
-        statement.close();
-        statement = null;
-        for(PreparedStatement pStmt : preparedStatements.values()) {
-            pStmt.close();
+        if(statement != null) {
+            statement.close();
+            statement = null;
         }
-        preparedStatements = null;
-        connection.close();
-        connection = null;
+        if(preparedStatements != null) {
+            for(PreparedStatement pStmt : preparedStatements.values()) {
+                pStmt.close();
+            }
+            preparedStatements = null;
+        }
+        if(connection != null) {
+            connection.close();
+            connection = null;
+        }
     }
 
     private void printTerminalInfo() throws SQLException, IOException {
@@ -392,6 +409,20 @@ public class CLIClient
         return String.format("%s@%s:%d/%s", options.user, options.host, options.port, options.schema);
     }
 
+    private boolean tryReconnect(ResultPrinter printer) throws IOException {
+        printer.printError("Lost connection to server... ");
+        // Try to reconnect
+        try {
+            disconnect();
+            connect();
+            printer.printError("Reconnected");
+            return true;
+        } catch(SQLException e2) {
+            printer.printError("Unable to reconnect");
+            return false;
+        }
+    }
+
     //
     // Static
     //
@@ -421,5 +452,39 @@ public class CLIClient
             }
         }
         return false;
+    }
+
+    private static boolean hasOnlySpaceAndSemi(String s) {
+        for(int i = 0; i < s.length(); ++i) {
+            char c = s.charAt(i);
+            if(!Character.isWhitespace(c) && c != ';') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void printWarnings(ResultPrinter printer, Statement s) throws SQLException, IOException {
+        SQLWarning warning = s.getWarnings();
+        while(warning != null) {
+            printer.printWarning(warning);
+            warning = warning.getNextWarning();
+        }
+        s.clearWarnings();
+    }
+
+    private static void checkOptionsFile(String filename) {
+        File file = new File(filename);
+        String error = null;
+        if(!file.exists()) {
+            error = "no such file";
+        }
+        if(file.isDirectory()) {
+            error = "is a directory";
+        }
+        if(error != null) {
+            System.err.println(filename + ": " + error);
+            System.exit(1);
+        }
     }
 }

@@ -86,6 +86,12 @@ public class QueryBuffer
         return q;
     }
 
+    public String getRemaining() {
+        String q = buffer.substring(startIndex);
+        reset(buffer.length(), UNSET, buffer.length(), buffer.length());
+        return q;
+    }
+
     public String trimCompleted() {
         String s = buffer.substring(0, startIndex);
         buffer.delete(0, startIndex);
