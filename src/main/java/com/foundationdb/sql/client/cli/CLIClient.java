@@ -17,21 +17,16 @@ package com.foundationdb.sql.client.cli;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
-import jline.Terminal;
-import jline.TerminalFactory;
-import jline.console.ConsoleReader;
-import jline.console.UserInterruptException;
-import jline.console.history.FileHistory;
+// jansi-native is bundled with jline
+import org.fusesource.jansi.internal.CLibrary;
 import org.postgresql.util.PSQLState;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
+import java.io.Closeable;
 import java.io.File;
-import java.io.FileDescriptor;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -45,7 +40,7 @@ import java.util.Map;
 
 import static com.foundationdb.sql.client.cli.BackslashQueries.*;
 
-public class CLIClient
+public class CLIClient implements Closeable
 {
     private final static String APP_NAME = "fdbsqlcli";
     private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + APP_NAME + "_history");
@@ -74,23 +69,36 @@ public class CLIClient
         }
         CLIClient client = new CLIClient(options);
         try {
+            // Auto-quiet if non-interactive input source.
             // --file takes preference over --command
             if(options.file != null) {
-                checkOptionsFile(options.file);
+                options.quiet = true;
                 client.openFile(options.file);
             } else if(options.command != null) {
+                options.quiet = true;
                 client.openString(options.command);
             } else {
-                client.openStandard();
+                // Disable fancy terminal if input is not interactive.
+                if(CLibrary.HAVE_ISATTY && (CLibrary.isatty(CLibrary.STDIN_FILENO) == 0)) {
+                    options.quiet = true;
+                    client.openSimpleTerminal();
+                } else {
+                    client.openTerminal();
+                }
             }
         } catch(Exception e) {
             System.err.println(e.getMessage());
-            System.err.println("Connection details: " + client.getConnectionDescription());
+            if(e instanceof SQLException) {
+                System.err.println("Connection details: " + client.getConnectionDescription());
+            }
             System.exit(1);
         }
         try {
             if(!options.quiet) {
-                client.printTerminalInfo();
+                String inputInfo = client.source.getInfo();
+                if(inputInfo != null) {
+                    client.sink.println(inputInfo);
+                }
                 client.printVersionInfo();
             }
             client.runLoop();
@@ -101,44 +109,45 @@ public class CLIClient
 
 
     private CLIClientOptions options;
-    private Terminal terminal;
-    private ConsoleReader console;
+    private InputSource source;
+    private OutputSink sink;
+    private ResultPrinter resultPrinter;
+    private boolean withPrompt = true;
+    private boolean isRunning = true;
+    private boolean withQueryEcho = false;
+
     private Connection connection;
     private Statement statement;
     private Map<String,PreparedStatement> preparedStatements;
-    private boolean withPrompt = true;
-    private FileHistory fileHistory = null;
-    private boolean isRunning = true;
 
 
     public CLIClient(CLIClientOptions options) {
         this.options = options;
     }
 
-    public void close() throws Exception {
-        if(fileHistory != null) {
-            fileHistory.flush();
+    public void close() {
+        source.close();
+        try {
+            disconnect();
+        } catch(SQLException e) {
+            // Ignore
         }
-        fileHistory = null;
-        disconnect();
-        console.flush();
-        console.shutdown();
-        terminal.restore();
-        console = null;
     }
 
     public void runLoop() throws SQLException, IOException {
-        ResultPrinter resultPrinter = new ResultPrinter(console.getOutput());
         QueryBuffer qb = new QueryBuffer();
         while(isRunning) {
             boolean isLast = false;
             try {
-                String prompt = withPrompt ? (qb.isEmpty() ? connection.getCatalog() + "=> " : "> ") : null;
-                String str = console.readLine(prompt);
+                if(withPrompt) {
+                    String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
+                    source.setPrompt(prompt);
+                }
+                String str = source.readLine();
                 if(str == null) {
                     // ctrl-d, exit
                     if(withPrompt) {
-                        console.println();
+                        sink.println();
                     }
                     // Send whatever is remaining in buffer.
                     // Won't happen interactively but lets -c and -f not require a semi-colon.
@@ -155,7 +164,7 @@ public class CLIClient
                         qb.append(str);
                     }
                 }
-            } catch(UserInterruptException e) {
+            } catch(PartialLineException e) {
                 // ctrl-c, abort current query
                 qb.reset();
             }
@@ -174,12 +183,15 @@ public class CLIClient
                     continue;
                 }
                 try {
+                    if(withQueryEcho) {
+                        sink.println(query);
+                    }
                     if(isBackslash) {
                         runBackslash(resultPrinter, query);
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
                         boolean res = statement.execute(query);
-                        printWarnings(resultPrinter, statement);
+                        printWarnings(statement);
                         if(res) {
                             ResultSet rs = statement.getResultSet();
                             resultPrinter.printResultSet(rs);
@@ -192,18 +204,16 @@ public class CLIClient
                     String state = e.getSQLState();
                     if(PSQLState.CONNECTION_FAILURE.getState().equals(state) ||
                        PSQLState.CONNECTION_FAILURE_DURING_TRANSACTION.getState().equals(state)) {
-                        isRunning = tryReconnect(resultPrinter);
+                        isRunning = tryReconnect();
                     } else {
-                        printWarnings(resultPrinter, statement);
+                        printWarnings(statement);
                         resultPrinter.printError(e);
                     }
                 }
-                console.flush();
+                sink.flush();
             }
             String completed = qb.trimCompleted();
-            if(fileHistory != null) {
-                fileHistory.add(completed);
-            }
+            source.addHistory(completed);
         }
     }
 
@@ -212,37 +222,37 @@ public class CLIClient
     // Internal
     //
 
-    void openStandard() throws IOException, SQLException {
+    void openSimpleTerminal() throws IOException, SQLException {
+        openInternal(new ReaderSource(new InputStreamReader(System.in)), createStandardSink(), false, false, true);
+    }
+
+    void openTerminal() throws IOException, SQLException {
         // This is what the generic ConsoleReader() constructor does. Would System.in work?
-        openInternal(new FileInputStream(FileDescriptor.in), System.out, true, true);
+        TerminalSource terminalSource = new TerminalSource(APP_NAME);
+        WriterSink writerSink = new WriterSink(terminalSource.getConsoleWriter(), new PrintWriter(System.err));
+        openInternal(terminalSource, writerSink, true, true, false);
     }
 
     void openString(String str) throws IOException, SQLException {
-        str = str + "\n"; // Hack around ConsoleReader requirement
-        openInternal(new ByteArrayInputStream(str.getBytes()), System.out, false, false);
+        openInternal(new StringSource(str), createStandardSink(), false, false, false);
     }
 
     void openFile(String fileIn) throws IOException, SQLException {
-        openInternal(new BufferedInputStream(new FileInputStream(fileIn)), System.out, false, false);
+        openInternal(new ReaderSource(new FileReader(fileIn)), createStandardSink(), false, false, true);
     }
 
-    void openInternal(InputStream in, OutputStream out, boolean withPrompt, boolean withHistory) throws IOException, SQLException {
-        assert in != null;
-        assert out != null;
-        this.terminal = TerminalFactory.create();
-        this.console = new ConsoleReader(APP_NAME, in, out, terminal);
+    void openInternal(InputSource source, OutputSink sink, boolean withPrompt, boolean withHistory, boolean withQueryEcho) throws IOException, SQLException {
+        assert source != null;
+        assert sink != null;
         this.withPrompt = withPrompt;
-        // Manually managed
-        console.setHistoryEnabled(false);
-        // No '!' event expansion
-        console.setExpandEvents(false);
+        this.withQueryEcho = withQueryEcho;
+        this.source = source;
+        this.sink = sink;
         if(withHistory) {
-            this.fileHistory = new FileHistory(HISTORY_FILE);
-            console.setHistory(fileHistory);
+            source.openHistory(HISTORY_FILE);
         }
-        // To catch ctrl-c
-        console.setHandleUserInterrupt(true);
         connect();
+        this.resultPrinter = new ResultPrinter(sink);
     }
 
     private void connect() throws SQLException {
@@ -269,22 +279,16 @@ public class CLIClient
         }
     }
 
-    private void printTerminalInfo() throws SQLException, IOException {
-        if(!terminal.isSupported()) {
-            console.println("Warning: Unsupported terminal, line editing unavailable.");
-        }
-    }
-
     private void printVersionInfo() throws SQLException, IOException {
         DatabaseMetaData md = connection.getMetaData();
-        console.println(String.format("fdbsql (driver %d.%d, layer %s)",
-                                      md.getDriverMajorVersion(),
-                                      md.getDriverMinorVersion(),
-                                      md.getDatabaseProductVersion()));
+        sink.println(String.format("fdbsql (driver %d.%d, layer %s)",
+                                   md.getDriverMajorVersion(),
+                                   md.getDriverMinorVersion(),
+                                   md.getDatabaseProductVersion()));
     }
 
     private void printConnectionInfo() throws IOException {
-        console.println(getConnectionDescription());
+        sink.println(getConnectionDescription());
     }
 
     private void printBackslashHelp() throws IOException {
@@ -295,9 +299,9 @@ public class CLIClient
             maxArg = Math.max(maxArg, cmd.helpArgs.length());
         }
         for(BackslashCommand cmd : BackslashCommand.values()) {
-            console.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", cmd.helpCmd, cmd.helpArgs, cmd.helpDesc));
+            sink.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", cmd.helpCmd, cmd.helpArgs, cmd.helpDesc));
         }
-        console.println();
+        sink.println();
     }
 
     private void runBackslash(ResultPrinter printer, String input) throws SQLException, IOException {
@@ -409,18 +413,27 @@ public class CLIClient
         return String.format("%s@%s:%d/%s", options.user, options.host, options.port, options.schema);
     }
 
-    private boolean tryReconnect(ResultPrinter printer) throws IOException {
-        printer.printError("Lost connection to server... ");
+    private boolean tryReconnect() throws IOException {
+        resultPrinter.printError("Lost connection to server... ");
         // Try to reconnect
         try {
             disconnect();
             connect();
-            printer.printError("Reconnected");
+            resultPrinter.printError("Reconnected");
             return true;
         } catch(SQLException e2) {
-            printer.printError("Unable to reconnect");
+            resultPrinter.printError("Unable to reconnect");
             return false;
         }
+    }
+
+    private void printWarnings(Statement s) throws SQLException, IOException {
+        SQLWarning warning = s.getWarnings();
+        while(warning != null) {
+            resultPrinter.printWarning(warning);
+            warning = warning.getNextWarning();
+        }
+        s.clearWarnings();
     }
 
     //
@@ -464,27 +477,7 @@ public class CLIClient
         return true;
     }
 
-    private static void printWarnings(ResultPrinter printer, Statement s) throws SQLException, IOException {
-        SQLWarning warning = s.getWarnings();
-        while(warning != null) {
-            printer.printWarning(warning);
-            warning = warning.getNextWarning();
-        }
-        s.clearWarnings();
-    }
-
-    private static void checkOptionsFile(String filename) {
-        File file = new File(filename);
-        String error = null;
-        if(!file.exists()) {
-            error = "no such file";
-        }
-        if(file.isDirectory()) {
-            error = "is a directory";
-        }
-        if(error != null) {
-            System.err.println(filename + ": " + error);
-            System.exit(1);
-        }
+    private static OutputSink createStandardSink() {
+        return new PrintStreamSink(System.out, System.err);
     }
 }

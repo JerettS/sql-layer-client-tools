@@ -22,17 +22,15 @@ import java.sql.SQLException;
 
 public class ResultPrinter
 {
-    private static final String NL = System.getProperty("line.separator");
-
     private static enum ALIGN { LEFT, CENTER, RIGHT }
 
-    private final Appendable output;
+    private final OutputSink sink;
     private int columnCount;
     private int[] cellWidths;
     private boolean[] isNumber;
 
-    public ResultPrinter(Appendable output) {
-        this.output = output;
+    public ResultPrinter(OutputSink sink) {
+        this.sink = sink;
     }
 
     public void printResultSet(ResultSet rs) throws SQLException, IOException {
@@ -41,9 +39,8 @@ public class ResultPrinter
 
     public void printResultSet(String description, ResultSet rs) throws SQLException, IOException {
         if(description != null) {
-            output.append(' ');
-            output.append(description);
-            output.append(NL);
+            sink.print(' ');
+            sink.println(description);
         }
         ResultSetMetaData md = rs.getMetaData();
         this.columnCount = md.getColumnCount();
@@ -69,25 +66,23 @@ public class ResultPrinter
             ++rowCount;
         }
         rowsFinish(rowCount);
-        output.append(NL);
+        sink.println();
     }
 
     public void printUpdate(int updateCount) throws IOException {
-        output.append("ROWS: ");
-        output.append(Integer.toString(updateCount));
-        output.append(NL);
-        output.append(NL);
+        sink.print("ROWS: ");
+        sink.println(Integer.toString(updateCount));
+        sink.println();
     }
 
     public void printError(String msg) throws IOException {
-        output.append(msg);
-        output.append(NL);
+        sink.printlnError(msg);
     }
 
     public void printError(SQLException ex) throws IOException {
         // Message from server already includes 'ERROR: '
         appendException(ex, "");
-        output.append(NL);
+        sink.printlnError();
     }
 
     public void printWarning(SQLException ex) throws IOException {
@@ -106,20 +101,20 @@ public class ResultPrinter
     }
 
     private void metaColumn(int column, boolean isNumeric, String label) throws IOException {
-        appendCell(output, column == 0, cellWidths[column], ALIGN.CENTER, label);
+        appendCell(sink, column == 0, cellWidths[column], ALIGN.CENTER, label);
     }
 
     private void metaFinish() throws IOException {
-        output.append(NL);
+        sink.println();
         for(int i = 0; i < columnCount; ++i) {
             if(i > 0) {
-                output.append('+');
+                sink.print('+');
             }
             for(int j = 0; j < (cellWidths[i] + 2); ++j) {
-                output.append('-');
+                sink.print('-');
             }
         }
-        output.append(NL);
+        sink.println();
     }
 
     private void rowsStart() {
@@ -129,63 +124,62 @@ public class ResultPrinter
     }
 
     private void rowsColumn(int column, String value) throws IOException {
-        appendCell(output, column == 0, cellWidths[column], isNumber[column] ? ALIGN.RIGHT : ALIGN.LEFT, value);
+        appendCell(sink, column == 0, cellWidths[column], isNumber[column] ? ALIGN.RIGHT : ALIGN.LEFT, value);
     }
 
     private void rowsRowFinish() throws IOException {
-        output.append(NL);
+        sink.println();
     }
 
     private void rowsFinish(int rowCount) throws IOException {
-        output.append('(');
-        output.append(Integer.toString(rowCount));
-        output.append(" row");
+        sink.print('(');
+        sink.print(Integer.toString(rowCount));
+        sink.print(" row");
         if(rowCount != 1) {
-            output.append('s');
+            sink.print('s');
         }
-        output.append(')');
-        output.append(NL);
+        sink.print(')');
+        sink.println();
     }
 
     private void appendException(SQLException ex, String prefix) throws IOException {
-        String code = ex.getSQLState();
+        // TODO: Option to show code?
         String msg = ex.getMessage().replaceAll("\n  Position.*", "");
-        output.append(prefix);
-        output.append(msg);
-        output.append(NL);
+        sink.printError(prefix);
+        sink.printlnError(msg);
     }
 
-    private static void appendCell(Appendable out, boolean isFirst, int width, ALIGN align, String value) throws IOException {
+    private static void appendCell(OutputSink sink, boolean isFirst, int width, ALIGN align, String value) throws IOException {
         if(!isFirst) {
-            out.append("|");
+            sink.print("|");
         }
-        out.append(' ');
+        sink.print(' ');
         int alignDiff = width - value.length();
         switch(align) {
             case LEFT:
-                out.append(value);
-                spaceFill(out, alignDiff);
+                sink.print(value);
+                spaceFill(sink, alignDiff);
             break;
             case CENTER:
                 int halfDiff = alignDiff / 2;
                 int slop = alignDiff & 1;
-                spaceFill(out, halfDiff);
-                out.append(value);
-                spaceFill(out, halfDiff + slop);
+                spaceFill(sink, halfDiff);
+                sink.print(value);
+                spaceFill(sink, halfDiff + slop);
             break;
             case RIGHT:
-                spaceFill(out, alignDiff);
-                out.append(value);
+                spaceFill(sink, alignDiff);
+                sink.print(value);
             break;
             default:
                 assert false;
         }
-        out.append(' ');
+        sink.print(' ');
     }
 
-    private static void spaceFill(Appendable out, int count) throws IOException {
+    private static void spaceFill(OutputSink sink, int count) throws IOException {
         for(int i = 0; i < count; ++i) {
-            out.append(' ');
+            sink.print(' ');
         }
     }
 
