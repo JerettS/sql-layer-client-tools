@@ -21,7 +21,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-// Command line arguments override environemtn variables which override the literal defaults here
+// Command line arguments override environment variables which override the literal defaults here
 public class CLIClientOptions
 {
     @Parameter(names = "--help", help = true)
