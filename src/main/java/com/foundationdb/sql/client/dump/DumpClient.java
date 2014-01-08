@@ -281,18 +281,22 @@ public class DumpClient
     protected void loadSequences (String schema) throws SQLException {
         Map<String, Sequence> seqs = sequences.get(schema);
         PreparedStatement stmt = connection.prepareStatement(
-                "select sequence_schema, sequence_name, " + 
-                " nextval(sequence_schema, sequence_name), " +
-                " increment, minimum_value, maximum_value, cycle_option " +
-                " from information_schema.sequences where sequence_schema = ? order by sequence_name");
+                "select s.sequence_schema, s.sequence_name, " +
+                " nextval(s.sequence_schema, s.sequence_name), " +
+                " s.increment, s.minimum_value, s.maximum_value, " +
+                " s.cycle_option = 'YES', " +
+                " c.sequence_name is not null" +
+                " from information_schema.sequences s " +
+                " left join information_schema.columns c on "+
+                "   s.sequence_schema=c.sequence_schema and s.sequence_name=c.sequence_name" +
+                " where s.sequence_schema = ? order by s.sequence_name");
         stmt.setString(1, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
-            boolean cycle = rs.getString(7).equals("YES");
             String name = rs.getString(2);
             seqs.put(name, new Sequence (rs.getString(1), name, 
                     rs.getLong(3), rs.getLong(4),rs.getLong(5), rs.getLong(6),
-                    cycle));
+                    rs.getBoolean(7), rs.getBoolean(8)));
         }
     }
 
@@ -484,17 +488,19 @@ public class DumpClient
         long startWith, incrementBy;
         long minValue, maxValue;
         boolean cycle;
+        boolean identity;
         
         public Sequence (String schema, String name, 
                 long startWith, long incrementBy,
                 long minValue, long maxValue,
-                boolean cycle) {
+                boolean cycle, boolean identity) {
             super(schema, name);
             this.startWith = startWith;
             this.incrementBy = incrementBy;
             this.minValue = minValue;
             this.maxValue = maxValue;
             this.cycle = cycle;
+            this.identity = identity;
         }
     }
 
@@ -552,8 +558,7 @@ public class DumpClient
         
         // drop sequences
         for (Sequence seq : sequences.get(schema).values()) {
-            // these are sequences used for column identity generator
-            if (seq.name.startsWith("_sequence")) {
+            if (seq.identity) {
                 continue;
             }
             sql.append ("DROP SEQUENCE IF EXISTS ");
@@ -564,8 +569,7 @@ public class DumpClient
         sql.append(NL);
         // create sequences
         for (Sequence seq : sequences.get(schema).values()) {
-            // these are sequences used for column identity generator
-            if (seq.name.startsWith("_sequence-")) {
+            if (seq.identity) {
                 continue;
             }
             sql.append("CREATE SEQUENCE ");
