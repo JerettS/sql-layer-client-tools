@@ -54,6 +54,9 @@ public class CLIClientOptions
     @Parameter(description="[schema]")
     public List<String> positional = new ArrayList<>();
 
+    // Appended to JDBC URL. Used by tests but not otherwise exposed.
+    String urlOptions = "";
+
 
     private static String env(String env, String defValue) {
         String value = System.getenv(env);
