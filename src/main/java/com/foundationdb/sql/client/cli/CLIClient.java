@@ -25,6 +25,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -115,6 +116,7 @@ public class CLIClient implements Closeable
     private CLIClientOptions options;
     private InputSource source;
     private OutputSink sink;
+    private OutputSink otherSink;
     private ResultPrinter resultPrinter;
     private boolean withPrompt = true;
     private boolean isRunning = true;
@@ -133,6 +135,14 @@ public class CLIClient implements Closeable
         if(source != null) {
             source.close();
             source = null;
+        }
+        if(otherSink != null) {
+            try {
+                otherSink.close();
+            } catch(IOException e) {
+                // Ignore
+            }
+            otherSink = null;
         }
         try {
             disconnect();
@@ -216,7 +226,9 @@ public class CLIClient implements Closeable
                 sink.flush();
             }
             String completed = qb.trimCompleted();
-            localSource.addHistory(completed);
+            if(!completed.isEmpty()) {
+                localSource.addHistory(completed);
+            }
         }
     }
 
@@ -250,6 +262,7 @@ public class CLIClient implements Closeable
         this.withPrompt = withPrompt;
         this.withQueryEcho = withQueryEcho;
         this.source = source;
+        this.otherSink = null;
         this.sink = sink;
         if(withHistory) {
             source.openHistory(HISTORY_FILE);
@@ -327,6 +340,10 @@ public class CLIClient implements Closeable
             case I_FILE:
                 // re-parse to not split on periods
                 runBackslashI(BackslashParser.parseFrom(input, false));
+            break;
+            case O_FILE:
+                // re-parse to not split on periods
+                runBackslashO(BackslashParser.parseFrom(input, false));
             break;
             case HELP:
                 printBackslashHelp();
@@ -407,6 +424,24 @@ public class CLIClient implements Closeable
                 FileReader reader = new FileReader(new File(options.includedParent, parsed.args.get(0)));
                 InputSource localSource = new ReaderSource(reader);
                 consumeSource(localSource, false, true);
+            } catch(FileNotFoundException e) {
+                sink.printlnError(e.getMessage());
+            }
+        }
+    }
+
+    private void runBackslashO(BackslashParser.Parsed parsed) throws Exception {
+        if(otherSink != null) {
+            otherSink.close();
+            otherSink = null;
+            resultPrinter.setSink(sink);
+        }
+        if(!parsed.args.isEmpty() && !"-".equals(parsed.args.get(0).trim())) {
+            try {
+                File file = new File(options.includedParent, parsed.args.get(0));
+                FileWriter fileOut = new FileWriter(file);
+                otherSink = new WriterSink(fileOut, new PrintWriter(System.err), true, false);
+                resultPrinter.setSink(otherSink);
             } catch(FileNotFoundException e) {
                 sink.printlnError(e.getMessage());
             }

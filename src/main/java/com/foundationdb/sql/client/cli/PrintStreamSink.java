@@ -15,6 +15,7 @@
 
 package com.foundationdb.sql.client.cli;
 
+import java.io.IOException;
 import java.io.PrintStream;
 
 public class PrintStreamSink implements OutputSink
@@ -25,6 +26,12 @@ public class PrintStreamSink implements OutputSink
     public PrintStreamSink(PrintStream out, PrintStream err) {
         this.out = out;
         this.err = err;
+    }
+
+    @Override
+    public void close() throws IOException {
+        out.close();
+        err.close();
     }
 
     @Override

@@ -17,8 +17,10 @@ package com.foundationdb.sql.client.cli;
 
 import org.junit.Test;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -123,6 +125,45 @@ public class CLIClientMiscTest
         );
     }
 
+    @Test
+    public void backslashO() throws Exception {
+        File outFile = tmpFileFrom();
+        File inFile = tmpFileFrom(
+            "SELECT 1;",
+            "\\o " + outFile.getAbsolutePath(),
+            "SELECT 2;",
+            "SELECT 3;",
+            "\\o",
+            "SELECT 4;"
+        );
+        runAndCheck(
+            null, // Only checking outFile contents
+
+            "-q", "-f", inFile.getAbsolutePath()
+        );
+        StringBuffer sb = new StringBuffer();
+        try(BufferedReader reader = new BufferedReader(new FileReader(outFile))) {
+            String l;
+            while((l = reader.readLine()) != null) {
+                sb.append(l);
+                sb.append('\n');
+            }
+        }
+        assertEquals(
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          2 \n" +
+            "(1 row)\n" +
+            "\n" +
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          3 \n" +
+            "(1 row)\n" +
+            "\n",
+            sb.toString()
+        );
+    }
+
 
     private static File tmpFileFrom(String... lines) throws IOException {
         File tmpFile = File.createTempFile(CLIClientMiscTest.class.getSimpleName(), null);
@@ -146,7 +187,9 @@ public class CLIClientMiscTest
             System.setErr(System.out);
 
             CLIClient.main(args);
-            assertEquals(expected, testOut.toString());
+            if(expected != null) {
+                assertEquals(expected, testOut.toString());
+            }
         } finally {
             System.setOut(origOut);
             System.setErr(origErr);
