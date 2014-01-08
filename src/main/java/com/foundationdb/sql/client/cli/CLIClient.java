@@ -130,8 +130,10 @@ public class CLIClient implements Closeable
     }
 
     public void close() {
-        source.close();
-        source = null;
+        if(source != null) {
+            source.close();
+            source = null;
+        }
         try {
             disconnect();
         } catch(SQLException e) {
@@ -139,34 +141,30 @@ public class CLIClient implements Closeable
         }
     }
 
-    public void runLoop() throws IOException, SQLException {
+    public void runLoop() throws Exception {
         consumeSource(source, withPrompt, withQueryEcho);
     }
 
-    private void consumeSource(InputSource localSource,
-                               boolean localWithPrompt,
-                               boolean localWithQueryEcho) throws SQLException, IOException {
+    private void consumeSource(InputSource localSource, boolean doPrompt, boolean doEcho) throws Exception {
         QueryBuffer qb = new QueryBuffer();
-        boolean localIsRunning = isRunning;
-        while(localIsRunning && isRunning) {
-            boolean isLast = false;
+        boolean isConsuming = true;
+        while(isConsuming && isRunning) {
             try {
-                if(localWithPrompt) {
+                if(doPrompt) {
                     String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
                     localSource.setPrompt(prompt);
                 }
                 String str = localSource.readLine();
+                // ctrl-d if interactive, exhausted source otherwise
                 if(str == null) {
-                    // ctrl-d, exit
-                    if(localWithPrompt) {
+                    if(doPrompt) {
                         sink.println();
                     }
-                    // Send whatever is remaining in buffer.
-                    // Won't happen interactively but lets -c and -f not require a semi-colon.
+                    // May be buffer contents if non-interactive and no trailing semi or newline
                     if(!qb.isEmpty()) {
-                        isLast = true;
+                        qb.setConsumeRemaining();
                     } else {
-                        break;
+                        isConsuming = false;
                     }
                 } else {
                     if(!qb.isEmpty()) {
@@ -180,22 +178,15 @@ public class CLIClient implements Closeable
                 // ctrl-c, abort current query
                 qb.reset();
             }
-            while(localIsRunning && (qb.hasQuery() || isLast)) {
+            while(isConsuming && isRunning && qb.hasQuery()) {
                 boolean isBackslash = qb.isBackslash();
-                String query;
-                if(qb.hasQuery()) {
-                    query = qb.nextQuery();
-                } else {
-                    assert isLast;
-                    query = qb.getRemaining();
-                    localIsRunning = isLast = false;
-                }
+                String query = qb.nextQuery();
                 // User friendly: don't send empty or only semi, which will give a parse error
                 if(hasOnlySpaceAndSemi(query)) {
                     continue;
                 }
                 try {
-                    if(localWithQueryEcho) {
+                    if(doEcho) {
                         sink.println(query);
                     }
                     if(isBackslash) {
@@ -316,7 +307,7 @@ public class CLIClient implements Closeable
         sink.println();
     }
 
-    private void runBackslash(ResultPrinter printer, String input) throws SQLException, IOException {
+    private void runBackslash(ResultPrinter printer, String input) throws Exception {
         BackslashParser.Parsed parsed = BackslashParser.parseFrom(input);
         BackslashCommand command = lookupBackslashCommand(parsed);
         switch(command) {
@@ -348,7 +339,7 @@ public class CLIClient implements Closeable
         }
     }
 
-    private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws SQLException, IOException {
+    private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
         String query = null;
         int expectedArgs = 0;
         String prepKey = parsed.getCanonical();
@@ -408,7 +399,7 @@ public class CLIClient implements Closeable
         }
     }
 
-    private void runBackslashI(BackslashParser.Parsed parsed) throws IOException, SQLException {
+    private void runBackslashI(BackslashParser.Parsed parsed) throws Exception {
         if(parsed.args.isEmpty()) {
             sink.printlnError("Missing file argument");
         } else {
