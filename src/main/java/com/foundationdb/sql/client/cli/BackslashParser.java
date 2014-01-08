@@ -42,6 +42,10 @@ public class BackslashParser
     }
 
     public static Parsed parseFrom(String input) {
+        return parseFrom(input, true);
+    }
+
+    public static Parsed parseFrom(String input, boolean periodSplits) {
         if(input.isEmpty() || input.charAt(0) != '\\') {
             throw new IllegalArgumentException();
         }
@@ -72,7 +76,7 @@ public class BackslashParser
                     lastQuote = UNSET;
                 }
             }
-            if(Character.isWhitespace(c) || c == '.') {
+            if(Character.isWhitespace(c) || (periodSplits && c == '.')) {
                 if((lastQuote == UNSET) && (nonSpace != UNSET)) {
                     String arg = input.substring(nonSpace, i);
                     parsed.args.add(arg);
