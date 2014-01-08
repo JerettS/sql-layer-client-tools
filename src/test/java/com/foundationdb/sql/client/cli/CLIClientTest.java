@@ -50,6 +50,7 @@ public class CLIClientTest extends ClientTestBase
         OPTIONS.schema = USER_NAME;
         // To avoid a magic number of repetitions.
         OPTIONS.urlOptions = "?prepareThreshold=1";
+        OPTIONS.includedParent = RESOURCE_DIR.getAbsolutePath();
     }
 
     @Parameters(name="{0}")

@@ -1,0 +1,60 @@
+_SQL_COL_1 
+------------
+ first      
+(1 row)
+
+SELECT 2;
+ _SQL_COL_1 
+------------
+          2 
+(1 row)
+
+ SELECT 4;
+ _SQL_COL_1 
+------------
+          4 
+(1 row)
+
+ _SQL_COL_1 
+------------
+ second     
+(1 row)
+
+SELECT 'rec_pre';
+ _SQL_COL_1 
+------------
+ rec_pre    
+(1 row)
+
+\i select.inc
+SELECT 2;
+ _SQL_COL_1 
+------------
+          2 
+(1 row)
+
+ SELECT 4;
+ _SQL_COL_1 
+------------
+          4 
+(1 row)
+
+ SELECT 'rec_post';
+ _SQL_COL_1 
+------------
+ rec_post   
+(1 row)
+
+ _SQL_COL_1 
+------------
+ third      
+(1 row)
+
+SELECT 'quit_pre';
+ _SQL_COL_1 
+------------
+ quit_pre   
+(1 row)
+
+\q
+

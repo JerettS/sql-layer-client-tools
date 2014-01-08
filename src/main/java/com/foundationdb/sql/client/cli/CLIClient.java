@@ -23,6 +23,7 @@ import org.postgresql.util.PSQLState;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -137,19 +138,27 @@ public class CLIClient implements Closeable
         }
     }
 
-    public void runLoop() throws SQLException, IOException {
+    public void runLoop() throws IOException, SQLException {
+        consumeSource(source, true, withPrompt, withQueryEcho);
+    }
+
+    private void consumeSource(InputSource source,
+                               boolean localAddHistory,
+                               boolean localWithPrompt,
+                               boolean localWithQueryEcho) throws SQLException, IOException {
         QueryBuffer qb = new QueryBuffer();
-        while(isRunning) {
+        boolean localIsRunning = isRunning;
+        while(localIsRunning && isRunning) {
             boolean isLast = false;
             try {
-                if(withPrompt) {
+                if(localWithPrompt) {
                     String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
                     source.setPrompt(prompt);
                 }
                 String str = source.readLine();
                 if(str == null) {
                     // ctrl-d, exit
-                    if(withPrompt) {
+                    if(localWithPrompt) {
                         sink.println();
                     }
                     // Send whatever is remaining in buffer.
@@ -171,7 +180,7 @@ public class CLIClient implements Closeable
                 // ctrl-c, abort current query
                 qb.reset();
             }
-            while(isRunning && (qb.hasQuery() || isLast)) {
+            while(localIsRunning && (qb.hasQuery() || isLast)) {
                 boolean isBackslash = qb.isBackslash();
                 String query;
                 if(qb.hasQuery()) {
@@ -179,14 +188,14 @@ public class CLIClient implements Closeable
                 } else {
                     assert isLast;
                     query = qb.getRemaining();
-                    isRunning = isLast = false;
+                    localIsRunning = isLast = false;
                 }
                 // User friendly: don't send empty or only semi, which will give a parse error
                 if(hasOnlySpaceAndSemi(query)) {
                     continue;
                 }
                 try {
-                    if(withQueryEcho) {
+                    if(localWithQueryEcho) {
                         sink.println(query);
                     }
                     if(isBackslash) {
@@ -215,8 +224,10 @@ public class CLIClient implements Closeable
                 }
                 sink.flush();
             }
-            String completed = qb.trimCompleted();
-            source.addHistory(completed);
+            if(localAddHistory) {
+                String completed = qb.trimCompleted();
+                source.addHistory(completed);
+            }
         }
     }
 
@@ -324,6 +335,10 @@ public class CLIClient implements Closeable
             case CONNINFO:
                 printConnectionInfo();
             break;
+            case I_FILE:
+                // re-parse to not split on periods
+                runBackslashI(BackslashParser.parseFrom(input, false));
+            break;
             case HELP:
                 printBackslashHelp();
             break;
@@ -392,6 +407,20 @@ public class CLIClient implements Closeable
                 printer.printResultSet(rs);
             }
             rs.close();
+        }
+    }
+
+    private void runBackslashI(BackslashParser.Parsed parsed) throws IOException, SQLException {
+        if(parsed.args.isEmpty()) {
+            sink.printlnError("Missing file argument");
+        } else {
+            try {
+                FileReader reader = new FileReader(new File(options.includedParent, parsed.args.get(0)));
+                InputSource localSource = new ReaderSource(reader);
+                consumeSource(localSource, false, false, true);
+            } catch(FileNotFoundException e) {
+                sink.printlnError(e.getMessage());
+            }
         }
     }
 

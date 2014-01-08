@@ -20,6 +20,7 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintStream;
 
 import static org.junit.Assert.assertEquals;
@@ -73,13 +74,10 @@ public class CLIClientMiscTest
 
     @Test
     public void dashFMulti() throws Exception {
-        File tmpFile = File.createTempFile("clitest", "dashf");
-        FileWriter writer = new FileWriter(tmpFile);
-        writer.write("select 5;\n");
-        writer.write("select 6;\n");
-        writer.flush();
-        writer.close();
-
+        File tmpFile = tmpFileFrom(
+            "select 5;",
+            "select 6;"
+        );
         runAndCheck(
             "select 5;\n"+
             " _SQL_COL_1 \n" +
@@ -98,15 +96,60 @@ public class CLIClientMiscTest
         );
     }
 
-    private void runAndCheck(String expected, String... args) throws Exception {
-        PrintStream orig = System.out;
+    @Test
+    public void backslashIMissing() throws Exception {
+        File tmpFile = tmpFileFrom(
+            "select 1;",
+            "\\i not_a_real_file",
+            "select 2;"
+        );
+        runAndCheck(
+            "select 1;\n" +
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          1 \n" +
+            "(1 row)\n" +
+            "\n" +
+            "\\i not_a_real_file\n" +
+            "not_a_real_file (No such file or directory)\n" +
+            "select 2;\n" +
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          2 \n" +
+            "(1 row)\n" +
+            "\n",
+
+            "-q", "-f", tmpFile.getAbsolutePath()
+        );
+    }
+
+
+    private static File tmpFileFrom(String... lines) throws IOException {
+        File tmpFile = File.createTempFile(CLIClientMiscTest.class.getSimpleName(), null);
+        tmpFile.deleteOnExit();
+        FileWriter writer = new FileWriter(tmpFile);
+        for(String l : lines) {
+            writer.write(l);
+            writer.write('\n');
+        }
+        writer.flush();
+        writer.close();
+        return tmpFile;
+    }
+
+    private static void runAndCheck(String expected, String... args) throws Exception {
+        PrintStream origOut = System.out;
+        PrintStream origErr = System.err;
         try {
             ByteArrayOutputStream testOut = new ByteArrayOutputStream();
             System.setOut(new PrintStream(testOut));
+            System.setErr(System.out);
+
             CLIClient.main(args);
             assertEquals(expected, testOut.toString());
         } finally {
-            System.setOut(orig);
+            System.setOut(origOut);
+            System.setErr(origErr);
         }
     }
 }
