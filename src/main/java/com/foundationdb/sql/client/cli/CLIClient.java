@@ -256,7 +256,7 @@ public class CLIClient implements Closeable
     }
 
     private void connect() throws SQLException {
-        String url = String.format("jdbc:fdbsql://%s:%d/%s", options.host, options.port, options.schema);
+        String url = String.format("jdbc:fdbsql://%s:%d/%s%s", options.host, options.port, options.schema, options.urlOptions);
         connection = DriverManager.getConnection(url, options.user, options.password);
         statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
         preparedStatements = new HashMap<>();
