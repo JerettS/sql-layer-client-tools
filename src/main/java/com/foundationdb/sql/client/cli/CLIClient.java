@@ -131,6 +131,7 @@ public class CLIClient implements Closeable
 
     public void close() {
         source.close();
+        source = null;
         try {
             disconnect();
         } catch(SQLException e) {
@@ -139,11 +140,10 @@ public class CLIClient implements Closeable
     }
 
     public void runLoop() throws IOException, SQLException {
-        consumeSource(source, true, withPrompt, withQueryEcho);
+        consumeSource(source, withPrompt, withQueryEcho);
     }
 
-    private void consumeSource(InputSource source,
-                               boolean localAddHistory,
+    private void consumeSource(InputSource localSource,
                                boolean localWithPrompt,
                                boolean localWithQueryEcho) throws SQLException, IOException {
         QueryBuffer qb = new QueryBuffer();
@@ -153,9 +153,9 @@ public class CLIClient implements Closeable
             try {
                 if(localWithPrompt) {
                     String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
-                    source.setPrompt(prompt);
+                    localSource.setPrompt(prompt);
                 }
-                String str = source.readLine();
+                String str = localSource.readLine();
                 if(str == null) {
                     // ctrl-d, exit
                     if(localWithPrompt) {
@@ -224,10 +224,8 @@ public class CLIClient implements Closeable
                 }
                 sink.flush();
             }
-            if(localAddHistory) {
-                String completed = qb.trimCompleted();
-                source.addHistory(completed);
-            }
+            String completed = qb.trimCompleted();
+            localSource.addHistory(completed);
         }
     }
 
@@ -417,7 +415,7 @@ public class CLIClient implements Closeable
             try {
                 FileReader reader = new FileReader(new File(options.includedParent, parsed.args.get(0)));
                 InputSource localSource = new ReaderSource(reader);
-                consumeSource(localSource, false, false, true);
+                consumeSource(localSource, false, true);
             } catch(FileNotFoundException e) {
                 sink.printlnError(e.getMessage());
             }

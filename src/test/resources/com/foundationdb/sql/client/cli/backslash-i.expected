@@ -9,7 +9,7 @@ SELECT 2;
           2 
 (1 row)
 
- SELECT 4;
+SELECT 4;
  _SQL_COL_1 
 ------------
           4 
@@ -33,13 +33,13 @@ SELECT 2;
           2 
 (1 row)
 
- SELECT 4;
+SELECT 4;
  _SQL_COL_1 
 ------------
           4 
 (1 row)
 
- SELECT 'rec_post';
+SELECT 'rec_post';
  _SQL_COL_1 
 ------------
  rec_post   
