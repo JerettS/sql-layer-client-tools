@@ -357,8 +357,8 @@ public class CLIClient implements Closeable
     }
 
     private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
-        String query = null;
-        int expectedArgs = 0;
+        final String query;
+        final int expectedArgs;
         String prepKey = parsed.getCanonical();
         boolean isSystem = parsed.isSystem;
         switch(command) {
@@ -394,26 +394,26 @@ public class CLIClient implements Closeable
                 query = listViews(isSystem, parsed.isDetail);
                 expectedArgs = 2;
             break;
+            default:
+                throw new SQLException("Unexpected command: " + command);
         }
 
-        if(query != null) {
-            String[] args = reverseFillParams(parsed, expectedArgs);
-            ResultSet rs = execPrepared(prepKey, query, args);
-            if(command == BackslashCommand.D_TABLE || command == BackslashCommand.D_VIEW) {
-                String query2 = describeTableOrView(isSystem, parsed.isDetail);
-                String typeDesc = (command == BackslashCommand.D_TABLE) ? "Table" : "View";
-                while(rs.next()) {
-                    String[] args2 = { rs.getString(1), rs.getString(2) };
-                    ResultSet rs2 = execPrepared(parsed.getCanonical(), query2, args2);
-                    String description = String.format("%s %s.%s", typeDesc, args2[0], args2[1]);
-                    printer.printResultSet(description, rs2);
-                    rs2.close();
-                }
-            } else {
-                printer.printResultSet(rs);
+        String[] args = reverseFillParams(parsed, expectedArgs);
+        ResultSet rs = execPrepared(prepKey, query, args);
+        if(command == BackslashCommand.D_TABLE || command == BackslashCommand.D_VIEW) {
+            String query2 = describeTableOrView(isSystem, parsed.isDetail);
+            String typeDesc = (command == BackslashCommand.D_TABLE) ? "Table" : "View";
+            while(rs.next()) {
+                String[] args2 = { rs.getString(1), rs.getString(2) };
+                ResultSet rs2 = execPrepared(parsed.getCanonical(), query2, args2);
+                String description = String.format("%s %s.%s", typeDesc, args2[0], args2[1]);
+                printer.printResultSet(description, rs2);
+                rs2.close();
             }
-            rs.close();
+        } else {
+            printer.printResultSet(rs);
         }
+        rs.close();
     }
 
     private void runBackslashI(BackslashParser.Parsed parsed) throws Exception {
