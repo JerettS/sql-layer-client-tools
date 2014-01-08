@@ -48,6 +48,8 @@ public class CLIClientTest extends ClientTestBase
         OPTIONS.user = USER_NAME;
         OPTIONS.password = USER_PASSWORD;
         OPTIONS.schema = USER_NAME;
+        // To avoid a magic number of repetitions.
+        OPTIONS.urlOptions = "?prepareThreshold=1";
     }
 
     @Parameters(name="{0}")
