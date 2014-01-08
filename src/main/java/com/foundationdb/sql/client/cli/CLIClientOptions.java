@@ -54,8 +54,14 @@ public class CLIClientOptions
     @Parameter(description="[schema]")
     public List<String> positional = new ArrayList<>();
 
-    // Appended to JDBC URL. Used by tests but not otherwise exposed.
+    //
+    // Used by tests but not otherwise exposed.
+    //
+
+    // Appended to JDBC URL.
     String urlOptions = "";
+    // Used as the parent directory for any \i file
+    String includedParent = null;
 
 
     private static String env(String env, String defValue) {

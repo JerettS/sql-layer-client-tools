@@ -23,6 +23,9 @@ public enum BackslashCommand
     D_TABLE     ("dt", true, true,  "[SCHEMA] NAME]",           "describe tables"),
     D_VIEW      ("dv", true, true,  "[SCHEMA] NAME]",           "describe views"),
 
+    I_FILE      ("i", false, false, "FILE",                     "execute commands from file"),
+    O_FILE      ("o", false, false, "[FILE|-]",                 "send all query results to file or standard out"),
+
     L_ALL       ("l",  true, false, "[[SCHEMA] NAME]",          "list tables, views and sequences"),
     L_INDEXES   ("li", true, true,  "[[[SCHEMA] TABLE] NAME]",  "list indexes"),
     L_SEQUENCES ("lq", true, true,  "[[SCHEMA] NAME]",          "list sequences"),

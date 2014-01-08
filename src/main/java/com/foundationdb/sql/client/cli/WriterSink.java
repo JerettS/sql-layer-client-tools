@@ -23,14 +23,32 @@ public class WriterSink implements OutputSink
     private static final char[] NL = System.getProperty("line.separator").toCharArray();
     private final Writer out;
     private final Writer err;
+    private final boolean closeOut;
+    private final boolean closeErr;
 
     public WriterSink(Writer out) {
         this(out, out);
     }
 
     public WriterSink(Writer out, Writer err) {
+        this(out, err, false, false);
+    }
+
+    public WriterSink(Writer out, Writer err, boolean closeOut, boolean closeErr) {
         this.out = out;
         this.err = err;
+        this.closeOut = closeOut;
+        this.closeErr = closeErr;
+    }
+
+    @Override
+    public void close() throws IOException {
+        if(closeOut) {
+            out.close();
+        }
+        if(closeErr) {
+            err.close();
+        }
     }
 
     @Override

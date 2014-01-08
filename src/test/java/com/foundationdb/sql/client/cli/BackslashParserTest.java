@@ -133,9 +133,23 @@ public class BackslashParserTest
         expect("\\lvS+ \"test\".\"foo\"", "lv", true, true, "test", "foo");
     }
 
+    @Test
+    public void noPeriodSplit() {
+        expect("\\i foo.sql bar.sql", "i", false, false, false, "foo.sql", "bar.sql");
+    }
+
+    @Test
+    public void noPeriodSplitQuoted() {
+        expect("\\i \"my file.sql\"", "i", false, false, false, "my file.sql");
+    }
+
 
     private static void expect(String input, String command, boolean isSystem, boolean isDetail, String... args) {
-        BackslashParser.Parsed actual = BackslashParser.parseFrom(input);
+        expect(input, command, isSystem, isDetail, true, args);
+    }
+
+    private static void expect(String input, String command, boolean isSystem, boolean isDetail, boolean periodSplits, String... args) {
+        BackslashParser.Parsed actual = BackslashParser.parseFrom(input, periodSplits);
         assertEquals("command", command, actual.command);
         assertEquals("isSystem", isSystem, actual.isSystem);
         assertEquals("isDetail", isDetail, actual.isDetail);

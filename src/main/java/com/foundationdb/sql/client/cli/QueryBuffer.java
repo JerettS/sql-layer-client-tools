@@ -77,18 +77,16 @@ public class QueryBuffer
         return isBackslash;
     }
 
+    public void setConsumeRemaining() {
+        endIndex = buffer.length() - 1;
+    }
+
     public String nextQuery() {
         if(endIndex == UNSET) {
             throw new IllegalArgumentException("No query present");
         }
         String q = buffer.substring(startIndex, ++endIndex);
         reset(endIndex, UNSET, curIndex + 1, buffer.length());
-        return q;
-    }
-
-    public String getRemaining() {
-        String q = buffer.substring(startIndex);
-        reset(buffer.length(), UNSET, buffer.length(), buffer.length());
         return q;
     }
 

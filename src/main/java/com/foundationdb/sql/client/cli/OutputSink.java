@@ -19,6 +19,8 @@ import java.io.IOException;
 
 public interface OutputSink
 {
+    void close() throws IOException;
+
     void print(char c) throws IOException;
     void print(String s) throws IOException;
     void println(String s) throws IOException;

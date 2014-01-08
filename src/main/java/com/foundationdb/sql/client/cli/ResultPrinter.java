@@ -16,6 +16,7 @@
 package com.foundationdb.sql.client.cli;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -24,12 +25,17 @@ public class ResultPrinter
 {
     private static enum ALIGN { LEFT, CENTER, RIGHT }
 
-    private final OutputSink sink;
+    private OutputSink sink;
     private int columnCount;
     private int[] cellWidths;
     private boolean[] isNumber;
 
     public ResultPrinter(OutputSink sink) {
+        this.sink = sink;
+    }
+
+    public void setSink(OutputSink sink) {
+        assert sink != null;
         this.sink = sink;
     }
 

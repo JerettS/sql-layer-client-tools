@@ -23,7 +23,9 @@ import org.postgresql.util.PSQLState;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -114,6 +116,7 @@ public class CLIClient implements Closeable
     private CLIClientOptions options;
     private InputSource source;
     private OutputSink sink;
+    private OutputSink otherSink;
     private ResultPrinter resultPrinter;
     private boolean withPrompt = true;
     private boolean isRunning = true;
@@ -129,7 +132,18 @@ public class CLIClient implements Closeable
     }
 
     public void close() {
-        source.close();
+        if(source != null) {
+            source.close();
+            source = null;
+        }
+        if(otherSink != null) {
+            try {
+                otherSink.close();
+            } catch(IOException e) {
+                // Ignore
+            }
+            otherSink = null;
+        }
         try {
             disconnect();
         } catch(SQLException e) {
@@ -137,27 +151,30 @@ public class CLIClient implements Closeable
         }
     }
 
-    public void runLoop() throws SQLException, IOException {
+    public void runLoop() throws Exception {
+        consumeSource(source, withPrompt, withQueryEcho);
+    }
+
+    private void consumeSource(InputSource localSource, boolean doPrompt, boolean doEcho) throws Exception {
         QueryBuffer qb = new QueryBuffer();
-        while(isRunning) {
-            boolean isLast = false;
+        boolean isConsuming = true;
+        while(isConsuming && isRunning) {
             try {
-                if(withPrompt) {
+                if(doPrompt) {
                     String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
-                    source.setPrompt(prompt);
+                    localSource.setPrompt(prompt);
                 }
-                String str = source.readLine();
+                String str = localSource.readLine();
+                // ctrl-d if interactive, exhausted source otherwise
                 if(str == null) {
-                    // ctrl-d, exit
-                    if(withPrompt) {
+                    if(doPrompt) {
                         sink.println();
                     }
-                    // Send whatever is remaining in buffer.
-                    // Won't happen interactively but lets -c and -f not require a semi-colon.
+                    // May be buffer contents if non-interactive and no trailing semi or newline
                     if(!qb.isEmpty()) {
-                        isLast = true;
+                        qb.setConsumeRemaining();
                     } else {
-                        break;
+                        isConsuming = false;
                     }
                 } else {
                     if(!qb.isEmpty()) {
@@ -171,22 +188,15 @@ public class CLIClient implements Closeable
                 // ctrl-c, abort current query
                 qb.reset();
             }
-            while(isRunning && (qb.hasQuery() || isLast)) {
+            while(isConsuming && isRunning && qb.hasQuery()) {
                 boolean isBackslash = qb.isBackslash();
-                String query;
-                if(qb.hasQuery()) {
-                    query = qb.nextQuery();
-                } else {
-                    assert isLast;
-                    query = qb.getRemaining();
-                    isRunning = isLast = false;
-                }
+                String query = qb.nextQuery();
                 // User friendly: don't send empty or only semi, which will give a parse error
                 if(hasOnlySpaceAndSemi(query)) {
                     continue;
                 }
                 try {
-                    if(withQueryEcho) {
+                    if(doEcho) {
                         sink.println(query);
                     }
                     if(isBackslash) {
@@ -216,7 +226,9 @@ public class CLIClient implements Closeable
                 sink.flush();
             }
             String completed = qb.trimCompleted();
-            source.addHistory(completed);
+            if(!completed.isEmpty()) {
+                localSource.addHistory(completed);
+            }
         }
     }
 
@@ -250,6 +262,7 @@ public class CLIClient implements Closeable
         this.withPrompt = withPrompt;
         this.withQueryEcho = withQueryEcho;
         this.source = source;
+        this.otherSink = null;
         this.sink = sink;
         if(withHistory) {
             source.openHistory(HISTORY_FILE);
@@ -307,7 +320,7 @@ public class CLIClient implements Closeable
         sink.println();
     }
 
-    private void runBackslash(ResultPrinter printer, String input) throws SQLException, IOException {
+    private void runBackslash(ResultPrinter printer, String input) throws Exception {
         BackslashParser.Parsed parsed = BackslashParser.parseFrom(input);
         BackslashCommand command = lookupBackslashCommand(parsed);
         switch(command) {
@@ -324,6 +337,14 @@ public class CLIClient implements Closeable
             case CONNINFO:
                 printConnectionInfo();
             break;
+            case I_FILE:
+                // re-parse to not split on periods
+                runBackslashI(BackslashParser.parseFrom(input, false));
+            break;
+            case O_FILE:
+                // re-parse to not split on periods
+                runBackslashO(BackslashParser.parseFrom(input, false));
+            break;
             case HELP:
                 printBackslashHelp();
             break;
@@ -335,9 +356,9 @@ public class CLIClient implements Closeable
         }
     }
 
-    private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws SQLException, IOException {
-        String query = null;
-        int expectedArgs = 0;
+    private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
+        final String query;
+        final int expectedArgs;
         String prepKey = parsed.getCanonical();
         boolean isSystem = parsed.isSystem;
         switch(command) {
@@ -373,25 +394,57 @@ public class CLIClient implements Closeable
                 query = listViews(isSystem, parsed.isDetail);
                 expectedArgs = 2;
             break;
+            default:
+                throw new SQLException("Unexpected command: " + command);
         }
 
-        if(query != null) {
-            String[] args = reverseFillParams(parsed, expectedArgs);
-            ResultSet rs = execPrepared(prepKey, query, args);
-            if(command == BackslashCommand.D_TABLE || command == BackslashCommand.D_VIEW) {
-                String query2 = describeTableOrView(isSystem, parsed.isDetail);
-                String typeDesc = (command == BackslashCommand.D_TABLE) ? "Table" : "View";
-                while(rs.next()) {
-                    String[] args2 = { rs.getString(1), rs.getString(2) };
-                    ResultSet rs2 = execPrepared(parsed.getCanonical(), query2, args2);
-                    String description = String.format("%s %s.%s", typeDesc, args2[0], args2[1]);
-                    printer.printResultSet(description, rs2);
-                    rs2.close();
-                }
-            } else {
-                printer.printResultSet(rs);
+        String[] args = reverseFillParams(parsed, expectedArgs);
+        ResultSet rs = execPrepared(prepKey, query, args);
+        if(command == BackslashCommand.D_TABLE || command == BackslashCommand.D_VIEW) {
+            String query2 = describeTableOrView(isSystem, parsed.isDetail);
+            String typeDesc = (command == BackslashCommand.D_TABLE) ? "Table" : "View";
+            while(rs.next()) {
+                String[] args2 = { rs.getString(1), rs.getString(2) };
+                ResultSet rs2 = execPrepared(parsed.getCanonical(), query2, args2);
+                String description = String.format("%s %s.%s", typeDesc, args2[0], args2[1]);
+                printer.printResultSet(description, rs2);
+                rs2.close();
             }
-            rs.close();
+        } else {
+            printer.printResultSet(rs);
+        }
+        rs.close();
+    }
+
+    private void runBackslashI(BackslashParser.Parsed parsed) throws Exception {
+        if(parsed.args.isEmpty()) {
+            sink.printlnError("Missing file argument");
+        } else {
+            try {
+                FileReader reader = new FileReader(new File(options.includedParent, parsed.args.get(0)));
+                InputSource localSource = new ReaderSource(reader);
+                consumeSource(localSource, false, true);
+            } catch(FileNotFoundException e) {
+                sink.printlnError(e.getMessage());
+            }
+        }
+    }
+
+    private void runBackslashO(BackslashParser.Parsed parsed) throws Exception {
+        if(otherSink != null) {
+            otherSink.close();
+            otherSink = null;
+            resultPrinter.setSink(sink);
+        }
+        if(!parsed.args.isEmpty() && !"-".equals(parsed.args.get(0).trim())) {
+            try {
+                File file = new File(options.includedParent, parsed.args.get(0));
+                FileWriter fileOut = new FileWriter(file);
+                otherSink = new WriterSink(fileOut, new PrintWriter(System.err), true, false);
+                resultPrinter.setSink(otherSink);
+            } catch(FileNotFoundException e) {
+                sink.printlnError(e.getMessage());
+            }
         }
     }
 
