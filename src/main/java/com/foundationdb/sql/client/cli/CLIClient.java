@@ -45,6 +45,9 @@ public class CLIClient implements Closeable
     private final static String APP_NAME = "fdbsqlcli";
     private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + APP_NAME + "_history");
 
+    private final static int MAX_PREPARED_RETRY = 5;
+    private final static String STALE_STATEMENT_CODE = "0A50A";
+
 
     public static void main(String[] args) throws Exception {
         CLIClientOptions options = new CLIClientOptions();
@@ -373,23 +376,15 @@ public class CLIClient implements Closeable
         }
 
         if(query != null) {
-            PreparedStatement pStmt = getPrepared(prepKey, query);
             String[] args = reverseFillParams(parsed, expectedArgs);
-            for(int i = 0; i < args.length; ++i) {
-                pStmt.setString(i + 1, args[i]);
-            }
-            ResultSet rs = pStmt.executeQuery();
+            ResultSet rs = execPrepared(prepKey, query, args);
             if(command == BackslashCommand.D_TABLE || command == BackslashCommand.D_VIEW) {
                 String query2 = describeTableOrView(isSystem, parsed.isDetail);
                 String typeDesc = (command == BackslashCommand.D_TABLE) ? "Table" : "View";
-                PreparedStatement pStmt2 = getPrepared(parsed.getCanonical(), query2);
                 while(rs.next()) {
-                    String schema = rs.getString(1);
-                    String table = rs.getString(2);
-                    pStmt2.setString(1, schema);
-                    pStmt2.setString(2, table);
-                    ResultSet rs2 = pStmt2.executeQuery();
-                    String description = String.format("%s %s.%s", typeDesc, schema, table);
+                    String[] args2 = { rs.getString(1), rs.getString(2) };
+                    ResultSet rs2 = execPrepared(parsed.getCanonical(), query2, args2);
+                    String description = String.format("%s %s.%s", typeDesc, args2[0], args2[1]);
                     printer.printResultSet(description, rs2);
                     rs2.close();
                 }
@@ -397,6 +392,31 @@ public class CLIClient implements Closeable
                 printer.printResultSet(rs);
             }
             rs.close();
+        }
+    }
+
+    private ResultSet execPrepared(String prepKey, String query, String[] args) throws SQLException {
+        for(int retry = 0; retry < MAX_PREPARED_RETRY; ++retry) {
+            try {
+                PreparedStatement pStmt = getPrepared(prepKey, query);
+                for(int i = 0; i < args.length; ++i) {
+                    pStmt.setString(i + 1, args[i]);
+                }
+                return pStmt.executeQuery();
+            } catch(SQLException e) {
+                if(!STALE_STATEMENT_CODE.equals(e.getSQLState())) {
+                    throw e;
+                }
+                closePrepared(prepKey);
+            }
+        }
+        throw new IllegalStateException("Unable to exec prepared statement");
+    }
+
+    private void closePrepared(String key) throws SQLException {
+        PreparedStatement pStmt = preparedStatements.remove(key);
+        if(pStmt != null) {
+            pStmt.close();
         }
     }
 
