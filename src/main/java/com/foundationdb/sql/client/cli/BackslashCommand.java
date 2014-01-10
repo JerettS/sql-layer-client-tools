@@ -20,8 +20,8 @@ public enum BackslashCommand
     CONNECT ("c", false, false, "[SCHEMA] [USER] [HOST] [PORT]", "change connection information"),
     CONNINFO("conninfo", false, false, "", "display connection information"),
 
-    D_TABLE     ("dt", true, true,  "[SCHEMA] NAME]",           "describe tables"),
-    D_VIEW      ("dv", true, true,  "[SCHEMA] NAME]",           "describe views"),
+    D_TABLE     ("dt", true, true,  "[[SCHEMA] NAME]",           "describe tables"),
+    D_VIEW      ("dv", true, true,  "[[SCHEMA] NAME]",           "describe views"),
 
     I_FILE      ("i", false, false, "FILE",                     "execute commands from file"),
     O_FILE      ("o", false, false, "[FILE|-]",                 "send all query results to file or standard out"),
