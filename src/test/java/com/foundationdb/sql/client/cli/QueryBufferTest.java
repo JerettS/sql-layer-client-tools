@@ -127,6 +127,33 @@ public class QueryBufferTest
     }
 
     @Test
+    public void appendWithDashComment() {
+        // Append does not strip --
+        qb.append("SELECT 5; --");
+        assertEquals(true, qb.hasQuery());
+        assertEquals("SELECT 5;", qb.nextQuery());
+        qb.trimCompleted();
+        assertEquals(3, qb.length());
+    }
+
+    @Test
+    public void appendLineJustDashComment() {
+        qb.appendLine("--");
+        assertEquals(false, qb.hasQuery());
+        assertEquals(0, qb.length());
+    }
+
+    @Test
+    public void appendLineDashCommentAfterQuery() {
+        qb.appendLine("SELECT 5;-- something");
+        assertEquals(true, qb.hasQuery());
+        assertEquals("SELECT 5;", qb.nextQuery());
+        assertEquals("SELECT 5;", qb.trimCompleted());
+        assertEquals(false, qb.hasQuery());
+        assertEquals(0, qb.length());
+    }
+
+    @Test
     public void singleBackslash() {
         String b1 = "\\d";
         qb.append(b1);
