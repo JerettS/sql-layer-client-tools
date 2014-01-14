@@ -141,6 +141,9 @@ public class QueryBufferTest
         qb.appendLine("--");
         assertEquals(false, qb.hasQuery());
         assertEquals(0, qb.length());
+        qb.appendLine("   --");
+        assertEquals(false, qb.hasQuery());
+        assertEquals(3, qb.length());
     }
 
     @Test
@@ -151,6 +154,22 @@ public class QueryBufferTest
         assertEquals("SELECT 5;", qb.trimCompleted());
         assertEquals(false, qb.hasQuery());
         assertEquals(0, qb.length());
+    }
+
+    @Test
+    public void hasNonSpace() {
+        qb.append(' ');
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('\t');
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('\n');
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('a');
+        assertEquals(true, qb.hasNonSpace());
+        qb.reset();
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('a');
+        assertEquals(true, qb.hasNonSpace());
     }
 
     @Test

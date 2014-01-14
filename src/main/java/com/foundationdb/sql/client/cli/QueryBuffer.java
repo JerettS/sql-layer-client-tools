@@ -47,6 +47,7 @@ public class QueryBuffer
 
     /** As append() with automatic '--' stripping. */
     public void appendLine(CharSequence cs) {
+        int prevEnd = buffer.length();
         append(cs);
 
         // As this is called when lines are collapsed, need to strip any -- comments out completely
@@ -61,7 +62,7 @@ public class QueryBuffer
                     localQuoteChar = UNSET;
                 }
             } else if((c == '-') && (localIndex > 0) && (cs.charAt(localIndex - 1) == '-')) {
-                // Found a comment, remove here to end
+                // Found comment, remove to end
                 buffer.delete(localIndex - 1, buffer.length());
             }
             ++localIndex;
@@ -130,6 +131,15 @@ public class QueryBuffer
 
     public void reset() {
         reset(0, UNSET, 0, 0);
+    }
+
+    public boolean hasNonSpace() {
+        for(int i = 0; i < buffer.length(); ++i) {
+            if(!Character.isWhitespace(buffer.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
