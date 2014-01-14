@@ -159,6 +159,9 @@ public class CLIClient implements Closeable
         QueryBuffer qb = new QueryBuffer();
         boolean isConsuming = true;
         while(isConsuming && isRunning) {
+            if(!qb.hasNonSpace()) {
+                qb.reset();
+            }
             try {
                 if(doPrompt) {
                     String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
@@ -179,9 +182,9 @@ public class CLIClient implements Closeable
                 } else {
                     if(!qb.isEmpty()) {
                         qb.append(' '); // Collapsing multiple lines into one, add space
-                        qb.append(str);
-                    } else if(hasNonSpace(str)) {
-                        qb.append(str);
+                        qb.appendLine(str);
+                    } else {
+                        qb.appendLine(str);
                     }
                 }
             } catch(PartialLineException e) {
@@ -529,15 +532,6 @@ public class CLIClient implements Closeable
             out[i] = parsed.argOr(parsedIndex--, "%");
         }
         return out;
-    }
-
-    private static boolean hasNonSpace(String s) {
-        for(int i = 0; i < s.length(); ++i) {
-            if(!Character.isWhitespace(s.charAt(i))) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static boolean hasOnlySpaceAndSemi(String s) {
