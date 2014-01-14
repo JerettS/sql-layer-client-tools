@@ -47,7 +47,6 @@ public class QueryBuffer
 
     /** As append() with automatic '--' stripping. */
     public void appendLine(CharSequence cs) {
-        int prevEnd = buffer.length();
         append(cs);
 
         // As this is called when lines are collapsed, need to strip any -- comments out completely
@@ -55,15 +54,15 @@ public class QueryBuffer
         int localQuoteChar = quoteChar;
         while(localIndex < buffer.length()) {
             int c = buffer.charAt(localIndex);
-            if(isQuote(c)) {
-                if(localQuoteChar == UNSET) {
+            if(localQuoteChar == UNSET) {
+                if(isQuote(c)) {
                     localQuoteChar = c;
-                } else if(localQuoteChar == c) {
-                    localQuoteChar = UNSET;
+                } else if((c == '-') && (localIndex > 0) && (cs.charAt(localIndex - 1) == '-')) {
+                    // Found comment, remove to end
+                    buffer.delete(localIndex - 1, buffer.length());
                 }
-            } else if((c == '-') && (localIndex > 0) && (cs.charAt(localIndex - 1) == '-')) {
-                // Found comment, remove to end
-                buffer.delete(localIndex - 1, buffer.length());
+            } else if(c == localQuoteChar) {
+                localQuoteChar = UNSET;
             }
             ++localIndex;
         }

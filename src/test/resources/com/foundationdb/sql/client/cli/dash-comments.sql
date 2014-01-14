@@ -6,3 +6,4 @@ SELECT 4 -- zap
 -- pop
 -- zip
 SELECT 5;
+SELECT 'foo--bar -- zap';

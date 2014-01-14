@@ -157,6 +157,16 @@ public class QueryBufferTest
     }
 
     @Test
+    public void appendLineDashInQuote() {
+        String q = "SELECT 'foo -- bar';";
+        qb.appendLine(q + " -- After");
+        assertEquals(true, qb.hasQuery());
+        assertEquals(q, qb.nextQuery());
+        assertEquals(q, qb.trimCompleted());
+        assertEquals(1, qb.length());
+    }
+
+    @Test
     public void hasNonSpace() {
         qb.append(' ');
         assertEquals(false, qb.hasNonSpace());
