@@ -45,6 +45,29 @@ public class QueryBuffer
         buffer.append(cs);
     }
 
+    /** As append() with automatic '--' stripping. */
+    public void appendLine(CharSequence cs) {
+        append(cs);
+
+        // As this is called when lines are collapsed, need to strip any -- comments out completely
+        int localIndex = curIndex;
+        int localQuoteChar = quoteChar;
+        while(localIndex < buffer.length()) {
+            int c = buffer.charAt(localIndex);
+            if(localQuoteChar == UNSET) {
+                if(isQuote(c)) {
+                    localQuoteChar = c;
+                } else if((c == '-') && (localIndex > 0) && (cs.charAt(localIndex - 1) == '-')) {
+                    // Found comment, remove to end
+                    buffer.delete(localIndex - 1, buffer.length());
+                }
+            } else if(c == localQuoteChar) {
+                localQuoteChar = UNSET;
+            }
+            ++localIndex;
+        }
+    }
+
     public boolean hasQuery() {
         while(curIndex < buffer.length()) {
             char c = buffer.charAt(curIndex);
@@ -53,7 +76,7 @@ public class QueryBuffer
                     endIndex = curIndex;
                     break;
                 }
-            } else if(c == '\'' || c == '"' || c == '`') {
+            } else if(isQuote(c)) {
                 if(quoteChar == UNSET) {
                     quoteChar = c;
                 } else if(quoteChar == c) {
@@ -109,6 +132,15 @@ public class QueryBuffer
         reset(0, UNSET, 0, 0);
     }
 
+    public boolean hasNonSpace() {
+        for(int i = 0; i < buffer.length(); ++i) {
+            if(!Character.isWhitespace(buffer.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public String toString() {
         return buffer.toString();
@@ -122,5 +154,9 @@ public class QueryBuffer
         isOnlySpace = true;
         isBackslash = false;
         buffer.setLength(length);
+    }
+
+    private static boolean isQuote(int c) {
+        return c == '\'' | c == '"' | c == '`';
     }
 }

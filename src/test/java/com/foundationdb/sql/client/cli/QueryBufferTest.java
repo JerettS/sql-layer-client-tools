@@ -127,6 +127,62 @@ public class QueryBufferTest
     }
 
     @Test
+    public void appendWithDashComment() {
+        // Append does not strip --
+        qb.append("SELECT 5; --");
+        assertEquals(true, qb.hasQuery());
+        assertEquals("SELECT 5;", qb.nextQuery());
+        qb.trimCompleted();
+        assertEquals(3, qb.length());
+    }
+
+    @Test
+    public void appendLineJustDashComment() {
+        qb.appendLine("--");
+        assertEquals(false, qb.hasQuery());
+        assertEquals(0, qb.length());
+        qb.appendLine("   --");
+        assertEquals(false, qb.hasQuery());
+        assertEquals(3, qb.length());
+    }
+
+    @Test
+    public void appendLineDashCommentAfterQuery() {
+        qb.appendLine("SELECT 5;-- something");
+        assertEquals(true, qb.hasQuery());
+        assertEquals("SELECT 5;", qb.nextQuery());
+        assertEquals("SELECT 5;", qb.trimCompleted());
+        assertEquals(false, qb.hasQuery());
+        assertEquals(0, qb.length());
+    }
+
+    @Test
+    public void appendLineDashInQuote() {
+        String q = "SELECT 'foo -- bar';";
+        qb.appendLine(q + " -- After");
+        assertEquals(true, qb.hasQuery());
+        assertEquals(q, qb.nextQuery());
+        assertEquals(q, qb.trimCompleted());
+        assertEquals(1, qb.length());
+    }
+
+    @Test
+    public void hasNonSpace() {
+        qb.append(' ');
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('\t');
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('\n');
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('a');
+        assertEquals(true, qb.hasNonSpace());
+        qb.reset();
+        assertEquals(false, qb.hasNonSpace());
+        qb.append('a');
+        assertEquals(true, qb.hasNonSpace());
+    }
+
+    @Test
     public void singleBackslash() {
         String b1 = "\\d";
         qb.append(b1);
