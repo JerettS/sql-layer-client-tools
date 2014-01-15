@@ -105,7 +105,7 @@ public class QueryBuffer
             } else if(quoteEndsAt(buffer, curQuote, curIndex)) {
                 curQuote = null;
             }
-            // Backspace may only be preceded by whitespace
+            // Backslash may only be preceded by whitespace
             isOnlySpace &= Character.isWhitespace(c);
             ++curIndex;
         }
