@@ -28,3 +28,13 @@ _SQL_COL_1
  foo--bar -- zap 
 (1 row)
 
+ _SQL_COL_1 
+------------
+          6 
+(1 row)
+
+ _SQL_COL_1 
+------------
+          7 
+(1 row)
+

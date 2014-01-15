@@ -7,3 +7,6 @@ SELECT 4 -- zap
 -- zip
 SELECT 5;
 SELECT 'foo--bar -- zap';
+
+SELECT /* 6, */ 6;
+SELECT 7 /* Awesome query */;
