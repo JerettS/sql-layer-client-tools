@@ -24,12 +24,21 @@ package com.foundationdb.sql.client.cli;
 public class QueryBuffer
 {
     private static final int UNSET = -1;
+    private static final Quote DASH_QUOTE = new Quote("--", "\n");
+    private static final Quote[] QUOTES = {
+        new Quote('\''),
+        new Quote('"'),
+        new Quote('`'),
+        new Quote("$$"),
+        new Quote("/*", "*/"),
+        DASH_QUOTE
+    };
 
     private final StringBuilder buffer = new StringBuilder();
     private int curIndex;
     private int startIndex;
     private int endIndex;
-    private int quoteChar;
+    private Quote curQuote;
     private boolean isOnlySpace;
     private boolean isBackslash;
 
@@ -51,18 +60,19 @@ public class QueryBuffer
 
         // As this is called when lines are collapsed, need to strip any -- comments out completely
         int localIndex = curIndex;
-        int localQuoteChar = quoteChar;
+        Quote localQuote = curQuote;
         while(localIndex < buffer.length()) {
-            int c = buffer.charAt(localIndex);
-            if(localQuoteChar == UNSET) {
-                if(isQuote(c)) {
-                    localQuoteChar = c;
-                } else if((c == '-') && (localIndex > 0) && (cs.charAt(localIndex - 1) == '-')) {
-                    // Found comment, remove to end
-                    buffer.delete(localIndex - 1, buffer.length());
+            if(localQuote == null) {
+                localQuote = quoteStartAt(buffer, localIndex);
+                if(localQuote != null) {
+                    localIndex += localQuote.beginSkipLength();
                 }
-            } else if(c == localQuoteChar) {
-                localQuoteChar = UNSET;
+            } else if(quoteEndsAt(buffer, localQuote, localIndex)) {
+                localQuote = null;
+            }
+            if(localQuote == DASH_QUOTE) {
+                // Found comment, remove to end
+                buffer.delete(localIndex - 1, buffer.length());
             }
             ++localIndex;
         }
@@ -71,26 +81,28 @@ public class QueryBuffer
     public boolean hasQuery() {
         while(curIndex < buffer.length()) {
             char c = buffer.charAt(curIndex);
-            if(c == ';') {
-                if(quoteChar == UNSET) {
-                    endIndex = curIndex;
-                    break;
+            if(curQuote == null) {
+                curQuote = quoteStartAt(buffer, curIndex);
+                if(curQuote == null) {
+                    if(c == ';') {
+                        endIndex = curIndex;
+                        break;
+                    } else if(c == '\\' && isOnlySpace) {
+                        isBackslash = true;
+                        startIndex = curIndex;
+                        endIndex = buffer.length() - 1;
+                    }
+                } else if(curQuote == DASH_QUOTE) {
+                    // Ignored until we can handle buffer containing newlines
+                    curQuote = null;
+                } else {
+                    curIndex += curQuote.beginSkipLength();
                 }
-            } else if(isQuote(c)) {
-                if(quoteChar == UNSET) {
-                    quoteChar = c;
-                } else if(quoteChar == c) {
-                    quoteChar = UNSET;
-                }
-            } else if(c == '\\' && isOnlySpace) {
-                isBackslash = true;
-                startIndex = curIndex;
-                endIndex = buffer.length() - 1;
+            } else if(quoteEndsAt(buffer, curQuote, curIndex)) {
+                curQuote = null;
             }
-            // After backslash test so preceding whitespace is allowed
-            if(isOnlySpace && !Character.isWhitespace(c)) {
-                isOnlySpace = false;
-            }
+            // Backspace may only be preceded by whitespace
+            isOnlySpace &= Character.isWhitespace(c);
             ++curIndex;
         }
         return (endIndex != UNSET);
@@ -150,13 +162,60 @@ public class QueryBuffer
         curIndex = cur;
         startIndex = start;
         endIndex = end;
-        quoteChar = UNSET;
+        curQuote = null;
         isOnlySpace = true;
         isBackslash = false;
         buffer.setLength(length);
     }
 
-    private static boolean isQuote(int c) {
-        return c == '\'' | c == '"' | c == '`';
+    private static Quote quoteStartAt(StringBuilder sb, int index) {
+        for(Quote q : QUOTES) {
+            boolean match = true;
+            for(int i = 0; (i < q.begin.length()) && (index + i < sb.length()); ++i) {
+                match &= (sb.charAt(index +i) == q.begin.charAt(i));
+            }
+            if(match) {
+                return q;
+            }
+        }
+        return null;
+    }
+
+    private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
+        for(int i = q.end.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
+            if(q.end.charAt(i) != sb.charAt(j)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static class Quote {
+        public final String begin;
+        public final String end;
+
+        private Quote(char quote) {
+            this(String.valueOf(quote));
+        }
+
+        private Quote(String quote) {
+            this(quote, quote);
+        }
+
+        private Quote(String begin, String end) {
+            assert begin.length() <= 2;
+            assert end.length() <= 2;
+            this.begin = begin;
+            this.end = end;
+        }
+
+        public int beginSkipLength() {
+            return begin.length() - 1;
+        }
+
+        @Override
+        public String toString() {
+            return begin;
+        }
     }
 }

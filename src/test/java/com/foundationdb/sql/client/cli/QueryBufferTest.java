@@ -167,6 +167,49 @@ public class QueryBufferTest
     }
 
     @Test
+    public void appendLineDoubleDollar() {
+        String q1 = "SELECT $$";
+        String q2 = "  s = \"\";";
+        String q3 = "  while(n-- > 0) s += '!';";
+        String q4 = "$$;";
+        qb.appendLine(q1);
+        qb.append(' ');
+        qb.appendLine(q2);
+        qb.append(' ');
+        qb.appendLine(q3);
+        qb.append(' ');
+        qb.appendLine(q4 + " -- My Proc");
+        assertEquals(true, qb.hasQuery());
+        assertEquals(q1 + " " + q2 + " " + q3 + " " + q4, qb.nextQuery());
+        qb.trimCompleted();
+        assertEquals(1, qb.length());
+    }
+
+    @Test
+    public void doubleDollar() {
+        String q = "SELECT $$ 'hello\" -- there $$";
+        qb.append(q);
+        assertEquals(false, qb.hasQuery());
+        qb.append(';');
+        assertEquals(true, qb.hasQuery());
+        assertEquals(q + ';', qb.nextQuery());
+        assertEquals(q + ';', qb.trimCompleted());
+        assertEquals(0, qb.length());
+    }
+
+    @Test
+    public void blockComment() {
+        String q = "SELECT /* 'hello\" -- there $$ */";
+        qb.append(q);
+        assertEquals(false, qb.hasQuery());
+        qb.append(';');
+        assertEquals(true, qb.hasQuery());
+        assertEquals(q + ';', qb.nextQuery());
+        assertEquals(q + ';', qb.trimCompleted());
+        assertEquals(0, qb.length());
+    }
+
+    @Test
     public void hasNonSpace() {
         qb.append(' ');
         assertEquals(false, qb.hasNonSpace());
