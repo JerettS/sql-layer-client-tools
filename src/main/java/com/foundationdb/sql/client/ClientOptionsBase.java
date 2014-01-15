@@ -19,6 +19,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 
+// Command line arguments override environment variables which override the literal defaults here
 public abstract class ClientOptionsBase
 {
     protected static String env(String env, String defValue) {
