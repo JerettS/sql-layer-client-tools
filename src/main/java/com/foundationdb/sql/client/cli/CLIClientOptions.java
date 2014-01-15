@@ -25,7 +25,7 @@ import java.util.List;
 public class CLIClientOptions extends ClientOptionsBase
 {
     @Parameter(names = { "-s", "--schema" }, description = "schema name")
-    public String schema = env("FDBSQL_SCHEMA", user);
+    public String schema = DEFAULT_SCHEMA;
 
     @Parameter(names = { "-c", "--command" }, description = "execute command(s) and then exit")
     public String command = null;

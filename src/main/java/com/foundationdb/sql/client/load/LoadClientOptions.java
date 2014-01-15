@@ -65,7 +65,7 @@ public class LoadClientOptions extends ClientOptionsBase
 
 
     @Parameter(names = { "-s", "--schema" }, description = "destination schema")
-    public String schema = env("FDBSQL_SCHEMA", user);
+    public String schema = DEFAULT_SCHEMA;
 
     @Parameter(names = { "-f", "--format" }, description = "file format", converter = FormatConverter.class)
     public Format format = Format.AUTO;
@@ -80,7 +80,7 @@ public class LoadClientOptions extends ClientOptionsBase
     public int nthreads = 1;
 
     @Parameter(names = { "-c", "--commit" }, description = "commit every n rows", converter = CommitConverter.class)
-    public long commitFrequency = 0;
+    public Long commitFrequency;
 
     @Parameter(names = { "-r", "--retry" }, description = "number of times to try on transaction error")
     public int maxRetries = 1;

@@ -40,6 +40,11 @@ public class DumpClientOptions extends ClientOptionsBase
         }
     }
 
+    @Override
+    protected void printExtraHelp() {
+        System.out.println("If no schemas are given, all are dumped.");
+    }
+
 
     @Parameter(names = { "-s", "--no-schemas" }, description = "omit DDL from output")
     public boolean noSchemas;
@@ -56,6 +61,6 @@ public class DumpClientOptions extends ClientOptionsBase
     @Parameter(names = { "-c", "--commit" }, description = "commit every n rows", converter = CommitConverter.class)
     public Long commit;
 
-    @Parameter(description = "schema(s)")
+    @Parameter(description = "[schema(s)]")
     public List<String> schemas = new ArrayList<>();
 }

@@ -37,14 +37,14 @@ public class ProtobufClientOptions extends ClientOptionsBase
     }
 
 
+    @Parameter(names = { "-s", "--schema" }, description = "schema name")
+    String schema = DEFAULT_SCHEMA;
+
     @Parameter(names = { "-o", "--output-file" }, description = "name of output file")
     File outputFile;
 
     @Parameter(names = { "-d", "--output-directory" }, description = "name of output directory", validateValueWith = DirectoryValidator.class)
     File outputDirectory;
-
-    @Parameter(names = { "-s", "--schema" }, description = "schema name")
-    String schema = env("FDBSQL_SCHEMA", user);
 
     @Parameter(description = "group(s)", required = true)
     List<String> groups = new ArrayList<>();

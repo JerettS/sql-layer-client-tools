@@ -49,6 +49,9 @@ public class LoadClient
 
     public LoadClient(LoadClientOptions options) {
         this.options = options;
+        if(options.commitFrequency == null) {
+            options.commitFrequency = 0L;
+        }
     }
 
     public String getEncoding() {
