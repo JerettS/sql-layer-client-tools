@@ -164,7 +164,7 @@ public class CLIClient implements Closeable
             }
             try {
                 if(doPrompt) {
-                    String prompt = qb.isEmpty() ? connection.getCatalog() + "=> " : "> ";
+                    String prompt = qb.isEmpty() ? (connection.getCatalog() + "=> ") : (qb.quoteString() + "> ");
                     localSource.setPrompt(prompt);
                 }
                 String str = localSource.readLine();

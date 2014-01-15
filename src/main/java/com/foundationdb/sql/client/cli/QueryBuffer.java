@@ -46,6 +46,10 @@ public class QueryBuffer
         reset();
     }
 
+    public String quoteString() {
+        return (curQuote != null) ? curQuote.begin : "";
+    }
+
     public void append(char c) {
         buffer.append(c);
     }
@@ -127,8 +131,10 @@ public class QueryBuffer
 
     public String trimCompleted() {
         String s = buffer.substring(0, startIndex);
-        buffer.delete(0, startIndex);
-        reset(0, UNSET, 0, buffer.length());
+        if(startIndex > 0) {
+            buffer.delete(0, startIndex);
+            reset(0, UNSET, 0, buffer.length());
+        }
         return s;
     }
 

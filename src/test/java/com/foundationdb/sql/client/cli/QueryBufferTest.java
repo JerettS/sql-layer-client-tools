@@ -226,6 +226,31 @@ public class QueryBufferTest
     }
 
     @Test
+    public void quoteString() {
+        qb.append("SELECT 'foo");
+        // Not found until hasQuery moves things forward
+        assertEquals("", qb.quoteString());
+        assertEquals(false, qb.hasQuery());
+        assertEquals("'", qb.quoteString());
+        qb.reset();
+        qb.append("SELECT \"foo");
+        assertEquals(false, qb.hasQuery());
+        assertEquals("\"", qb.quoteString());
+        qb.reset();
+        qb.append("SELECT `foo");
+        assertEquals(false, qb.hasQuery());
+        assertEquals("`", qb.quoteString());
+        qb.reset();
+        qb.append("SELECT /*foo");
+        assertEquals(false, qb.hasQuery());
+        assertEquals("/*", qb.quoteString());
+        qb.reset();
+        qb.append("SELECT $$foo");
+        assertEquals(false, qb.hasQuery());
+        assertEquals("$$", qb.quoteString());
+    }
+
+    @Test
     public void singleBackslash() {
         String b1 = "\\d";
         qb.append(b1);
