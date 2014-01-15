@@ -28,6 +28,13 @@ public abstract class ClientTestBase
     public static final String USER_NAME = "test";
     public static final String USER_PASSWORD = "test";
 
+    protected void fillBaseOptions(ClientOptionsBase options) {
+        options.host = DEFAULT_HOST;
+        options.port = DEFAULT_PORT;
+        options.user = USER_NAME;
+        options.password = USER_PASSWORD;
+    }
+
     protected Connection openConnection() throws Exception {
         String url = String.format("jdbc:fdbsql://%s:%d/%s",
                                    DEFAULT_HOST, DEFAULT_PORT, SCHEMA_NAME);
