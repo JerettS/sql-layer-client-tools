@@ -76,11 +76,19 @@ public class ProtobufClientTest extends ClientTestBase
 
         File protoFile = File.createTempFile("test-", ".proto");
         protoFile.deleteOnExit();
-        ProtobufClient client = new ProtobufClient();
-        client.setOutputFile(protoFile);
-        client.setDefaultSchema(SCHEMA_NAME);
-        client.addGroup(loadFile.getName().replace(".sql", ""));
-        client.writeProtobuf();
+
+        ProtobufClientOptions options = new ProtobufClientOptions();
+        fillBaseOptions(options);
+        options.schema = SCHEMA_NAME;
+        options.outputFile = protoFile;
+        options.groups.add(loadFile.getName().replace(".sql", ""));
+
+        ProtobufClient client = new ProtobufClient(options);
+        try {
+            client.writeProtobuf();
+        } finally {
+            client.close();
+        }
         
         String proto = fileContents(protoFile);
         String expected = fileContents(new File(loadFile.getParentFile(),
