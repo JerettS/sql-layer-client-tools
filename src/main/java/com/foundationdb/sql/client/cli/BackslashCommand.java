@@ -20,6 +20,7 @@ public enum BackslashCommand
     CONNECT ("c", false, false, "[SCHEMA [USER [HOST [PORT]]]]", "change connection information"),
     CONNINFO("conninfo", false, false, "", "display connection information"),
 
+    D_ALL       ("d", true, true,   "[[SCHEMA] NAME]",          "Print description of tables, views and sequences present"),
     D_SEQUENCE  ("dq", true, true,  "[[SCHEMA] NAME]",          "Print description of sequences present"),
     D_TABLE     ("dt", true, true,  "[[SCHEMA] NAME]",          "Print description of tables present"),
     D_VIEW      ("dv", true, true,  "[[SCHEMA] NAME]",          "Print description of views present"),

@@ -21,6 +21,8 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 \lt test.t1
 \lv test.%
 \lv test.v1
+\d test.%
+\dq test.%
 \dt test.%
 \dt test.t1
 \dt+ test.t1

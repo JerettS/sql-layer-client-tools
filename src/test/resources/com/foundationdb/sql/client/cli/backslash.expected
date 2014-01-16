@@ -99,6 +99,58 @@ ROWS: 0
  test   | v1   
 (1 row)
 
+ Sequence test.s1
+  Type  | Start | Min |         Max         | Inc | Cycle 
+--------+-------+-----+---------------------+-----+-------
+ bigint |     1 |   1 | 9223372036854775807 |   1 | NO    
+(1 row)
+
+ Sequence test.s2
+  Type  | Start | Min |         Max         | Inc | Cycle 
+--------+-------+-----+---------------------+-----+-------
+ bigint |     1 |   1 | 9223372036854775807 |   1 | NO    
+(1 row)
+
+ Table test.t1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | INT         | YES      
+ c2     | VARCHAR(32) | YES      
+(2 rows)
+
+ Table test.t2
+ Column |     Type      | Nullable 
+--------+---------------+----------
+ c1     | DECIMAL(10,5) | YES      
+ c2     | VARBINARY(10) | YES      
+(2 rows)
+
+ View test.v1
+ Column |    Type     | Nullable 
+--------+-------------+----------
+ c1     | INT         | YES      
+ c2     | VARCHAR(32) | YES      
+(2 rows)
+
+ View test.v2
+ Column |     Type      | Nullable 
+--------+---------------+----------
+ c1     | DECIMAL(10,5) | YES      
+ c2     | VARBINARY(10) | YES      
+(2 rows)
+
+ Sequence test.s1
+  Type  | Start | Min |         Max         | Inc | Cycle 
+--------+-------+-----+---------------------+-----+-------
+ bigint |     1 |   1 | 9223372036854775807 |   1 | NO    
+(1 row)
+
+ Sequence test.s2
+  Type  | Start | Min |         Max         | Inc | Cycle 
+--------+-------+-----+---------------------+-----+-------
+ bigint |     1 |   1 | 9223372036854775807 |   1 | NO    
+(1 row)
+
  Table test.t1
  Column |    Type     | Nullable 
 --------+-------------+----------

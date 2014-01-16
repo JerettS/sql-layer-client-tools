@@ -447,35 +447,39 @@ public class CLIClient implements Closeable
     }
 
     private void runBackslashDescribe(BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
+        final String SEQUENCE = "Sequence";
+        final String TABLE = "Table";
+        final String SYSTEM_TABLE = "SYSTEM TABLE";
+        final String VIEW = "View";
+        final String SYSTEM_VIEW = "SYSTEM VIEW";
+
         // If fully qualified, include system even without S
         parsed.isSystem = parsed.isSystem || (parsed.args.size() > 1);
 
-        final String type;
-        final String listPrepKey, descPrepKey;
-        final String listQuery, descQuery;
+        String type;
+        final String listPrepKey, listQuery;
         final String[] listArgs = reverseFillParams(parsed, 2);
 
         switch(command) {
+            case D_ALL:
+                type = null;
+                listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_ALL.cmd, parsed.isSystem, false);
+                listQuery = listAll(parsed.isSystem);
+            break;
             case D_SEQUENCE:
-                type = "Sequence";
+                type = SEQUENCE;
                 listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_SEQUENCES.cmd, parsed.isSystem, false);
                 listQuery = listSequences(parsed.isSystem, false);
-                descPrepKey = parsed.getCanonical();
-                descQuery = describeSequence(parsed.isSystem, parsed.isDetail);
             break;
             case D_TABLE:
-                type = "Table";
+                type = TABLE;
                 listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_TABLES.cmd, parsed.isSystem, false);
                 listQuery = listTables(parsed.isSystem, false);
-                descPrepKey = parsed.getCanonical();
-                descQuery = describeTable(parsed.isSystem, parsed.isDetail);
             break;
             case D_VIEW:
-                type = "View";
+                type = VIEW;
                 listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_VIEWS.cmd, parsed.isSystem, false);
                 listQuery = listViews(parsed.isSystem, false);
-                descPrepKey = parsed.getCanonical();
-                descQuery = describeSequence(parsed.isSystem, parsed.isDetail);
             break;
             default:
                 throw new SQLException("Unexpected command: " + command);
@@ -484,8 +488,26 @@ public class CLIClient implements Closeable
         try(ResultSet listRS = execPrepared(listPrepKey, listQuery, listArgs)) {
             while(listRS.next()) {
                 String[] descArgs = { listRS.getString(1), listRS.getString(2) };
+                String actualType = (type == null) ? listRS.getString(3) : type;
+                final String descPrepKey;
+                final String descQuery;
+                if(SEQUENCE.equalsIgnoreCase(actualType)) {
+                    actualType = SEQUENCE;
+                    descPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.D_SEQUENCE.cmd, parsed.isSystem, parsed.isDetail);
+                    descQuery = describeSequence(parsed.isSystem, parsed.isDetail);
+                } else if(TABLE.equalsIgnoreCase(actualType) || SYSTEM_TABLE.equalsIgnoreCase(actualType)) {
+                    actualType = TABLE;
+                    descPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.D_TABLE.cmd, parsed.isSystem, parsed.isDetail);
+                    descQuery = describeTable(parsed.isSystem, parsed.isDetail);
+                } else if(VIEW.equalsIgnoreCase(actualType) || SYSTEM_VIEW.equals(actualType)) {
+                    actualType = VIEW;
+                    descPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.D_VIEW.cmd, parsed.isSystem, parsed.isDetail);
+                    descQuery = describeView(parsed.isSystem, parsed.isDetail);
+                } else {
+                        throw new SQLException("Unexpected type: " + actualType);
+                }
                 try(ResultSet descRS = execPrepared(descPrepKey, descQuery, descArgs)) {
-                    String description = String.format("%s %s.%s", type, descArgs[0], descArgs[1]);
+                    String description = String.format("%s %s.%s", actualType, descArgs[0], descArgs[1]);
                     resultPrinter.printResultSet(description, descRS);
                     descRS.close();
                 }

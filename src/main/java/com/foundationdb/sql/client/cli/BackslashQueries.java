@@ -27,7 +27,7 @@ public class BackslashQueries
     private static final String DTV_ORDER = " ORDER BY ordinal_position ";
     private static final String DTV_SCHEMA = " table_schema ";
 
-    private static final String DQ_BASE = "SELECT start_value \"Start\", minimum_value \"Min\", maximum_value \"Max\", increment \"Inc\", cycle_option \"Cycle\" ";
+    private static final String DQ_BASE = "SELECT data_type \"Type\", start_value \"Start\", minimum_value \"Min\", maximum_value \"Max\", increment \"Inc\", cycle_option \"Cycle\" ";
     private static final String DQ_DETAIL = " ";
     private static final String DQ_FROM = " FROM information_schema.sequences ";
     private static final String DQ_WHERE = " WHERE sequence_schema LIKE ? AND sequence_name LIKE ? ";
