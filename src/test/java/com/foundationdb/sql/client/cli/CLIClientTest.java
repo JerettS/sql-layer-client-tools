@@ -40,18 +40,7 @@ public class CLIClientTest extends ClientTestBase
     public static final String SQL_PATTERN = ".*\\.sql";
     public static final String EXPECTED_EXTENSION = ".expected";
 
-    public static final CLIClientOptions OPTIONS;
-    static {
-        OPTIONS = new CLIClientOptions();
-        OPTIONS.host = DEFAULT_HOST;
-        OPTIONS.port = DEFAULT_PORT;
-        OPTIONS.user = USER_NAME;
-        OPTIONS.password = USER_PASSWORD;
-        OPTIONS.schema = USER_NAME;
-        // To avoid a magic number of repetitions.
-        OPTIONS.urlOptions = "?prepareThreshold=1";
-        OPTIONS.includedParent = RESOURCE_DIR.getAbsolutePath();
-    }
+    public CLIClientOptions options = new CLIClientOptions();
 
     @Parameters(name="{0}")
     public static Collection<Object[]> sqlFiles() throws Exception {
@@ -78,11 +67,16 @@ public class CLIClientTest extends ClientTestBase
     public void setSimpleJlineTerminal() {
         // Disable echo to avoid system-specific wrapping
         System.setProperty("jline.terminal", "none");
+        fillBaseOptions(options);
+        // To avoid a magic number of repetitions.
+        options.schema = "test";
+        options.urlOptions = "?prepareThreshold=1";
+        options.includedParent = RESOURCE_DIR.getAbsolutePath();
     }
 
     @After
     public void cleanUp() throws Exception {
-        dropSchema(OPTIONS.schema);
+        dropSchema(options.schema);
     }
 
     @Test
@@ -103,7 +97,7 @@ public class CLIClientTest extends ClientTestBase
     private void runAndCheck(InputSource source) throws Exception {
         CharArrayWriter charWriter = new CharArrayWriter();
         WriterSink sink = new WriterSink(charWriter);
-        try(CLIClient cli = new CLIClient(OPTIONS)) {
+        try(CLIClient cli = new CLIClient(options)) {
             cli.openInternal(source, sink, false, false, false);
             cli.runLoop();
         }
