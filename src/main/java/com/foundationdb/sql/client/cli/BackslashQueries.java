@@ -19,8 +19,7 @@ public class BackslashQueries
 {
     private static final String NOT_IN_SYSTEM = " NOT IN ('information_schema', 'security_schema', 'sqlj', 'sys') ";
 
-    private static final String DTV_BASE = "SELECT column_name \"Column\", CONCAT(data_type, COALESCE(CONCAT('(', character_maximum_length, ')'), "+
-                                           " CONCAT('(', numeric_precision, ',', numeric_scale, ')'), '')) \"Type\", is_nullable \"Nullable\" ";
+    private static final String DTV_BASE = "SELECT column_name \"Column\", COLUMN_TYPE_STRING(table_schema, table_name, column_name) \"Type\", is_nullable \"Nullable\" ";
     private static final String DTV_DETAIL = ", column_default \"Default\",  character_set_name \"Charset\", collation_name \"Collation\", CONCAT(sequence_schema, '.', sequence_name) \"Sequence\" ";
     private static final String DTV_FROM = " FROM information_schema.columns ";
     private static final String DTV_WHERE = " WHERE table_schema LIKE ? AND table_name LIKE ? ";

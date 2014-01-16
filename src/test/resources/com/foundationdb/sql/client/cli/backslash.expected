@@ -119,10 +119,10 @@ ROWS: 0
 (2 rows)
 
  Table test.t2
- Column |     Type      | Nullable 
---------+---------------+----------
- c1     | DECIMAL(10,5) | YES      
- c2     | VARBINARY(10) | YES      
+ Column |      Type      | Nullable 
+--------+----------------+----------
+ c1     | DECIMAL(10, 5) | YES      
+ c2     | VARBINARY(10)  | YES      
 (2 rows)
 
  View test.v1
@@ -133,10 +133,10 @@ ROWS: 0
 (2 rows)
 
  View test.v2
- Column |     Type      | Nullable 
---------+---------------+----------
- c1     | DECIMAL(10,5) | YES      
- c2     | VARBINARY(10) | YES      
+ Column |      Type      | Nullable 
+--------+----------------+----------
+ c1     | DECIMAL(10, 5) | YES      
+ c2     | VARBINARY(10)  | YES      
 (2 rows)
 
  Sequence test.s1
@@ -159,10 +159,10 @@ ROWS: 0
 (2 rows)
 
  Table test.t2
- Column |     Type      | Nullable 
---------+---------------+----------
- c1     | DECIMAL(10,5) | YES      
- c2     | VARBINARY(10) | YES      
+ Column |      Type      | Nullable 
+--------+----------------+----------
+ c1     | DECIMAL(10, 5) | YES      
+ c2     | VARBINARY(10)  | YES      
 (2 rows)
 
  Table test.t1
@@ -187,10 +187,10 @@ ROWS: 0
 (2 rows)
 
  View test.v2
- Column |     Type      | Nullable 
---------+---------------+----------
- c1     | DECIMAL(10,5) | YES      
- c2     | VARBINARY(10) | YES      
+ Column |      Type      | Nullable 
+--------+----------------+----------
+ c1     | DECIMAL(10, 5) | YES      
+ c2     | VARBINARY(10)  | YES      
 (2 rows)
 
  View test.v1
