@@ -135,8 +135,8 @@
                     <headerSections>
                         <headerSection>
                             <key>__YEAR_SECTION__</key>
-                            <defaultValue>2013</defaultValue>
-                            <ensureMatch>20(12|13)\-2013|2013</ensureMatch>
+                            <defaultValue>2014</defaultValue>
+                            <ensureMatch>20(12|13)\-20(13|14)|2014</ensureMatch>
                         </headerSection>
                     </headerSections>
                     <strictCheck>true</strictCheck>

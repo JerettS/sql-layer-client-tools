@@ -15,8 +15,6 @@
 
 package com.foundationdb.sql.client.cli;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.ParameterException;
 // jansi-native is bundled with jline
 import org.fusesource.jansi.internal.CLibrary;
 import org.postgresql.util.PSQLState;
@@ -44,8 +42,8 @@ import static com.foundationdb.sql.client.cli.BackslashQueries.*;
 
 public class CLIClient implements Closeable
 {
-    private final static String APP_NAME = "fdbsqlcli";
-    private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + APP_NAME + "_history");
+    private final static String PROGRAM_NAME = "fdbsqlcli";
+    private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + PROGRAM_NAME + "_history");
 
     private final static int MAX_PREPARED_RETRY = 5;
     private final static String STALE_STATEMENT_CODE = "0A50A";
@@ -53,17 +51,7 @@ public class CLIClient implements Closeable
 
     public static void main(String[] args) throws Exception {
         CLIClientOptions options = new CLIClientOptions();
-        try {
-            JCommander jc = new JCommander(options, args);
-            if(options.help) {
-                jc.setProgramName(APP_NAME);
-                jc.usage();
-                return;
-            }
-        } catch(ParameterException e) {
-            System.err.println(e.getMessage());
-            System.exit(1);
-        }
+        options.parseOrDie(PROGRAM_NAME, args);
         // Positional arg overrides named parameter
         if(!options.positional.isEmpty()) {
             options.schema = options.positional.get(0);
@@ -246,7 +234,7 @@ public class CLIClient implements Closeable
 
     void openTerminal() throws IOException, SQLException {
         // This is what the generic ConsoleReader() constructor does. Would System.in work?
-        TerminalSource terminalSource = new TerminalSource(APP_NAME);
+        TerminalSource terminalSource = new TerminalSource(PROGRAM_NAME);
         WriterSink writerSink = new WriterSink(terminalSource.getConsoleWriter(), new PrintWriter(System.err));
         openInternal(terminalSource, writerSink, true, true, false);
     }
@@ -275,7 +263,7 @@ public class CLIClient implements Closeable
     }
 
     private void connect() throws SQLException {
-        String url = String.format("jdbc:fdbsql://%s:%d/%s%s", options.host, options.port, options.schema, options.urlOptions);
+        String url = options.getURL(options.schema) + options.urlOptions;
         connection = DriverManager.getConnection(url, options.user, options.password);
         statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
         preparedStatements = new HashMap<>();

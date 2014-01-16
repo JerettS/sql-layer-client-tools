@@ -15,11 +15,6 @@
 
 package com.foundationdb.sql.client.dump;
 
-import com.beust.jcommander.converters.BaseConverter;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-
 import org.postgresql.copy.CopyManager;
 
 import java.io.*;
@@ -28,92 +23,26 @@ import java.util.*;
 
 public class DumpClient
 {
-    protected static final String DEFAULT_HOST = "localhost";
-    protected static final int DEFAULT_PORT = 15432;
-    protected static final String DEFAULT_USER = "system";
-    protected static final String DEFAULT_PASSWORD = "system";
-    protected static final int DEFAULT_INSERT_MAX_ROW_COUNT = 100;
-    protected static final int COMMIT_AUTO = -1;
+    private static final String PROGRAM_NAME = "fdbsqldump";
     private static final String NL = System.getProperty("line.separator");
-    private boolean dumpSchema = true, dumpData = true;
-    private File outputFile = null;
-    private String host = DEFAULT_HOST;
-    private int port = DEFAULT_PORT;
-    private String user = DEFAULT_USER;
-    private String password = DEFAULT_PASSWORD;
+
+    private DumpClientOptions options;
+    private boolean dumpSchema = true;
+    private boolean dumpData = true;
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
     private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
     private Map<String,Map<String,View>> views = new TreeMap<String,Map<String, View>>();
     private Queue<String> afterDataStatements = new ArrayDeque<String>();
-    private int insertMaxRowCount = DEFAULT_INSERT_MAX_ROW_COUNT;
     private String defaultSchema = null;
     private long commitFrequency = 0;
     private Writer output;
     private Connection connection;
     private CopyManager copyManager;
 
-    public static class CommitConverter extends BaseConverter<Long> {
-        public CommitConverter(String optionName) {
-            super(optionName);
-        }
-
-        @Override
-        public Long convert(String value) {
-            return ("auto".equals(value) ? COMMIT_AUTO : Long.parseLong(value));
-        }
-    }
-
-    static class CommandOptions {
-        @Parameter(names = "--help", help = true)
-        boolean help;
-
-        @Parameter(description = "schema(s)")
-        List<String> schemas = new ArrayList<>();
-
-        @Parameter(names = { "-s", "--no-schemas" }, description = "omit DDL from output")
-        boolean noSchemas;
-
-        @Parameter(names = { "-d", "--no-data" }, description = "omit data from output")
-        boolean noData;
-
-        @Parameter(names = { "-o", "--output" }, description = "name of output file")
-        File output;
-
-        @Parameter(names = { "-h", "--host" }, description = "name of server host")
-        String host = DEFAULT_HOST;
-
-        @Parameter(names = { "-p", "--port" }, description = "SQL Layer port")
-        int port = DEFAULT_PORT;
-        
-        @Parameter(names = { "-u", "--user" }, description = "server user name")
-        String user = DEFAULT_USER;
-
-        @Parameter(names = { "-w", "--password" }, description = "server user password")
-        String password = DEFAULT_PASSWORD;
-
-        @Parameter(names = "--insert-max-rows", description = "number of rows per INSERT statement")
-        int insertMaxRows = DEFAULT_INSERT_MAX_ROW_COUNT;
-
-        @Parameter(names = { "-c", "--commit" }, description = "commit every n rows", converter = CommitConverter.class)
-        Long commit;
-    }
 
     public static void main(String[] args) throws Exception {
-        CommandOptions options = new CommandOptions();
-        JCommander jc;
-        try {
-            jc = new JCommander(options, args);
-        }
-        catch (ParameterException ex) {
-            System.out.println(ex.getMessage());
-            return;
-        }
-        if (options.help) {
-            jc.setProgramName("fdbsqldump");
-            jc.usage();
-            System.out.println("If no schemas are given, all are dumped.");
-            return;
-        }
+        DumpClientOptions options = new DumpClientOptions();
+        options.parseOrDie(PROGRAM_NAME, args);
         DumpClient dumpClient = new DumpClient(options);
         try {
             dumpClient.dump();
@@ -126,81 +55,15 @@ public class DumpClient
     public DumpClient() {
     }
 
-    public DumpClient(CommandOptions options) {
-        setDumpSchema(!options.noSchemas);
-        setDumpData(!options.noData);
-        if (options.output != null)
-            setOutputFile(options.output);
-        setHost(options.host);
-        setPort(options.port);
-        setUser(options.user);
-        setPassword(options.password);
-        setInsertMaxRowCount(options.insertMaxRows);
-        if (options.commit != null)
-            setCommitFrequency(options.commit);
+    public DumpClient(DumpClientOptions options) {
+        this.options = options;
+        this.dumpSchema = !options.noSchemas;
+        this.dumpData = !options.noData;
         for (String schema : options.schemas) {
             addSchema(schema);
         }
     }
 
-    public boolean isDumpSchema() {
-        return dumpSchema;
-    }
-    public void setDumpSchema(boolean dumpSchema) {
-        this.dumpSchema = dumpSchema;
-    }
-    public boolean isDumpData() {
-        return dumpData;
-    }
-    public void setDumpData(boolean dumpData) {
-        this.dumpData = dumpData;
-    }
-    public File getOutputFile() {
-        return outputFile;
-    }
-    public void setOutputFile(File outputFile) {
-        this.outputFile = outputFile;
-    }
-    public String getHost() {
-        return host;
-    }
-    public void setHost(String host) {
-        this.host = host;
-    }
-    public int getPort() {
-        return port;
-    }
-    public void setPort(int port) {
-        this.port = port;
-    }
-    public String getUser() {
-        return user;
-    }
-    public void setUser(String user) {
-        this.user = user;
-    }
-    public String getPassword() {
-        return password;
-    }
-    public void setPassword(String password) {
-        this.password = password;
-    }
-    public int getInsertMaxRowCount() {
-        return insertMaxRowCount;
-    }
-    public void setInsertMaxRowCount(int insertMaxRowCount) {
-        this.insertMaxRowCount = insertMaxRowCount;
-    }
-    public long getCommitFrequency() {
-        return commitFrequency;
-    }
-    public void setCommitFrequency(long commitFrequency) {
-        this.commitFrequency = commitFrequency;
-    }
-
-    public Collection<String> getSchemas() {
-        return schemas.keySet();
-    }
     public void addSchema(String schema) {
         schemas.put(schema, new TreeMap<String,Table>());
         sequences.put(schema, new TreeMap<String,Sequence>());
@@ -1082,7 +945,7 @@ public class DumpClient
         sql.append("','");
         sql.append(rootTable.name.replace("'", "''"));
         sql.append("',");
-        sql.append(insertMaxRowCount);
+        sql.append(options.insertMaxRowCount);
         if (commitFrequency > 0) {
             sql.append(",");
             sql.append(commitFrequency);
@@ -1093,18 +956,16 @@ public class DumpClient
     }
 
     protected void openOutput() throws Exception {
-        if (outputFile != null)
-            output = new OutputStreamWriter(new FileOutputStream(outputFile), "UTF-8");
+        if (options.outputFile != null)
+            output = new OutputStreamWriter(new FileOutputStream(options.outputFile), "UTF-8");
         else
             output = new OutputStreamWriter(System.out);
     }
 
     protected void openConnection() throws Exception {
-        String url = String
-            .format("jdbc:fdbsql://%s:%d/%s",
-                    host, port, (defaultSchema != null) ? defaultSchema : "information_schema");
-        connection = DriverManager.getConnection(url, user, password);
-        if (commitFrequency == COMMIT_AUTO) {
+        String url = options.getURL((defaultSchema != null) ? defaultSchema : "information_schema");
+        connection = DriverManager.getConnection(url, options.user, options.password);
+        if (commitFrequency == DumpClientOptions.COMMIT_AUTO) {
             Statement stmt = connection.createStatement();
             stmt.execute("SET transactionPeriodicallyCommit TO 'true'");
             stmt.close();

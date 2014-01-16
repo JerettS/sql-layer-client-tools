@@ -23,7 +23,6 @@ import com.foundationdb.junit.NamedParameterizedRunner.TestParameters;
 import com.foundationdb.junit.Parameterization;
 */
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
@@ -89,9 +88,13 @@ public class DumpClientTest extends ClientTestBase
 
         File dumpFile = File.createTempFile("dump-", ".sql");
         dumpFile.deleteOnExit();
-        DumpClient client = new DumpClient();
-        client.setOutputFile(dumpFile);
-        client.addSchema(SCHEMA_NAME);
+
+        DumpClientOptions options = new DumpClientOptions();
+        fillBaseOptions(options);
+        options.outputFile = dumpFile;
+        options.schemas.add(SCHEMA_NAME);
+
+        DumpClient client = new DumpClient(options);
         client.dump();
         
         String dumped = fileContents(dumpFile);

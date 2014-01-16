@@ -23,7 +23,6 @@ import com.foundationdb.junit.NamedParameterizedRunner.TestParameters;
 import com.foundationdb.junit.Parameterization;
 */
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
@@ -73,12 +72,11 @@ public class LoadClientTest extends ClientTestBase
         properties.load(pstr);
         pstr.close();
 
-        LoadClient client = new LoadClient();
-        client.setUser(USER_NAME);
-        client.setPassword(USER_PASSWORD);
-        client.setSchema(SCHEMA_NAME);
-        client.setQuiet(true);
-        
+        LoadClientOptions options = new LoadClientOptions();
+        fillBaseOptions(options);
+        options.schema = SCHEMA_NAME;
+        options.quiet = true;
+
         File ddlFile = null;
         long expectedCount = -1;
         String query = null;
@@ -88,15 +86,15 @@ public class LoadClientTest extends ClientTestBase
         for (String key : properties.stringPropertyNames()) {
             String value = properties.getProperty(key);
             if ("format".equals(key))
-                client.setFormat(LoadClient.Format.fromName(value));
+                options.format = Format.fromName(value);
             else if ("header".equals(key))
-                client.setFormat(LoadClient.Format.CSV_HEADER);
+                options.format = Format.CSV_HEADER;
             else if ("into".equals(key))
-                client.setTarget(value);
+                options.target = value;
             else if ("threads".equals(key))
-                client.setThreads(Integer.parseInt(value));
+                options.nthreads = Integer.parseInt(value);
             else if ("commit".equals(key))
-                client.setCommitFrequency(Long.parseLong(value));
+                options.commitFrequency = Long.parseLong(value);
             else if ("file".equals(key) ||
                      key.startsWith("file."))
                 files.add(new File(dir, value));
@@ -115,6 +113,7 @@ public class LoadClientTest extends ClientTestBase
         if (ddlFile != null)
             loadDDL(ddlFile);
 
+        LoadClient client = new LoadClient(options);
         long count = 0;
         try {
             for (File file : files) {
