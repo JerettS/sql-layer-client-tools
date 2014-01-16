@@ -20,8 +20,9 @@ public enum BackslashCommand
     CONNECT ("c", false, false, "[SCHEMA [USER [HOST [PORT]]]]", "change connection information"),
     CONNINFO("conninfo", false, false, "", "display connection information"),
 
-    D_TABLE     ("dt", true, true,  "[[SCHEMA] NAME]",           "Print description of tables present"),
-    D_VIEW      ("dv", true, true,  "[[SCHEMA] NAME]",           "Print description of views present"),
+    D_SEQUENCE  ("dq", true, true,  "[[SCHEMA] NAME]",          "Print description of sequences present"),
+    D_TABLE     ("dt", true, true,  "[[SCHEMA] NAME]",          "Print description of tables present"),
+    D_VIEW      ("dv", true, true,  "[[SCHEMA] NAME]",          "Print description of views present"),
 
     I_FILE      ("i", false, false, "FILE",                     "Execute commands from file"),
     O_FILE      ("o", false, false, "[FILE|-]",                 "Send all query results to file or standard out"),

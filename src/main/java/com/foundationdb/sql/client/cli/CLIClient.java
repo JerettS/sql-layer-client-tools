@@ -456,19 +456,26 @@ public class CLIClient implements Closeable
         final String[] listArgs = reverseFillParams(parsed, 2);
 
         switch(command) {
+            case D_SEQUENCE:
+                type = "Sequence";
+                listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_SEQUENCES.cmd, parsed.isSystem, false);
+                listQuery = listSequences(parsed.isSystem, false);
+                descPrepKey = parsed.getCanonical();
+                descQuery = describeSequence(parsed.isSystem, parsed.isDetail);
+            break;
             case D_TABLE:
                 type = "Table";
                 listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_TABLES.cmd, parsed.isSystem, false);
                 listQuery = listTables(parsed.isSystem, false);
                 descPrepKey = parsed.getCanonical();
-                descQuery = describeTableOrView(parsed.isSystem, parsed.isDetail);
+                descQuery = describeTable(parsed.isSystem, parsed.isDetail);
             break;
             case D_VIEW:
                 type = "View";
                 listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_VIEWS.cmd, parsed.isSystem, false);
                 listQuery = listViews(parsed.isSystem, false);
                 descPrepKey = parsed.getCanonical();
-                descQuery = describeTableOrView(parsed.isSystem, parsed.isDetail);
+                descQuery = describeSequence(parsed.isSystem, parsed.isDetail);
             break;
             default:
                 throw new SQLException("Unexpected command: " + command);

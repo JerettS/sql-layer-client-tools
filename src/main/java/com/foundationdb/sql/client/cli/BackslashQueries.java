@@ -27,6 +27,13 @@ public class BackslashQueries
     private static final String DTV_ORDER = " ORDER BY ordinal_position ";
     private static final String DTV_SCHEMA = " table_schema ";
 
+    private static final String DQ_BASE = "SELECT start_value \"Start\", minimum_value \"Min\", maximum_value \"Max\", increment \"Inc\", cycle_option \"Cycle\" ";
+    private static final String DQ_DETAIL = " ";
+    private static final String DQ_FROM = " FROM information_schema.sequences ";
+    private static final String DQ_WHERE = " WHERE sequence_schema LIKE ? AND sequence_name LIKE ? ";
+    private static final String DQ_ORDER= " ORDER BY sequence_schema,sequence_name ";
+    private static final String DQ_SCHEMA = " sequence_schema ";
+
     private static final String LI_BASE = "SELECT table_schema \"Schema\", table_name \"Table\", index_name \"Name\" ";
     private static final String LI_DETAIL = ", is_unique \"Unique\", join_type \"Join Type\", index_method \"Index Method\", storage_name \"Storage Name\" ";
     private static final String LI_FROM = " FROM information_schema.indexes ";
@@ -35,7 +42,7 @@ public class BackslashQueries
     private static final String LI_SCHEMA = " table_schema ";
 
     private static final String LQ_BASE = "SELECT sequence_schema \"Schema\", sequence_name \"Name\" ";
-    private static final String LQ_DETAIL = ", start_value \"Start\", minimum_value \"Min\", maximum_value \"Max\", increment \"Inc\", cycle_option \"Cycle\", storage_name \"Storage Name\" ";
+    private static final String LQ_DETAIL = ", storage_name \"Storage Name\" ";
     private static final String LQ_FROM = " FROM information_schema.sequences ";
     private static final String LQ_WHERE = " WHERE sequence_schema LIKE ? AND sequence_name LIKE ? ";
     private static final String LQ_ORDER= " ORDER BY sequence_schema,sequence_name ";
@@ -72,8 +79,16 @@ public class BackslashQueries
     private static final String L_SCHEMA = "\"Schema\"";
 
 
-    public static String describeTableOrView(boolean isSystem, boolean isDetail) {
+    public static String describeSequence(boolean isSystem, boolean isDetail) {
+        return build(DQ_BASE, DQ_DETAIL, DQ_FROM, DQ_WHERE, DQ_ORDER, DQ_SCHEMA, isSystem, isDetail);
+    }
+
+    public static String describeTable(boolean isSystem, boolean isDetail) {
         return build(DTV_BASE, DTV_DETAIL, DTV_FROM, DTV_WHERE, DTV_ORDER, DTV_SCHEMA, isSystem, isDetail);
+    }
+
+    public static String describeView(boolean isSystem, boolean isDetail) {
+        return describeTable(isSystem, isDetail);
     }
 
     public static String listAll(boolean inSystem) {
