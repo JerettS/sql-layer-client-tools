@@ -197,8 +197,7 @@ public class CLIClient implements Closeable
                         sink.println(query);
                     }
                     if(isBackslash) {
-                        runBackslash(resultPrinter, query);
-
+                        runBackslash(query);
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
 
@@ -345,7 +344,7 @@ public class CLIClient implements Closeable
         sink.println();              
     }
 
-    private void runBackslash(ResultPrinter printer, String input) throws Exception {
+    private void runBackslash(String input) throws Exception {
         input = input.trim();
         if (input.endsWith(";")){
             input = input.substring(0, input.length()-1);
@@ -385,7 +384,14 @@ public class CLIClient implements Closeable
                 isRunning = false;
             break;
             default:
-                runBackslash(printer, parsed, command);
+                if(command.isList) {
+                    runBackslashList(parsed, command);
+                } else if(command.isDescribe) {
+                    runBackslashDescribe(parsed, command);
+                } else {
+                    throw new SQLException("Unexpected command: " + command);
+                }
+            break;
         }
     }
 
@@ -401,11 +407,11 @@ public class CLIClient implements Closeable
         sink.println(String.format("Timing is %s.", status));
     }
 
-    private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
+    private void runBackslashList(BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
         final String query;
         final int expectedArgs;
-        String prepKey = parsed.getCanonical();
-        boolean isSystem = parsed.isSystem;
+        // If fully qualified, include system even without S
+        parsed.isSystem = parsed.isSystem || (parsed.args.size() > 1);
         switch(command) {
             case L_ALL:
                 query = listAll(parsed.isSystem);
@@ -423,42 +429,61 @@ public class CLIClient implements Closeable
                 query = listSchemata(parsed.isSystem, parsed.isDetail);
                 expectedArgs = 1;
             break;
-            case D_TABLE:
-                // If fully qualified, include system even without S
-                isSystem = parsed.isSystem || (parsed.args.size() > 1);
-                prepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_TABLES.cmd, isSystem, parsed.isDetail);
             case L_TABLES:
-                query = listTables(isSystem, parsed.isDetail);
+                query = listTables(parsed.isSystem, parsed.isDetail);
                 expectedArgs = 2;
             break;
-            case D_VIEW:
-                // If fully qualified, include system even without S
-                isSystem = parsed.isSystem || (parsed.args.size() > 1);
-                prepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_VIEWS.cmd, isSystem, parsed.isDetail);
             case L_VIEWS:
-                query = listViews(isSystem, parsed.isDetail);
+                query = listViews(parsed.isSystem, parsed.isDetail);
                 expectedArgs = 2;
             break;
             default:
                 throw new SQLException("Unexpected command: " + command);
         }
-
         String[] args = reverseFillParams(parsed, expectedArgs);
-        ResultSet rs = execPrepared(prepKey, query, args);
-        if(command == BackslashCommand.D_TABLE || command == BackslashCommand.D_VIEW) {
-            String query2 = describeTableOrView(isSystem, parsed.isDetail);
-            String typeDesc = (command == BackslashCommand.D_TABLE) ? "Table" : "View";
-            while(rs.next()) {
-                String[] args2 = { rs.getString(1), rs.getString(2) };
-                ResultSet rs2 = execPrepared(parsed.getCanonical(), query2, args2);
-                String description = String.format("%s %s.%s", typeDesc, args2[0], args2[1]);
-                printer.printResultSet(description, rs2);
-                rs2.close();
-            }
-        } else {
-            printer.printResultSet(rs);
+        try(ResultSet rs = execPrepared(parsed.getCanonical(), query, args)) {
+            resultPrinter.printResultSet(rs);
         }
-        rs.close();
+    }
+
+    private void runBackslashDescribe(BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
+        // If fully qualified, include system even without S
+        parsed.isSystem = parsed.isSystem || (parsed.args.size() > 1);
+
+        final String type;
+        final String listPrepKey, descPrepKey;
+        final String listQuery, descQuery;
+        final String[] listArgs = reverseFillParams(parsed, 2);
+
+        switch(command) {
+            case D_TABLE:
+                type = "Table";
+                listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_TABLES.cmd, parsed.isSystem, false);
+                listQuery = listTables(parsed.isSystem, false);
+                descPrepKey = parsed.getCanonical();
+                descQuery = describeTableOrView(parsed.isSystem, parsed.isDetail);
+            break;
+            case D_VIEW:
+                type = "View";
+                listPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_VIEWS.cmd, parsed.isSystem, false);
+                listQuery = listViews(parsed.isSystem, false);
+                descPrepKey = parsed.getCanonical();
+                descQuery = describeTableOrView(parsed.isSystem, parsed.isDetail);
+            break;
+            default:
+                throw new SQLException("Unexpected command: " + command);
+        }
+
+        try(ResultSet listRS = execPrepared(listPrepKey, listQuery, listArgs)) {
+            while(listRS.next()) {
+                String[] descArgs = { listRS.getString(1), listRS.getString(2) };
+                try(ResultSet descRS = execPrepared(descPrepKey, descQuery, descArgs)) {
+                    String description = String.format("%s %s.%s", type, descArgs[0], descArgs[1]);
+                    resultPrinter.printResultSet(description, descRS);
+                    descRS.close();
+                }
+            }
+        }
     }
 
     private void runBackslashI(BackslashParser.Parsed parsed) throws Exception {
