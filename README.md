@@ -8,6 +8,14 @@ Client-side tools for interacting with
 
 ## Programs
 
+### fdbsqlcli
+
+A command line tool for interactively executing SQL queries.
+
+See [fdbsqlcli docs](https://foundationdb.com/layers/sql/Admin/fdbsqlcli.html)
+for more information.
+
+
 ### fdbsqldump
 
 A command line tool for saving the contents of one or more schemas to a `sql`
@@ -28,4 +36,10 @@ for more information.
 ## Running Tests
 
 FoundationDB SQL Layer must be installed and running on the local machine for tests to use.
+
+## Contact
+
+* GitHub: http://github.com/FoundationDB/sql-layer-client-tools
+* Community: https://foundationdb.com/community
+* IRC: #FoundationDB on irc.freenode.net
 
