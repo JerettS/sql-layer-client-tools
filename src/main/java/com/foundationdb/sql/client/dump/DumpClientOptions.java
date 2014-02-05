@@ -59,7 +59,7 @@ public class DumpClientOptions extends ClientOptionsBase
     public int insertMaxRowCount = DEFAULT_INSERT_MAX_ROW_COUNT;
 
     @Parameter(names = { "-c", "--commit" }, description = "commit every n rows", converter = CommitConverter.class)
-    public Long commit;
+    public Long commitFrequency;
 
     @Parameter(description = "[schema(s)]")
     public List<String> schemas = new ArrayList<>();

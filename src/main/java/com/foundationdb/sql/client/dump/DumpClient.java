@@ -34,7 +34,6 @@ public class DumpClient
     private Map<String,Map<String,View>> views = new TreeMap<String,Map<String, View>>();
     private Queue<String> afterDataStatements = new ArrayDeque<String>();
     private String defaultSchema = null;
-    private long commitFrequency = 0;
     private Writer output;
     private Connection connection;
     private CopyManager copyManager;
@@ -59,6 +58,9 @@ public class DumpClient
         this.options = options;
         this.dumpSchema = !options.noSchemas;
         this.dumpData = !options.noData;
+        if (options.commitFrequency == null) {
+            options.commitFrequency = 0L;
+        }
         for (String schema : options.schemas) {
             addSchema(schema);
         }
@@ -946,9 +948,9 @@ public class DumpClient
         sql.append(rootTable.name.replace("'", "''"));
         sql.append("',");
         sql.append(options.insertMaxRowCount);
-        if (commitFrequency > 0) {
+        if (options.commitFrequency > 0) {
             sql.append(",");
-            sql.append(commitFrequency);
+            sql.append(options.commitFrequency);
         }
         sql.append(")");
         copyManager.copyOut(sql.toString(), output);
@@ -965,7 +967,7 @@ public class DumpClient
     protected void openConnection() throws Exception {
         String url = options.getURL((defaultSchema != null) ? defaultSchema : "information_schema");
         connection = DriverManager.getConnection(url, options.user, options.password);
-        if (commitFrequency == DumpClientOptions.COMMIT_AUTO) {
+        if (options.commitFrequency == DumpClientOptions.COMMIT_AUTO) {
             Statement stmt = connection.createStatement();
             stmt.execute("SET transactionPeriodicallyCommit TO 'true'");
             stmt.close();
