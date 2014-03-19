@@ -18,6 +18,8 @@ package com.foundationdb.sql.client.cli;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 public class QueryBufferTest
 {
@@ -342,5 +344,31 @@ public class QueryBufferTest
         assertEquals(q2, qb.nextQuery());
         assertEquals(q2, qb.trimCompleted());
         assertEquals(0, qb.length());
+    }
+    
+    @Test
+    public void twoQueriesAndEmpty() {
+        String q1 = "SELECT * from t;";
+        String q2 = "SELECT * from r; ";
+        qb.append(q1);
+        assertTrue (qb.hasQuery());
+        assertEquals(q1, qb.nextQuery());
+        qb.append(q2);
+        assertTrue(qb.hasQuery());
+        assertEquals(q2.substring(0, 16), qb.nextQuery());
+        assertFalse(qb.hasQuery());
+        qb.setConsumeRemaining();
+        assertTrue(qb.hasQuery());
+        assertEquals(" ", qb.nextQuery());
+        
+        // Danger point: setConsumeRemaining() enables finding empty queries
+        qb.setConsumeRemaining();
+        assertTrue(qb.hasQuery());
+        assertEquals("", qb.nextQuery());
+        
+        // Call trimCompleted to disable
+        qb.trimCompleted();
+        assertTrue (qb.isEmpty());
+        assertFalse(qb.hasQuery());
     }
 }
