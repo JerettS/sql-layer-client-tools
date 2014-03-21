@@ -134,13 +134,14 @@ public class DumpClient
     
     protected void loadTables(String schema) throws SQLException {
         Map<String,Table> tables = schemas.get(schema);
-        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(?, '`'), table_name, QUOTE_IDENT(table_name, '`') FROM information_schema.tables WHERE table_schema = ? AND table_type = 'TABLE' ORDER BY table_id");
+        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(table_schema, '`'), table_name, QUOTE_IDENT(table_name, '`') FROM information_schema.tables "+
+                                                             "WHERE table_schema = ? AND table_type = 'TABLE' ORDER BY table_id");
         stmt.setString(1, schema);
-        stmt.setString(2, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
+            String quotedSchema = rs.getString(1);
             String name = rs.getString(2);
-            tables.put(name, new Table(schema, rs.getString(1), name, rs.getString(3) ));
+            tables.put(name, new Table(schema, quotedSchema, name, rs.getString(3)));
         }
         stmt.close();
     }
@@ -148,7 +149,7 @@ public class DumpClient
     protected void loadSequences (String schema) throws SQLException {
         Map<String, Sequence> seqs = sequences.get(schema);
         PreparedStatement stmt = connection.prepareStatement(
-                "select s.sequence_schema, QUOTE_IDENT(s.sequence_schema, '`'), s.sequence_name, QUOTE_IDENT(s.sequence_name, '`')," +
+                "select QUOTE_IDENT(s.sequence_schema, '`'), s.sequence_name, QUOTE_IDENT(s.sequence_name, '`')," +
                 " nextval(s.sequence_schema, s.sequence_name), " +
                 " s.increment, s.minimum_value, s.maximum_value, " +
                 " s.cycle_option = 'YES', " +
@@ -160,15 +161,16 @@ public class DumpClient
         stmt.setString(1, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
-            String name = rs.getString(3);
-            seqs.put(name, new Sequence (rs.getString(1), rs.getString(2), name, rs.getString(4),
-                    rs.getLong(5), rs.getLong(6),rs.getLong(7), rs.getLong(8),
-                    rs.getBoolean(9), rs.getBoolean(10)));
+            String quotedSchema = rs.getString(1);
+            String name = rs.getString(2);
+            seqs.put(name, new Sequence (schema, quotedSchema, name, rs.getString(3),
+                                         rs.getLong(4), rs.getLong(5), rs.getLong(6), rs.getLong(7),
+                                         rs.getBoolean(8), rs.getBoolean(9)));
         }
     }
 
     protected void loadGroups(String schema, Deque<String> pending) throws SQLException {
-        PreparedStatement kstmt = connection.prepareStatement("SELECT column_name FROM information_schema.key_column_usage WHERE table_schema = ? AND table_name = ? AND constraint_name = ? ORDER BY ordinal_position");
+        PreparedStatement kstmt = connection.prepareStatement("SELECT QUOTE_IDENT(column_name, '`') FROM information_schema.key_column_usage WHERE table_schema = ? AND table_name = ? AND constraint_name = ? ORDER BY ordinal_position");
         PreparedStatement stmt = connection.prepareStatement("SELECT c.constraint_schema, QUOTE_IDENT(c.constraint_schema, '`'), c.constraint_table_name, QUOTE_IDENT(c.constraint_table_name, '`'), p.table_schema, "+
                                                              "QUOTE_IDENT(p.table_schema, '`'), p.table_name, QUOTE_IDENT(p.table_name, '`'), c.constraint_name, c.unique_constraint_name, p.constraint_type = 'PRIMARY KEY'"+
                                                              "FROM information_schema.grouping_constraints c "+
@@ -218,12 +220,12 @@ public class DumpClient
     }
 
     protected void loadViews() throws SQLException {
-        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(?, '`'), table_name, QUOTE_IDENT(table_name, '`'), view_definition FROM information_schema.views WHERE table_schema = ? ORDER BY table_name");
+        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(table_schema, '`'), table_name, QUOTE_IDENT(table_name, '`'), view_definition "+
+                                                             "FROM information_schema.views WHERE table_schema = ? ORDER BY table_name");
         for (Map.Entry<String,Map<String,View>> entry : views.entrySet()) {
             String schema = entry.getKey();
             Map<String,View> views = entry.getValue();
             stmt.setString(1, schema);
-            stmt.setString(2, schema);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 String quotedSchema = rs.getString(1);
@@ -462,7 +464,9 @@ public class DumpClient
             sql.append(" RESTRICT");
             sql.append(";").append(NL);
         }
-        sql.append(NL);
+        if (sql.length() > 0) {
+            sql.append(NL);
+        }
         // create sequences
         for (Sequence seq : sequences.get(schema).values()) {
             if (seq.identity) {
@@ -477,6 +481,9 @@ public class DumpClient
             if (!seq.cycle) { sql.append(" NO"); }
             sql.append(" CYCLE"); 
             sql.append(";").append(NL);
+        }
+        if (sql.length() > 0) {
+            sql.append(NL).append(NL);
         }
         output.write(sql.toString());
     }
@@ -632,7 +639,7 @@ public class DumpClient
             }
             
             if (pkey != null) {
-                pkey.remove(column);
+                pkey.remove(quotedColumn);
                 if (pkey.isEmpty()) {
                     if (table.primaryKeys.size() == 1) {
                         sql.append(" PRIMARY KEY");
@@ -645,7 +652,7 @@ public class DumpClient
                 }
             }
             if (gkey != null) {
-                gkey.remove(column);
+                gkey.remove(quotedColumn);
                 if (gkey.isEmpty()) {
                     sql.append(',').append(NL).append("  GROUPING FOREIGN KEY");
                     keys(table.childKeys, sql);
