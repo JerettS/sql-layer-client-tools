@@ -33,6 +33,7 @@ public enum BackslashCommand
     L_TABLES    ("lt", true, true,  "[[SCHEMA] NAME]",          "list tables"),
     L_VIEWS     ("lv", true, true,  "[[SCHEMA] NAME]",          "list views"),
 
+    TIMING  ("timing", false, false, "",                         "Displays time per query in seconds"),
     HELP    ("?", false, false, "", "display this help"),
     QUIT    ("q", false, false, "", "quit"),
     ;

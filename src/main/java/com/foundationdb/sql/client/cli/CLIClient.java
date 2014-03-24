@@ -109,6 +109,7 @@ public class CLIClient implements Closeable
     private boolean withPrompt = true;
     private boolean isRunning = true;
     private boolean withQueryEcho = false;
+    private boolean showTiming = false;
 
     private Connection connection;
     private Statement statement;
@@ -194,12 +195,19 @@ public class CLIClient implements Closeable
                         runBackslash(resultPrinter, query);
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
+
+                        long startTime = System.currentTimeMillis();
                         boolean res = statement.execute(query);
                         printWarnings(statement);
                         if(res) {
                             ResultSet rs = statement.getResultSet();
                             resultPrinter.printResultSet(rs);
                             rs.close();
+                            if (showTiming) {
+                                long endTime = System.currentTimeMillis();
+                                Long totalTime =  (endTime-startTime);
+                                sink.println("Time to process query: " + totalTime.toString()+ " ms");
+                            }
                         } else {
                             resultPrinter.printUpdate(statement.getUpdateCount());
                         }
@@ -336,6 +344,9 @@ public class CLIClient implements Closeable
                 // re-parse to not split on periods
                 runBackslashO(BackslashParser.parseFrom(input, false));
             break;
+            case TIMING:
+                toggleShowTiming();
+            break;
             case HELP:
                 printBackslashHelp();
             break;
@@ -344,6 +355,14 @@ public class CLIClient implements Closeable
             break;
             default:
                 runBackslash(printer, parsed, command);
+        }
+    }
+
+    private void toggleShowTiming(){
+        if (showTiming){
+            showTiming = false;
+        } else {
+            showTiming = true;
         }
     }
 

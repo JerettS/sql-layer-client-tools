@@ -28,5 +28,11 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 \dv test.v1
 \dv+ test.v1
 \xfoox
+
+\timing
+SELECT * from t1;
+\timing
+SELECT * from t1;
+
 \q
 SELECT 'should not get here';
