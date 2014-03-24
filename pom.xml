@@ -89,7 +89,7 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>2.5.1</version>
                 <configuration>
-                    <excludeArtifactIds>junit</excludeArtifactIds>
+                    <includeScope>runtime</includeScope>
                 </configuration>
                 <executions>
                     <execution>
