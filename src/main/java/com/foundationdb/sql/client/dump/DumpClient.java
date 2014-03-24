@@ -31,12 +31,13 @@ public class DumpClient
     private boolean dumpData = true;
     private Map<String,Map<String,Table>> schemas = new TreeMap<String,Map<String,Table>>();
     private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
-    private Map<String,Map<String,View>> views = new TreeMap<String,Map<String, View>>();
+    private Map<String,Map<String,View>> views = new TreeMap<>();
     private Queue<String> afterDataStatements = new ArrayDeque<String>();
     private String defaultSchema = null;
     private Writer output;
     private Connection connection;
     private CopyManager copyManager;
+
 
 
     public static void main(String[] args) throws Exception {
@@ -133,20 +134,22 @@ public class DumpClient
     
     protected void loadTables(String schema) throws SQLException {
         Map<String,Table> tables = schemas.get(schema);
-        PreparedStatement stmt = connection.prepareStatement("SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = 'TABLE' ORDER BY table_id");
+        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(table_schema, '`'), table_name, QUOTE_IDENT(table_name, '`') FROM information_schema.tables "+
+                                                             "WHERE table_schema = ? AND table_type = 'TABLE' ORDER BY table_id");
         stmt.setString(1, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
-            String name = rs.getString(1);
-            tables.put(name, new Table(schema, name));
+            String quotedSchema = rs.getString(1);
+            String name = rs.getString(2);
+            tables.put(name, new Table(schema, quotedSchema, name, rs.getString(3)));
         }
         stmt.close();
     }
-    
+
     protected void loadSequences (String schema) throws SQLException {
         Map<String, Sequence> seqs = sequences.get(schema);
         PreparedStatement stmt = connection.prepareStatement(
-                "select s.sequence_schema, s.sequence_name, " +
+                "select QUOTE_IDENT(s.sequence_schema, '`'), s.sequence_name, QUOTE_IDENT(s.sequence_name, '`')," +
                 " nextval(s.sequence_schema, s.sequence_name), " +
                 " s.increment, s.minimum_value, s.maximum_value, " +
                 " s.cycle_option = 'YES', " +
@@ -158,17 +161,18 @@ public class DumpClient
         stmt.setString(1, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
+            String quotedSchema = rs.getString(1);
             String name = rs.getString(2);
-            seqs.put(name, new Sequence (rs.getString(1), name, 
-                    rs.getLong(3), rs.getLong(4),rs.getLong(5), rs.getLong(6),
-                    rs.getBoolean(7), rs.getBoolean(8)));
+            seqs.put(name, new Sequence (schema, quotedSchema, name, rs.getString(3),
+                                         rs.getLong(4), rs.getLong(5), rs.getLong(6), rs.getLong(7),
+                                         rs.getBoolean(8), rs.getBoolean(9)));
         }
     }
 
     protected void loadGroups(String schema, Deque<String> pending) throws SQLException {
-        PreparedStatement kstmt = connection.prepareStatement("SELECT column_name FROM information_schema.key_column_usage WHERE table_schema = ? AND table_name = ? AND constraint_name = ? ORDER BY ordinal_position");
-        PreparedStatement stmt = connection.prepareStatement("SELECT c.constraint_schema, c.constraint_table_name, p.table_schema, "+
-                                                             "p.table_name, c.constraint_name, c.unique_constraint_name, p.constraint_type = 'PRIMARY KEY'"+
+        PreparedStatement kstmt = connection.prepareStatement("SELECT QUOTE_IDENT(column_name, '`') FROM information_schema.key_column_usage WHERE table_schema = ? AND table_name = ? AND constraint_name = ? ORDER BY ordinal_position");
+        PreparedStatement stmt = connection.prepareStatement("SELECT c.constraint_schema, QUOTE_IDENT(c.constraint_schema, '`'), c.constraint_table_name, QUOTE_IDENT(c.constraint_table_name, '`'), p.table_schema, "+
+                                                             "QUOTE_IDENT(p.table_schema, '`'), p.table_name, QUOTE_IDENT(p.table_name, '`'), c.constraint_name, c.unique_constraint_name, p.constraint_type = 'PRIMARY KEY'"+
                                                              "FROM information_schema.grouping_constraints c "+
                                                              "LEFT JOIN information_schema.table_constraints p "+
                                                              "  ON  c.unique_schema = p.constraint_schema "+
@@ -178,17 +182,17 @@ public class DumpClient
         stmt.setString(2, schema);
         ResultSet rs = stmt.executeQuery();
         while (rs.next()) {
-            Table child = findOrCreateTable(rs.getString(1), rs.getString(2), pending);
-            Table parent = findOrCreateTable(rs.getString(3), rs.getString(4), pending);
+            Table child = findOrCreateTable(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), pending);
+            Table parent = findOrCreateTable(rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), pending);
             child.parent = parent;
             parent.children.add(child);
-            child.childKeys = loadKeys(kstmt, child.schema, child.name, rs.getString(5));
-            boolean parentIsPrimary = rs.getBoolean(7);
+            child.childKeys = loadKeys(kstmt, child.schema, child.name, rs.getString(9));
+            boolean parentIsPrimary = rs.getBoolean(11);
             List<String> keys = null;
             if (parentIsPrimary)
                 keys = parent.primaryKeys;
             if (keys == null)
-                keys = loadKeys(kstmt, parent.schema, parent.name, rs.getString(6));
+                keys = loadKeys(kstmt, parent.schema, parent.name, rs.getString(10));
             child.parentKeys = keys;
             if ((parent.primaryKeys == null) && parentIsPrimary)
                 parent.primaryKeys = keys;
@@ -201,7 +205,7 @@ public class DumpClient
         }
         kstmt.close();
     }
-    
+
     protected List<String> loadKeys(PreparedStatement kstmt, String schema, String table, String constraint) throws SQLException {
         List<String> keys = new ArrayList<String>();
         kstmt.setString(1, schema);
@@ -216,15 +220,18 @@ public class DumpClient
     }
 
     protected void loadViews() throws SQLException {
-        PreparedStatement stmt = connection.prepareStatement("SELECT table_name, view_definition FROM information_schema.views WHERE table_schema = ? ORDER BY table_name");
+        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(table_schema, '`'), table_name, QUOTE_IDENT(table_name, '`'), view_definition "+
+                                                             "FROM information_schema.views WHERE table_schema = ? ORDER BY table_name");
         for (Map.Entry<String,Map<String,View>> entry : views.entrySet()) {
             String schema = entry.getKey();
             Map<String,View> views = entry.getValue();
             stmt.setString(1, schema);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                String name = rs.getString(1);
-                views.put(name, new View(schema, name, rs.getString(2)));
+                String quotedSchema = rs.getString(1);
+                String name = rs.getString(2);
+                String quotedName = rs.getString(3);
+                views.put(name, new View(schema, quotedSchema, name, quotedName, rs.getString(4)));
             }
             rs.close();
         }
@@ -259,7 +266,16 @@ public class DumpClient
     }
 
     protected void loadForeignKeys() throws SQLException {
-        PreparedStatement stmt = connection.prepareStatement("SELECT kcu1.position_in_unique_constraint, rc.constraint_name, rc.match_option, rc.update_rule, rc.delete_rule, kcu1.table_schema, kcu1.table_name, kcu1.column_name, kcu2.table_schema, kcu2.table_name, kcu2.column_name FROM information_schema.referential_constraints rc INNER JOIN information_schema.key_column_usage kcu1 USING (constraint_schema, constraint_name) INNER JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_schema = kcu2.constraint_schema AND rc.unique_constraint_name = kcu2.constraint_name AND kcu1.position_in_unique_constraint = kcu2.ordinal_position WHERE kcu1.table_schema = ? OR (kcu2.table_schema = ? AND kcu1.table_schema <> kcu2.table_schema)");
+        PreparedStatement stmt = connection.prepareStatement("SELECT kcu1.position_in_unique_constraint," +
+                " rc.constraint_name, QUOTE_IDENT(rc.constraint_name, '`'), rc.match_option, rc.update_rule, rc.delete_rule, kcu1.table_schema, " +
+                "QUOTE_IDENT(kcu1.table_schema, '`'), kcu1.table_name, QUOTE_IDENT(kcu1.table_name, '`')," +
+                " kcu1.column_name, kcu2.table_schema, QUOTE_IDENT(kcu2.table_schema, '`'), kcu2.table_name, " +
+                "QUOTE_IDENT(kcu2.table_schema, '`'), kcu2.column_name FROM information_schema.referential_constraints rc" +
+                " INNER JOIN information_schema.key_column_usage kcu1 USING (constraint_schema, constraint_name) " +
+                "INNER JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_schema = kcu2.constraint_schema " +
+                "AND rc.unique_constraint_name = kcu2.constraint_name " +
+                "AND kcu1.position_in_unique_constraint = kcu2.ordinal_position " +
+                "WHERE kcu1.table_schema = ? OR (kcu2.table_schema = ? AND kcu1.table_schema <> kcu2.table_schema)");
         ForeignKey fkey = null;
         Set<String> schemas = this.schemas.keySet();
         for (String schema : schemas) {
@@ -269,24 +285,38 @@ public class DumpClient
             while (rs.next()) {
                 int pos = rs.getInt(1);
                 String name = rs.getString(2);
-                String match = rs.getString(3);
-                String update = rs.getString(4);
-                String delete = rs.getString(5);
-                String referencingSchema = rs.getString(6);
-                String referencingTable = rs.getString(7);
-                String referencingColumn = rs.getString(8);
-                String referencedSchema = rs.getString(9);
-                String referencedTable = rs.getString(10);
-                String referencedColumn = rs.getString(11);
+                String quotedName = rs.getString(3);
+                String match = rs.getString(4);
+                String update = rs.getString(5);
+                String delete = rs.getString(6);
+                String referencingSchema = rs.getString(7);
+                String quotedReferencingSchema = rs.getString(8);
+                String referencingTable = rs.getString(9);
+                String quotedReferencingTable = rs.getString(10);
+                String referencingColumn = rs.getString(11);
+                String referencedSchema = rs.getString(12);
+                String quotedReferencedSchema = rs.getString(13);
+                String referencedTable = rs.getString(14);
+                String quotedReferencedTable = rs.getString(15);
+                String referencedColumn = rs.getString(16);
                 if (!schema.equals(referencingSchema) &&
                     schemas.contains(referencedSchema))
                     continue; // Will get to it then.
                 assert name.startsWith(referencingTable + ".");
+                // TODO: Broken, remove when constraint names are accurate from the sql-layer
                 name = name.substring(referencingTable.length() + 1);
+
+                if (quotedName.startsWith("`") ) {
+                    quotedName = "`" + quotedName.substring(referencingTable.length() + 2);
+                }
+                else {
+                    quotedName = quotedName.substring(referencingTable.length() + 1);
+                }
+
                 if (pos == 0) {
-                    fkey = new ForeignKey(findOrCreateTable(referencingSchema, referencingTable, null),
-                                          findOrCreateTable(referencedSchema, referencedTable, null),
-                                          name, match, update, delete);
+                    fkey = new ForeignKey(findOrCreateTable(referencingSchema, quotedReferencingSchema, referencingTable, quotedReferencingTable,  null),
+                                          findOrCreateTable(referencedSchema, quotedReferencedSchema, referencedTable, quotedReferencedTable, null),
+                                          name, quotedName, match, update, delete);
                 }
                 else {
                     assert ((fkey != null) &&
@@ -305,11 +335,13 @@ public class DumpClient
     }
 
     protected static class Named implements Comparable<Named> {
-        String schema, name;
+        String schema, quotedSchema, name, quotedName;
         
-        public Named(String schema, String name) {
+        public Named(String schema, String quotedSchema, String name, String quotedName) {
             this.schema = schema;
+            this.quotedSchema = quotedSchema;
             this.name = name;
+            this.quotedName = quotedName;
         }
 
         @Override
@@ -323,8 +355,8 @@ public class DumpClient
         Set<View> dependedOn = new TreeSet<View>();
         boolean dropped, dumped;
         
-        public Viewed(String schema, String name) {
-            super(schema, name);
+        public Viewed(String schema, String quotedSchema, String name, String quotedName) {
+            super(schema, quotedSchema, name, quotedName);
         }
     }
 
@@ -334,8 +366,8 @@ public class DumpClient
         List<String> primaryKeys, childKeys, parentKeys;
         Set<ForeignKey> foreignKeys = new TreeSet<ForeignKey>();
         
-        public Table(String schema, String name) {
-            super(schema, name);
+        public Table(String schema, String quotedSchema, String name, String quotedName) {
+            super(schema, quotedSchema, name, quotedName);
         }
     }
     
@@ -343,8 +375,8 @@ public class DumpClient
         String definition;
         Set<Viewed> dependsOn = new TreeSet<Viewed>();
         
-        public View(String schema, String name, String definition) {
-            super(schema, name);
+        public View(String schema, String quotedSchema, String name, String quotedName, String definition) {
+            super(schema, quotedSchema, name, quotedName);
             this.definition = definition;
         }
     }
@@ -355,11 +387,11 @@ public class DumpClient
         boolean cycle;
         boolean identity;
         
-        public Sequence (String schema, String name, 
+        public Sequence (String schema, String quotedSchema, String name, String quotedName,
                 long startWith, long incrementBy,
                 long minValue, long maxValue,
                 boolean cycle, boolean identity) {
-            super(schema, name);
+            super(schema, quotedSchema, name, quotedName);
             this.startWith = startWith;
             this.incrementBy = incrementBy;
             this.minValue = minValue;
@@ -371,15 +403,16 @@ public class DumpClient
 
     protected static class ForeignKey implements Comparable<ForeignKey> {
         Table referencingTable, referencedTable;
-        String name, match, update, delete;
+        String name, quotedName, match, update, delete;
         List<String> referencingColumns, referencedColumns;
         boolean dumped;
 
         public ForeignKey(Table referencingTable, Table referencedTable,
-                          String name, String match, String update, String delete) {
+                          String name, String quotedName, String match, String update, String delete) {
             this.referencingTable = referencingTable;
             this.referencedTable = referencedTable;
             this.name = name;
+            this.quotedName = quotedName;
             this.match = match;
             this.update = update;
             this.delete = delete;
@@ -396,7 +429,7 @@ public class DumpClient
         }
     }
 
-    protected Table findOrCreateTable(String schema, String name,
+    protected Table findOrCreateTable(String schema, String quotedSchema, String name, String quotedName,
                                       Deque<String> pending) {
         Map<String,Table> tables = schemas.get(schema);
         if ((tables == null) && (pending != null)) {
@@ -408,7 +441,7 @@ public class DumpClient
         }
         Table table = tables.get(name);
         if (table == null) {
-            table = new Table(schema, name);
+            table = new Table(schema, quotedSchema, name, quotedName);
             if (tables != null)
                 tables.put(name, table);
             else
@@ -431,7 +464,9 @@ public class DumpClient
             sql.append(" RESTRICT");
             sql.append(";").append(NL);
         }
-        sql.append(NL);
+        if (sql.length() > 0) {
+            sql.append(NL);
+        }
         // create sequences
         for (Sequence seq : sequences.get(schema).values()) {
             if (seq.identity) {
@@ -446,6 +481,9 @@ public class DumpClient
             if (!seq.cycle) { sql.append(" NO"); }
             sql.append(" CYCLE"); 
             sql.append(";").append(NL);
+        }
+        if (sql.length() > 0) {
+            sql.append(NL).append(NL);
         }
         output.write(sql.toString());
     }
@@ -526,7 +564,7 @@ public class DumpClient
 
     protected void outputCreateTables(Table rootTable) throws SQLException, IOException {
         PreparedStatement stmt = connection.prepareStatement(
-                "SELECT column_name," +
+                "SELECT column_name, QUOTE_IDENT(column_name, '`'), " +
                 " data_type, character_maximum_length, numeric_precision, numeric_scale," +
                 " character_set_name, collation_name, is_nullable," +
                 " sequence_schema, sequence_name, identity_generation" +
@@ -564,24 +602,25 @@ public class DumpClient
             }
             sql.append(NL).append("  ");
             String column = rs.getString(1);
-            identifier(column, sql, false);
+            String quotedColumn = rs.getString(2);
+            sql.append(quotedColumn);
             sql.append(' ');
-            type(rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), sql);
-            String charset = rs.getString(6);
+            type(rs.getString(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), sql);
+            String charset = rs.getString(7);
             if (!rs.wasNull()) {
                 sql.append(" CHARACTER SET ").append(charset);
             }
-            String collation = rs.getString(7);
+            String collation = rs.getString(8);
             if (!rs.wasNull()) {
                 sql.append(" COLLATE ").append(collation);
             }
-            if ("NO".equals(rs.getString(8))) {
+            if ("NO".equals(rs.getString(9))) {
                 sql.append(" NOT NULL");
             }
-            String identityGenerate = rs.getString(11);
+            String identityGenerate = rs.getString(12);
             if (!rs.wasNull()) {
-                String sequenceSchema = rs.getString(9);
-                String sequenceName = rs.getString(10);
+                String sequenceSchema = rs.getString(10);
+                String sequenceName = rs.getString(11);
                 Sequence seq = sequences.get(sequenceSchema).get(sequenceName);
                 String generated = " GENERATED " + identityGenerate +
                     " AS IDENTITY (START WITH " + seq.startWith +
@@ -590,7 +629,7 @@ public class DumpClient
                     StringBuilder sql2 = new StringBuilder("ALTER TABLE ");
                     qualifiedName(table, sql2);
                     sql2.append(" ALTER COLUMN ");
-                    identifier(column, sql2, false);
+                    sql2.append(quotedColumn);
                     sql2.append(" SET").append(generated).append(";").append(NL);
                     afterDataStatements.add(sql2.toString());
                 }
@@ -600,7 +639,7 @@ public class DumpClient
             }
             
             if (pkey != null) {
-                pkey.remove(column);
+                pkey.remove(quotedColumn);
                 if (pkey.isEmpty()) {
                     if (table.primaryKeys.size() == 1) {
                         sql.append(" PRIMARY KEY");
@@ -613,7 +652,7 @@ public class DumpClient
                 }
             }
             if (gkey != null) {
-                gkey.remove(column);
+                gkey.remove(quotedColumn);
                 if (gkey.isEmpty()) {
                     sql.append(',').append(NL).append("  GROUPING FOREIGN KEY");
                     keys(table.childKeys, sql);
@@ -666,8 +705,15 @@ public class DumpClient
     }
     
     protected void outputCreateIndexes(Table rootTable) throws SQLException, IOException {
-        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, is_unique, join_type, index_method FROM information_schema.indexes WHERE table_schema = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') ORDER BY index_id");
-        PreparedStatement icstmt = connection.prepareStatement("SELECT column_schema, column_table, column_name, is_ascending FROM information_schema.index_columns WHERE column_schema = ? AND index_table_name = ? AND index_name = ? ORDER BY ordinal_position");
+        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, QUOTE_IDENT(index_name, '`')," +
+                " is_unique, join_type, index_method FROM information_schema.indexes " +
+                "WHERE table_schema = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') " +
+                "ORDER BY index_id");
+        PreparedStatement icstmt = connection.prepareStatement("SELECT column_schema, QUOTE_IDENT(column_schema, '`'), " +
+                "column_table, QUOTE_IDENT(column_table, '`'), column_name, QUOTE_IDENT(column_name, '`'), is_ascending " +
+                "FROM information_schema.index_columns " +
+                "WHERE column_schema = ? AND index_table_name = ? AND index_name = ? " +
+                "ORDER BY ordinal_position");
         outputCreateIndexes(istmt, icstmt, rootTable);
         icstmt.close();
         istmt.close();
@@ -685,12 +731,12 @@ public class DumpClient
         istmt.setString(2, table.name);
         ResultSet rs = istmt.executeQuery();
         while (rs.next()) {
-            outputCreateIndex(icstmt, table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4));
+            outputCreateIndex(icstmt, table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5));
         }
         rs.close();
     }    
 
-    protected void outputCreateIndex(PreparedStatement icstmt, Table table, String index, String unique, String joinType, String indexMethod) throws SQLException, IOException {
+    protected void outputCreateIndex(PreparedStatement icstmt, Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod) throws SQLException, IOException {
         for (ForeignKey fkey : table.foreignKeys) {
             if ((fkey.referencingTable == table) &&
                 index.equals(fkey.name)) {
@@ -701,7 +747,7 @@ public class DumpClient
         if ("YES".equals(unique))
             sql.append("UNIQUE ");
         sql.append("INDEX ");
-        identifier(index, sql, true);
+        sql.append(quotedIndex);
         sql.append(" ON ");
         qualifiedName(table, sql);
         sql.append('(');
@@ -722,23 +768,25 @@ public class DumpClient
             if (joinType != null) {
                 // Group index.
                 String indexSchema = rs.getString(1);
-                String indexTable = rs.getString(2);
+                String quotedIndexSchema = rs.getString(2);
+                String indexTable = rs.getString(3);
+                String quotedIndexTable = rs.getString(4);
                 if (!table.schema.equals(indexSchema) ||
                     !table.name.equals(indexTable)) {
                     if (!table.schema.equals(indexSchema)) {
-                        identifier(indexSchema, sql, true);
+                        sql.append(quotedIndexSchema);
                         sql.append('.');
-                        identifier(indexTable, sql, true);
+                        sql.append(quotedIndexTable);
                         sql.append('.');
                     }
                     else {
-                        identifier(indexTable, sql, true);
+                        sql.append(quotedIndexTable);
                         sql.append('.');
                     }
                 }
             }
-            identifier(rs.getString(3), sql, false);
-            if ("NO".equals(rs.getString(4))) {
+            sql.append(rs.getString(6));
+            if ("NO".equals(rs.getString(7))) {
                 sql.append(" DESC");
             }
         }
@@ -795,7 +843,7 @@ public class DumpClient
         sql.append("ALTER TABLE ");
         qualifiedName(fkey.referencingTable, sql);
         sql.append(" DROP FOREIGN KEY ");
-        identifier(fkey.name, sql, true);
+        sql.append(fkey.quotedName);
         sql.append(';').append(NL);
         output.write(sql.toString());
     }
@@ -832,7 +880,7 @@ public class DumpClient
         StringBuilder sql = new StringBuilder("ALTER TABLE ");
         qualifiedName(fkey.referencingTable, sql);
         sql.append(" ADD CONSTRAINT ");
-        identifier(fkey.name, sql, true);
+        sql.append(fkey.quotedName);
         sql.append(" FOREIGN KEY");
         keys(fkey.referencingColumns, sql);
         sql.append(" REFERENCES ");
@@ -901,7 +949,7 @@ public class DumpClient
     }
 
     protected void outputDropView(View view) throws IOException {
-        StringBuilder sql = new StringBuilder("DROP VIEW IF EXISTS ");
+        StringBuilder sql =  new StringBuilder("DROP VIEW IF EXISTS ");
         qualifiedName(view, sql);
         sql.append(";").append(NL);
         output.write(sql.toString());
@@ -917,28 +965,17 @@ public class DumpClient
             else {
                 sql.append(", ");
             }
-            identifier(key, sql, false);
+            sql.append(key);
         }
         sql.append(')');
     }
 
     protected void qualifiedName(Named table, StringBuilder sql) {
         if (!table.schema.equals(defaultSchema)) {
-            identifier(table.schema, sql, true);
+            sql.append(table.quotedSchema);
             sql.append('.');
         }
-        identifier(table.name, sql, true);
-    }
-
-    protected void identifier(String id, StringBuilder sql, boolean caseMatters) {
-        if (id.matches((caseMatters) ? "[a-z][_a-z0-9]*" : "[A-Za-z][_A-Za-z0-9]*")) {
-            sql.append(id);
-        }
-        else {
-            sql.append('`');
-            sql.append(id.replace("`", "``"));
-            sql.append('`');
-        }
+        sql.append(table.quotedName);
     }
 
     protected void dumpData(Table rootTable) throws SQLException, IOException {
