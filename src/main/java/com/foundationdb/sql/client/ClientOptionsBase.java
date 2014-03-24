@@ -84,7 +84,7 @@ public abstract class ClientOptionsBase
     @Parameter(names = { "-u", "--user" }, description = "server user name")
     public String user = DEFAULT_USER;
 
-    @Parameter(names = { "--version" }, description = "output version information and exit")
+    @Parameter(names = { "--version" }, description = "output version information and exit", help = true)
     public boolean version;
 
     @Parameter(names = { "-w", "--password" }, description = "server user password")
