@@ -60,6 +60,10 @@ public abstract class ClientOptionsBase
                 printExtraHelp();
                 System.exit(0);
             }
+            if(this.version) {
+                System.out.printf("%s %s\n", programName, Version.VERSION_SHORT);
+                System.exit(0);
+            }
         }
         catch(ParameterException ex) {
             System.out.println(ex.getMessage());
@@ -79,6 +83,9 @@ public abstract class ClientOptionsBase
 
     @Parameter(names = { "-u", "--user" }, description = "server user name")
     public String user = DEFAULT_USER;
+
+    @Parameter(names = { "--version" }, description = "output version information and exit")
+    public boolean version;
 
     @Parameter(names = { "-w", "--password" }, description = "server user password")
     public String password = DEFAULT_PASS;
