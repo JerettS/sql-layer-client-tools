@@ -44,6 +44,8 @@ public class CLIClient implements Closeable
 {
     private final static String PROGRAM_NAME = "fdbsqlcli";
     private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + PROGRAM_NAME + "_history");
+    private final static String CONFIG_FILE_NAME = System.getProperty("user.home") + "/.fdbsqlclirc";
+    private final static File CONFIG_FILE = new File(CONFIG_FILE_NAME);
 
     private final static int MAX_PREPARED_RETRY = 5;
     private final static String STALE_STATEMENT_CODE = "0A50A";
@@ -64,6 +66,10 @@ public class CLIClient implements Closeable
         try {
             // Auto-quiet if non-interactive input source.
             // --file takes preference over --command
+            if (CONFIG_FILE.isFile()){
+                client.openFile(CONFIG_FILE_NAME);
+                client.runLoop();
+            }
             if(options.file != null) {
                 options.quiet = true;
                 client.openFile(options.file);
@@ -204,8 +210,8 @@ public class CLIClient implements Closeable
                             resultPrinter.printResultSet(rs);
                             rs.close();
                             if (showTiming) {
-                                long endTime = System.currentTimeMillis();
-                                Long totalTime =  (endTime-startTime);
+                                Long endTime = System.currentTimeMillis();
+                                Long totalTime = (endTime-startTime);
                                 sink.println("Time to process query: " + totalTime.toString()+ " ms");
                             }
                         } else {
