@@ -159,6 +159,7 @@
                         <exclude>**/*.sql</exclude>
                         <exclude>**/*.properties</exclude>
                         <exclude>**/src/test/resources/</exclude>
+                        <exclude>packaging/**</exclude>
                         <!-- No extension. Manually add header and ignore -->
                         <exclude>bin/*</exclude>
                     </excludes>
