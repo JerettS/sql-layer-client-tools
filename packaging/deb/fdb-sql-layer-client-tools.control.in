@@ -1,0 +1,15 @@
+Package: fdb-sql-layer-client-tools
+Version: VERSION-RELEASE
+Section: database
+Priority: optional
+Architecture: all
+Depends: openjdk-7-jre-headless | openjdk-7-jdk | oracle-java7-installer
+Maintainer: FoundationDB <distribution@foundationdb.com>
+Homepage: https://foundationdb.com/layers/sql
+Vcs-Git: git://github.com/FoundationDB/sql-layer-client-tools.git
+Vcs-Browser: https://github.com/FoundationDB/sql-layer-client-tools
+Description: FoundationDB SQL Layer Client Tools
+ FoundationDB SQL Layer is a full, SQL RDMS built on top of the
+ FoundationDB storage substrate.
+ .
+ This package contains client utilities for the SQL Layer.

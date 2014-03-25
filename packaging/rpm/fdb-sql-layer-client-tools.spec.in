@@ -1,0 +1,46 @@
+Name:       fdb-sql-layer-client-tools
+Version:    VERSION
+Release:    RELEASE%{?dist}
+Group:      Applications/Databases
+License:    AGPLv3
+URL:        https://foundationdb.com/layers/sql
+Packager:   FoundationDB <distribution@foundationdb.com>
+Summary:    FoundationDB SQL Layer Client Tools
+Vendor:     FoundationDB
+
+# 0 = Release so no Epoch
+%if EPOCH > 0
+Epoch:      EPOCH
+%endif
+
+Requires:       jre >= 1.7.0
+BuildArch:      noarch
+
+%description
+FoundationDB SQL Layer is a full, SQL RDMS built on top of the
+FoundationDB storage substrate.
+
+This package contains client utilities for the SQL Layer.
+
+# Don't touch jar files
+%define __jar_repack %{nil}
+
+%prep
+rm -rf "${RPM_BUILD_ROOT}"
+mkdir -p "${RPM_BUILD_ROOT}"
+
+%install
+mkdir -p "${RPM_BUILD_ROOT}/usr/share/doc/fdb-sql-layer-client-tools"
+cp -r usr/ "${RPM_BUILD_ROOT}/"
+ln -s /usr/share/foundationdb/sql/CLIENT_JAR_NAME "${RPM_BUILD_ROOT}/usr/share/foundationdb/sql/fdb-sql-layer-client-tools.jar"
+
+%clean
+rm -rf "${RPM_BUILD_ROOT}"
+
+%files
+%defattr(-,root,root)
+%doc /usr/share/doc/fdb-sql-layer-client-tools
+%dir /usr/share/foundationdb
+/usr/share/foundationdb/sql
+%attr(755,-,-) /usr/bin/fdbsql*
+
