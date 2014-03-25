@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /** Test invoking main() directly. */
 public class CLIClientMiscTest
@@ -39,7 +40,7 @@ public class CLIClientMiscTest
             "(1 row)\n"+
             "\n",
 
-            "-q", "-c", "select 5"
+            "--skipRC", "-q", "-c", "select 5"
         );
     }
 
@@ -52,7 +53,7 @@ public class CLIClientMiscTest
             "(1 row)\n"+
             "\n",
 
-            "-q", "-c", "select 5;"
+            "--skipRC", "-q", "-c","select 5;"
         );
     }
 
@@ -70,7 +71,7 @@ public class CLIClientMiscTest
             "(1 row)\n"+
             "\n",
 
-            "-q", "-c", "select 5; select 6;"
+            "--skipRC", "-q", "-c", "select 5; select 6;"
         );
     }
 
@@ -94,7 +95,7 @@ public class CLIClientMiscTest
             "(1 row)\n"+
             "\n",
 
-            "-q", "-f", tmpFile.getAbsolutePath()
+            "--skipRC", "-q", "-f", tmpFile.getAbsolutePath()
         );
     }
 
@@ -121,7 +122,7 @@ public class CLIClientMiscTest
             "(1 row)\n" +
             "\n",
 
-            "-q", "-f", tmpFile.getAbsolutePath()
+            "--skipRC", "-q", "-f", tmpFile.getAbsolutePath()
         );
     }
 
@@ -139,7 +140,7 @@ public class CLIClientMiscTest
         runAndCheck(
             null, // Only checking outFile contents
 
-            "-q", "-f", inFile.getAbsolutePath()
+            "--skipRC", "-q", "-f", inFile.getAbsolutePath()
         );
         StringBuffer sb = new StringBuffer();
         try(BufferedReader reader = new BufferedReader(new FileReader(outFile))) {
@@ -161,6 +162,48 @@ public class CLIClientMiscTest
             "(1 row)\n" +
             "\n",
             sb.toString()
+        );
+    }
+
+    @Test
+    public void configurationFile() throws Exception {
+        File tmpFile = tmpFileFrom(
+                "select 1;"
+        );
+        File tmpFile2 = tmpFileFrom(
+                "\\timing"
+        );
+        runAndVerify(
+                "\\timing\n" +
+                "select 1;\n" +
+                        " _SQL_COL_1 \n" +
+                        "------------\n" +
+                        "          1 \n" +
+                        "(1 row)\n" +
+                        "\n"+
+                        "Time to process query: ",
+
+                "--rc", tmpFile2.getAbsolutePath(), "-q", "-f", tmpFile.getAbsolutePath()
+        );
+    }
+
+    @Test
+    public void switchTiming() throws Exception {
+        File tmpFile = tmpFileFrom(
+                "\\timing",
+                "select 1;"
+        );
+        runAndVerify(
+                "\\timing\n" +
+                "select 1;\n" +
+                        " _SQL_COL_1 \n" +
+                        "------------\n" +
+                        "          1 \n" +
+                        "(1 row)\n" +
+                        "\n" +
+                        "Time to process query: ",
+
+                "-r", "-q", "-f", tmpFile.getAbsolutePath()
         );
     }
 
@@ -189,6 +232,23 @@ public class CLIClientMiscTest
             CLIClient.main(args);
             if(expected != null) {
                 assertEquals(expected, testOut.toString());
+            }
+        } finally {
+            System.setOut(origOut);
+            System.setErr(origErr);
+        }
+    }
+    private static void runAndVerify(String expected, String... args) throws Exception {
+        PrintStream origOut = System.out;
+        PrintStream origErr = System.err;
+        try {
+            ByteArrayOutputStream testOut = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(testOut));
+            System.setErr(System.out);
+
+            CLIClient.main(args);
+            if(expected != null) {
+                assertEquals(expected, testOut.toString().substring(0, expected.length()));
             }
         } finally {
             System.setOut(origOut);

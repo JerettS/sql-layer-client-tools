@@ -44,8 +44,6 @@ public class CLIClient implements Closeable
 {
     private final static String PROGRAM_NAME = "fdbsqlcli";
     private final static File HISTORY_FILE = new File(System.getProperty("user.home"), "." + PROGRAM_NAME + "_history");
-    private final static String CONFIG_FILE_NAME = System.getProperty("user.home") + "/.fdbsqlclirc";
-    private final static File CONFIG_FILE = new File(CONFIG_FILE_NAME);
 
     private final static int MAX_PREPARED_RETRY = 5;
     private final static String STALE_STATEMENT_CODE = "0A50A";
@@ -66,8 +64,16 @@ public class CLIClient implements Closeable
         try {
             // Auto-quiet if non-interactive input source.
             // --file takes preference over --command
-            if (CONFIG_FILE.isFile()){
-                client.openFile(CONFIG_FILE_NAME);
+            String configurationFileName;
+            if (options.configFileName == null) {
+                configurationFileName = System.getProperty("user.home") + "/.fdbsqlclirc";
+            } else {
+                 configurationFileName= options.configFileName;
+            }
+            File configFile = new File(configurationFileName);
+            
+            if (configFile.isFile() && !options.skipRC){
+                client.openFile(configurationFileName);
                 client.runLoop();
             }
             if(options.file != null) {
@@ -199,6 +205,7 @@ public class CLIClient implements Closeable
                     }
                     if(isBackslash) {
                         runBackslash(resultPrinter, query);
+
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
 
@@ -319,13 +326,28 @@ public class CLIClient implements Closeable
             maxCmd = Math.max(maxCmd, cmd.helpCmd.length());
             maxArg = Math.max(maxArg, cmd.helpArgs.length());
         }
+        sink.println();
+        sink.println("Help on FoundationDB SQL-layer client tool");
+        sink.println("With this tool you can directly use standard SQL commands on the FoundationDB. ");
+        sink.println("Additional built-in function are described below:");
+        sink.println();
+        sink.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", "Command", "Options", "Description"));
         for(BackslashCommand cmd : BackslashCommand.values()) {
             sink.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", cmd.helpCmd, cmd.helpArgs, cmd.helpDesc));
         }
         sink.println();
+        sink.println("[+] Shows additional information on items");
+        sink.println("[S] Shows system information items and other items");
+        sink.println();
+        sink.println("Usage example: \\ltS      lists all tables including system information");
+        sink.println("               \\lt+      lists all tables including additional info on tables like ID and Storage Name");
+        sink.println();
     }
 
     private void runBackslash(ResultPrinter printer, String input) throws Exception {
+        if (input.trim().endsWith(";")){
+            input = input.trim().substring(0, input.trim().length()-2);
+        }
         BackslashParser.Parsed parsed = BackslashParser.parseFrom(input);
         BackslashCommand command = lookupBackslashCommand(parsed);
         switch(command) {

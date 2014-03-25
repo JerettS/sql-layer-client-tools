@@ -15,7 +15,9 @@
 
 package com.foundationdb.sql.client.cli;
 
+import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.foundationdb.sql.client.ClientOptionsBase;
 
 import java.io.File;
@@ -35,6 +37,12 @@ public class CLIClientOptions extends ClientOptionsBase
 
     @Parameter(names = { "-q", "--quiet" }, description = "output only query results")
     public boolean quiet = false;
+
+    @Parameter(names = {"-r", "--skipRC"}, description = "skips run of configuration file at start")
+    public Boolean skipRC = false;
+    
+    @Parameter(names = {"--rc"}, description = "set configurationfile to new path")
+    public String configFileName = null;
 
     @Parameter(description="[schema]")
     public List<String> positional = new ArrayList<>();
