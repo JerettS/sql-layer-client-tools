@@ -340,7 +340,7 @@ public class CLIClient implements Closeable
         sink.println("[S] Lists all user and system tables");
         sink.println();
         sink.println("Usage example: \\ltS              list all tables including system information");
-        sink.println("               \\lt+              list all user tables adn include additional detail");
+        sink.println("               \\lt+              list all user tables and include additional detail");
         sink.println("               \\i file_name.sql  process all commands from file");
         sink.println();              
     }
@@ -389,25 +389,16 @@ public class CLIClient implements Closeable
         }
     }
 
-    private void toggleShowTiming(){
-        if (showTiming){
-            showTiming = false;
-        } else {
-            showTiming = true;
-        }
+    private void toggleShowTiming() {
+        showTiming = !showTiming;
     }
     
-    private void printTimingStatus(){
+    private void printTimingStatus() throws IOException{
         String status = "off";
         if (showTiming){
             status = "on";
         }
-        try {
-            sink.println(String.format("Timing is %s.", status));
-        }catch (IOException io){
-            // ignore
-        }
-        
+        sink.println(String.format("Timing is %s.", status));
     }
 
     private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {

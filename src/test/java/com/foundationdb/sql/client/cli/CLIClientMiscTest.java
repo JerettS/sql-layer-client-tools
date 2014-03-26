@@ -205,7 +205,7 @@ public class CLIClientMiscTest
                         "\n" +
                         "Time: ",
 
-                "-r", "-q", "-f", tmpFile.getAbsolutePath()
+                "--skip-rc", "-q", "-f", tmpFile.getAbsolutePath()
         );
         File tmpFile2 = tmpFileFrom(
                 "\\timing",
@@ -223,7 +223,7 @@ public class CLIClientMiscTest
                         "          1 \n" +
                         "(1 row)\n" +
                         "\n" ,
-                "-r", "-q", "-f", tmpFile2.getAbsolutePath()
+                "--skip-rc", "-q", "-f", tmpFile2.getAbsolutePath()
         );
     }
 
@@ -241,7 +241,7 @@ public class CLIClientMiscTest
         return tmpFile;
     }
 
-    private static void runAndCheck(Boolean startsWith, String expected, String... args) throws Exception {
+    private static void runAndCheck(boolean startsWith, String expected, String... args) throws Exception {
         PrintStream origOut = System.out;
         PrintStream origErr = System.err;
         try {
