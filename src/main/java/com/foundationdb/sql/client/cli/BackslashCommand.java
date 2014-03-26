@@ -23,7 +23,7 @@ public enum BackslashCommand
     D_TABLE     ("dt", true, true,  "[[SCHEMA] NAME]",           "Print description of tables present"),
     D_VIEW      ("dv", true, true,  "[[SCHEMA] NAME]",           "Print description of views present"),
 
-    I_FILE      ("i", false, false, "FILE",                     "Execute commands from file, e.g. \\i file_name.sql"),
+    I_FILE      ("i", false, false, "FILE",                     "Execute commands from file"),
     O_FILE      ("o", false, false, "[FILE|-]",                 "Send all query results to file or standard out"),
 
     L_ALL       ("l",  true, false, "[[SCHEMA] NAME]",          "List tables, views and sequences"),
@@ -31,7 +31,7 @@ public enum BackslashCommand
     L_SEQUENCES ("lq", true, true,  "[[SCHEMA] NAME]",          "List sequences"),
     L_SCHEMAS   ("ls", true, true,  "[NAME]",                   "List schemata"),
     L_TABLES    ("lt", true, true,  "[[SCHEMA] NAME]",          "List tables"),
-    L_VIEWS     ("lv", true, true,  "[[SCHEMA] NAME]",          "List views, e.g. \\lv schema_name view_name"),
+    L_VIEWS     ("lv", true, true,  "[[SCHEMA] NAME]",          "List views"),
 
     TIMING  ("timing", false, false, "",                         "Toggles switch to display time per query in milliseconds"),
     HELP    ("?", false, false, "", "display this help"),

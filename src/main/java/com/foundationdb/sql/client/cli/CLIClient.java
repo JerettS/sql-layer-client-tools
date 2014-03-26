@@ -62,20 +62,13 @@ public class CLIClient implements Closeable
         }
         CLIClient client = new CLIClient(options);
         try {
-            // Auto-quiet if non-interactive input source.
-            // --file takes preference over --command
-            String configurationFileName;
-            if (options.configFileName == null) {
-                configurationFileName = System.getProperty("user.home") + "/.fdbsqlclirc";
-            } else {
-                 configurationFileName= options.configFileName;
-            }
-            File configFile = new File(configurationFileName);
-            
+            File configFile = new File(options.configFileName);
             if (configFile.isFile() && !options.skipRC){
-                client.openFile(configurationFileName);
+                client.openFile(options.configFileName);
                 client.runLoop();
             }
+            // Auto-quiet if non-interactive input source.
+            // --file takes preference over --command
             if(options.file != null) {
                 options.quiet = true;
                 client.openFile(options.file);
@@ -211,20 +204,22 @@ public class CLIClient implements Closeable
 
                         long startTime = System.currentTimeMillis();
                         boolean res = statement.execute(query);
+                        long endTime = System.currentTimeMillis();
                         printWarnings(statement);
                         if(res) {
                             ResultSet rs = statement.getResultSet();
                             resultPrinter.printResultSet(rs);
                             rs.close();
-                            if (showTiming) {
-                                Long endTime = System.currentTimeMillis();
-                                Long totalTime = (endTime-startTime);
-                                sink.println("Time to process query: " + totalTime.toString()+ " ms");
-                            }
+                        
                         } else {
                             resultPrinter.printUpdate(statement.getUpdateCount());
                         }
+                        if (showTiming) {
+                        Long totalTime = (endTime-startTime);
+                        sink.println("Time: " + totalTime.toString()+ " ms");
+                        }
                     }
+                
                 } catch(SQLException e) {
                     String state = e.getSQLState();
                     if(PSQLState.CONNECTION_FAILURE.getState().equals(state) ||
@@ -273,13 +268,20 @@ public class CLIClient implements Closeable
         assert sink != null;
         this.withPrompt = withPrompt;
         this.withQueryEcho = withQueryEcho;
+        // is not null if rc file is present
+        if (this.source != null){
+            this.source.close();
+        }
         this.source = source;
         this.otherSink = null;
         this.sink = sink;
         if(withHistory) {
             source.openHistory(HISTORY_FILE);
         }
-        connect();
+        // will already be open if there was an rc file
+        if (connection == null) {
+            connect();
+        }
         this.resultPrinter = new ResultPrinter(sink);
     }
 
@@ -327,9 +329,7 @@ public class CLIClient implements Closeable
             maxArg = Math.max(maxArg, cmd.helpArgs.length());
         }
         sink.println();
-        sink.println("Help on FoundationDB SQL-layer client tool");
-        sink.println("With this tool you can directly use standard SQL commands on the FoundationDB. ");
-        sink.println("Additional built-in function are described below:");
+        sink.println("Built-in commands are described below:");
         sink.println();
         sink.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", "Command", "Options", "Description"));
         for(BackslashCommand cmd : BackslashCommand.values()) {
@@ -337,16 +337,18 @@ public class CLIClient implements Closeable
         }
         sink.println();
         sink.println("[+] Shows additional information on items");
-        sink.println("[S] Shows system information items and other items");
+        sink.println("[S] Lists all user and system tables");
         sink.println();
-        sink.println("Usage example: \\ltS      lists all tables including system information");
-        sink.println("               \\lt+      lists all tables including additional info on tables like ID and Storage Name");
-        sink.println();
+        sink.println("Usage example: \\ltS              list all tables including system information");
+        sink.println("               \\lt+              list all user tables adn include additional detail");
+        sink.println("               \\i file_name.sql  process all commands from file");
+        sink.println();              
     }
 
     private void runBackslash(ResultPrinter printer, String input) throws Exception {
-        if (input.trim().endsWith(";")){
-            input = input.trim().substring(0, input.trim().length()-2);
+        input = input.trim();
+        if (input.endsWith(";")){
+            input = input.substring(0, input.length()-1);
         }
         BackslashParser.Parsed parsed = BackslashParser.parseFrom(input);
         BackslashCommand command = lookupBackslashCommand(parsed);
@@ -374,6 +376,7 @@ public class CLIClient implements Closeable
             break;
             case TIMING:
                 toggleShowTiming();
+                printTimingStatus();
             break;
             case HELP:
                 printBackslashHelp();
@@ -392,6 +395,19 @@ public class CLIClient implements Closeable
         } else {
             showTiming = true;
         }
+    }
+    
+    private void printTimingStatus(){
+        String status = "off";
+        if (showTiming){
+            status = "on";
+        }
+        try {
+            sink.println(String.format("Timing is %s.", status));
+        }catch (IOException io){
+            // ignore
+        }
+        
     }
 
     private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {

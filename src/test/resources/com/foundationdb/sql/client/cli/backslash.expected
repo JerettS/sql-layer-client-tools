@@ -159,7 +159,9 @@ Invalid command: \xfoox. Try \? for help.
 
  Schema | Name 
 --------+------
-(0 rows)
+ test   | t1   
+ test   | t2   
+(2 rows)
 
  Schema | Name 
 --------+------

@@ -15,12 +15,9 @@
 
 package com.foundationdb.sql.client.cli;
 
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.foundationdb.sql.client.ClientOptionsBase;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,11 +35,11 @@ public class CLIClientOptions extends ClientOptionsBase
     @Parameter(names = { "-q", "--quiet" }, description = "output only query results")
     public boolean quiet = false;
 
-    @Parameter(names = {"-r", "--skipRC"}, description = "skips run of configuration file at start")
+    @Parameter(names = {"--skip-rc"}, description = "skips run of configuration file at start")
     public Boolean skipRC = false;
     
-    @Parameter(names = {"--rc"}, description = "set configurationfile to new path")
-    public String configFileName = null;
+    @Parameter(names = {"--rc"}, description = "set configuration file to new path")
+    public String configFileName = System.getProperty("user.home") + "/.fdbsqlclirc";
 
     @Parameter(description="[schema]")
     public List<String> positional = new ArrayList<>();
