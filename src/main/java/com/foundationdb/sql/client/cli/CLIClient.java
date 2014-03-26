@@ -62,6 +62,11 @@ public class CLIClient implements Closeable
         }
         CLIClient client = new CLIClient(options);
         try {
+            File configFile = new File(options.configFileName);
+            if (configFile.isFile() && !options.skipRC){
+                client.openFile(options.configFileName);
+                client.runLoop();
+            }
             // Auto-quiet if non-interactive input source.
             // --file takes preference over --command
             if(options.file != null) {
@@ -109,6 +114,7 @@ public class CLIClient implements Closeable
     private boolean withPrompt = true;
     private boolean isRunning = true;
     private boolean withQueryEcho = false;
+    private boolean showTiming = false;
 
     private Connection connection;
     private Statement statement;
@@ -192,18 +198,28 @@ public class CLIClient implements Closeable
                     }
                     if(isBackslash) {
                         runBackslash(resultPrinter, query);
+
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
+
+                        long startTime = System.currentTimeMillis();
                         boolean res = statement.execute(query);
+                        long endTime = System.currentTimeMillis();
                         printWarnings(statement);
                         if(res) {
                             ResultSet rs = statement.getResultSet();
                             resultPrinter.printResultSet(rs);
                             rs.close();
+                        
                         } else {
                             resultPrinter.printUpdate(statement.getUpdateCount());
                         }
+                        if (showTiming) {
+                        Long totalTime = (endTime-startTime);
+                        sink.println("Time: " + totalTime.toString()+ " ms");
+                        }
                     }
+                
                 } catch(SQLException e) {
                     String state = e.getSQLState();
                     if(PSQLState.CONNECTION_FAILURE.getState().equals(state) ||
@@ -252,13 +268,20 @@ public class CLIClient implements Closeable
         assert sink != null;
         this.withPrompt = withPrompt;
         this.withQueryEcho = withQueryEcho;
+        // is not null if rc file is present
+        if (this.source != null){
+            this.source.close();
+        }
         this.source = source;
         this.otherSink = null;
         this.sink = sink;
         if(withHistory) {
             source.openHistory(HISTORY_FILE);
         }
-        connect();
+        // will already be open if there was an rc file
+        if (connection == null) {
+            connect();
+        }
         this.resultPrinter = new ResultPrinter(sink);
     }
 
@@ -305,13 +328,28 @@ public class CLIClient implements Closeable
             maxCmd = Math.max(maxCmd, cmd.helpCmd.length());
             maxArg = Math.max(maxArg, cmd.helpArgs.length());
         }
+        sink.println();
+        sink.println("Built-in commands are described below:");
+        sink.println();
+        sink.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", "Command", "Options", "Description"));
         for(BackslashCommand cmd : BackslashCommand.values()) {
             sink.println(String.format("  %-"+maxCmd+"s  %-"+maxArg+"s  %s", cmd.helpCmd, cmd.helpArgs, cmd.helpDesc));
         }
         sink.println();
+        sink.println("[+] Shows additional information on items");
+        sink.println("[S] Lists all user and system tables");
+        sink.println();
+        sink.println("Usage example: \\ltS              list all tables including system information");
+        sink.println("               \\lt+              list all user tables and include additional detail");
+        sink.println("               \\i file_name.sql  process all commands from file");
+        sink.println();              
     }
 
     private void runBackslash(ResultPrinter printer, String input) throws Exception {
+        input = input.trim();
+        if (input.endsWith(";")){
+            input = input.substring(0, input.length()-1);
+        }
         BackslashParser.Parsed parsed = BackslashParser.parseFrom(input);
         BackslashCommand command = lookupBackslashCommand(parsed);
         switch(command) {
@@ -336,6 +374,10 @@ public class CLIClient implements Closeable
                 // re-parse to not split on periods
                 runBackslashO(BackslashParser.parseFrom(input, false));
             break;
+            case TIMING:
+                toggleShowTiming();
+                printTimingStatus();
+            break;
             case HELP:
                 printBackslashHelp();
             break;
@@ -345,6 +387,18 @@ public class CLIClient implements Closeable
             default:
                 runBackslash(printer, parsed, command);
         }
+    }
+
+    private void toggleShowTiming() {
+        showTiming = !showTiming;
+    }
+    
+    private void printTimingStatus() throws IOException{
+        String status = "off";
+        if (showTiming){
+            status = "on";
+        }
+        sink.println(String.format("Timing is %s.", status));
     }
 
     private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {

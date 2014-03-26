@@ -17,22 +17,23 @@ package com.foundationdb.sql.client.cli;
 
 public enum BackslashCommand
 {
-    CONNECT ("c", false, false, "[SCHEMA] [USER] [HOST] [PORT]", "change connection information"),
+    CONNECT ("c", false, false, "[SCHEMA [USER [HOST [PORT]]]]", "change connection information"),
     CONNINFO("conninfo", false, false, "", "display connection information"),
 
-    D_TABLE     ("dt", true, true,  "[[SCHEMA] NAME]",           "describe tables"),
-    D_VIEW      ("dv", true, true,  "[[SCHEMA] NAME]",           "describe views"),
+    D_TABLE     ("dt", true, true,  "[[SCHEMA] NAME]",           "Print description of tables present"),
+    D_VIEW      ("dv", true, true,  "[[SCHEMA] NAME]",           "Print description of views present"),
 
-    I_FILE      ("i", false, false, "FILE",                     "execute commands from file"),
-    O_FILE      ("o", false, false, "[FILE|-]",                 "send all query results to file or standard out"),
+    I_FILE      ("i", false, false, "FILE",                     "Execute commands from file"),
+    O_FILE      ("o", false, false, "[FILE|-]",                 "Send all query results to file or standard out"),
 
-    L_ALL       ("l",  true, false, "[[SCHEMA] NAME]",          "list tables, views and sequences"),
-    L_INDEXES   ("li", true, true,  "[[[SCHEMA] TABLE] NAME]",  "list indexes"),
-    L_SEQUENCES ("lq", true, true,  "[[SCHEMA] NAME]",          "list sequences"),
-    L_SCHEMAS   ("ls", true, true,  "[NAME]",                   "list schemata"),
-    L_TABLES    ("lt", true, true,  "[[SCHEMA] NAME]",          "list tables"),
-    L_VIEWS     ("lv", true, true,  "[[SCHEMA] NAME]",          "list views"),
+    L_ALL       ("l",  true, false, "[[SCHEMA] NAME]",          "List tables, views and sequences"),
+    L_INDEXES   ("li", true, true,  "[[[SCHEMA] TABLE] NAME]",  "List indexes"),
+    L_SEQUENCES ("lq", true, true,  "[[SCHEMA] NAME]",          "List sequences"),
+    L_SCHEMAS   ("ls", true, true,  "[NAME]",                   "List schemata"),
+    L_TABLES    ("lt", true, true,  "[[SCHEMA] NAME]",          "List tables"),
+    L_VIEWS     ("lv", true, true,  "[[SCHEMA] NAME]",          "List views"),
 
+    TIMING  ("timing", false, false, "",                         "Toggles switch to display time per query in milliseconds"),
     HELP    ("?", false, false, "", "display this help"),
     QUIT    ("q", false, false, "", "quit"),
     ;

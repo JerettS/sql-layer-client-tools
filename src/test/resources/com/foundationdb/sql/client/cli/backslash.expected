@@ -156,3 +156,15 @@ ROWS: 0
 (2 rows)
 
 Invalid command: \xfoox. Try \? for help.
+
+ Schema | Name 
+--------+------
+ test   | t1   
+ test   | t2   
+(2 rows)
+
+ Schema | Name 
+--------+------
+ test   | t1   
+ test   | t2   
+(2 rows)
