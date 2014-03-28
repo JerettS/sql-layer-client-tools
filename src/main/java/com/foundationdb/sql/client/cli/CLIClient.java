@@ -491,6 +491,7 @@ public class CLIClient implements Closeable
                 String actualType = (type == null) ? listRS.getString(3) : type;
                 final String descPrepKey;
                 final String descQuery;
+                boolean doExtra = false;
                 if(SEQUENCE.equalsIgnoreCase(actualType)) {
                     actualType = SEQUENCE;
                     descPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.D_SEQUENCE.cmd, parsed.isSystem, parsed.isDetail);
@@ -499,6 +500,7 @@ public class CLIClient implements Closeable
                     actualType = TABLE;
                     descPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.D_TABLE.cmd, parsed.isSystem, parsed.isDetail);
                     descQuery = describeTable(parsed.isSystem, parsed.isDetail);
+                    doExtra = true;
                 } else if(VIEW.equalsIgnoreCase(actualType) || SYSTEM_VIEW.equals(actualType)) {
                     actualType = VIEW;
                     descPrepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.D_VIEW.cmd, parsed.isSystem, parsed.isDetail);
@@ -510,6 +512,9 @@ public class CLIClient implements Closeable
                     String description = String.format("%s %s.%s", actualType, descArgs[0], descArgs[1]);
                     resultPrinter.printResultSet(description, descRS);
                     descRS.close();
+                }
+                if(doExtra) {
+                    runDescribeTableExtra(descArgs[0], descArgs[1]);
                 }
             }
         }
@@ -547,7 +552,63 @@ public class CLIClient implements Closeable
         }
     }
 
-    private ResultSet execPrepared(String prepKey, String query, String[] args) throws SQLException {
+    private void runDescribeTableExtra(String tableSchema, String tableName) throws SQLException, IOException {
+        boolean first = true;
+        try(ResultSet rs = execPrepared(DT_INDEXES_BASE, describeTable_Indexes(), tableSchema, tableName)) {
+            while(rs.next()) {
+                if(first) {
+                    sink.println("Indexes:");
+                    first = false;
+                }
+                sink.println(String.format("    %s%s (%s)", rs.getString(1), rs.getString(2), rs.getString(3)));
+            }
+        }
+        first = true;
+        try(ResultSet rs = execPrepared(DT_FK_REFERENCES_BASE, describeTable_FKReferences(), tableSchema, tableName)) {
+            while(rs.next()) {
+                if(first) {
+                    sink.println("References:");
+                    first = false;
+                }
+                sink.println(String.format("    %s FOREIGN KEY (%s) REFERENCES %s (%s)",
+                                           rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)));
+            }
+        }
+        try(ResultSet rs = execPrepared(DT_GFK_REFERENCES_BASE, describeTable_GFKReferences(), tableSchema, tableName)) {
+            while(rs.next()) {
+                if(first) {
+                    sink.println("References:");
+                    first = false;
+                }
+                sink.println(String.format("    GROUPING FOREIGN KEY (%s) REFERENCES %s (%s)",
+                                           rs.getString(2), rs.getString(3), rs.getString(4)));
+            }
+        }
+        first = true;
+        try(ResultSet rs = execPrepared(DT_FK_REFERENCED_BY_BASE, describeTable_FKReferencedBy(), tableSchema, tableName)) {
+            while(rs.next()) {
+                if(first) {
+                    sink.println("Referenced By:");
+                    first = false;
+                }
+                sink.println(String.format("    TABLE %s CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)",
+                                           rs.getString(1), rs.getString(2), rs.getString(3), tableName, rs.getString(4)));
+            }
+        }
+        try(ResultSet rs = execPrepared(DT_GFK_REFERENCED_BY_BASE, describeTable_GFKReferencedBy(), tableSchema, tableName)) {
+            while(rs.next()) {
+                if(first) {
+                    sink.println("Referenced By:");
+                    first = false;
+                }
+                sink.println(String.format("    TABLE %s GROUPING FOREIGN KEY (%s) REFERENCES %s (%s)",
+                                           rs.getString(1), rs.getString(3), tableName, rs.getString(4)));
+            }
+        }
+        sink.println();
+    }
+
+    private ResultSet execPrepared(String prepKey, String query, String... args) throws SQLException {
         for(int retry = 0; retry < MAX_PREPARED_RETRY; ++retry) {
             try {
                 PreparedStatement pStmt = getPrepared(prepKey, query);

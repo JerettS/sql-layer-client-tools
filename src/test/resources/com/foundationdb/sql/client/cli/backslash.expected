@@ -69,7 +69,7 @@ ROWS: 0
  Schema | Table |  Name   
 --------+-------+---------
  test   | a     | PRIMARY 
- test   | a     | oid     
+ test   | a     | aid     
  test   | c     | PRIMARY 
  test   | i     | PRIMARY 
  test   | i     | ofk     
@@ -130,14 +130,27 @@ ROWS: 0
  Column | Type | Nullable 
 --------+------+----------
  cid    | INT  | NO       
- oid    | INT  | NO       
+ aid    | INT  | NO       
 (2 rows)
+
+Indexes:
+    PRIMARY (cid,aid)
+    UNIQUE aid (aid)
+References:
+    GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
  Table test.c
  Column | Type | Nullable 
 --------+------+----------
  cid    | INT  | NO       
 (1 row)
+
+Indexes:
+    PRIMARY (cid)
+Referenced By:
+    TABLE o CONSTRAINT o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    TABLE a GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
+    TABLE o GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
  Table test.i
  Column | Type | Nullable 
@@ -146,12 +159,29 @@ ROWS: 0
  oid    | INT  | YES      
 (2 rows)
 
+Indexes:
+    PRIMARY (iid)
+    ofk (oid)
+References:
+    i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
+
  Table test.o
  Column | Type | Nullable 
 --------+------+----------
  oid    | INT  | NO       
  cid    | INT  | YES      
 (2 rows)
+
+Indexes:
+    PRIMARY (oid)
+    cfk (cid)
+References:
+    o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
+Referenced By:
+    TABLE i CONSTRAINT i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    TABLE i GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
 
  Sequence test.s1
   Type  | Start | Min |         Max         | Inc | Cycle 
@@ -172,12 +202,18 @@ ROWS: 0
  c2     | VARCHAR(32) | YES      
 (2 rows)
 
+Indexes:
+    i1 (c1)
+
  Table test.t2
  Column |      Type      | Nullable 
 --------+----------------+----------
  c1     | DECIMAL(10, 5) | YES      
  c2     | VARBINARY(10)  | YES      
 (2 rows)
+
+Indexes:
+    i2 (c1)
 
  View test.v1
  Column |    Type     | Nullable 
@@ -209,14 +245,27 @@ ROWS: 0
  Column | Type | Nullable 
 --------+------+----------
  cid    | INT  | NO       
- oid    | INT  | NO       
+ aid    | INT  | NO       
 (2 rows)
+
+Indexes:
+    PRIMARY (cid,aid)
+    UNIQUE aid (aid)
+References:
+    GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
  Table test.c
  Column | Type | Nullable 
 --------+------+----------
  cid    | INT  | NO       
 (1 row)
+
+Indexes:
+    PRIMARY (cid)
+Referenced By:
+    TABLE o CONSTRAINT o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    TABLE a GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
+    TABLE o GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
  Table test.i
  Column | Type | Nullable 
@@ -225,6 +274,13 @@ ROWS: 0
  oid    | INT  | YES      
 (2 rows)
 
+Indexes:
+    PRIMARY (iid)
+    ofk (oid)
+References:
+    i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
+
  Table test.o
  Column | Type | Nullable 
 --------+------+----------
@@ -232,12 +288,25 @@ ROWS: 0
  cid    | INT  | YES      
 (2 rows)
 
+Indexes:
+    PRIMARY (oid)
+    cfk (cid)
+References:
+    o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
+Referenced By:
+    TABLE i CONSTRAINT i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    TABLE i GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
+
  Table test.t1
  Column |    Type     | Nullable 
 --------+-------------+----------
  c1     | INT         | YES      
  c2     | VARCHAR(32) | YES      
 (2 rows)
+
+Indexes:
+    i1 (c1)
 
  Table test.t2
  Column |      Type      | Nullable 
@@ -246,6 +315,9 @@ ROWS: 0
  c2     | VARBINARY(10)  | YES      
 (2 rows)
 
+Indexes:
+    i2 (c1)
+
  Table test.t1
  Column |    Type     | Nullable 
 --------+-------------+----------
@@ -253,12 +325,18 @@ ROWS: 0
  c2     | VARCHAR(32) | YES      
 (2 rows)
 
+Indexes:
+    i1 (c1)
+
  Table test.t1
  Column |    Type     | Nullable | Default | Charset | Collation | Sequence 
 --------+-------------+----------+---------+---------+-----------+----------
  c1     | INT         | YES      | 10      |         |           |          
  c2     | VARCHAR(32) | YES      |         | utf8    | en_ci     |          
 (2 rows)
+
+Indexes:
+    i1 (c1)
 
  View test.v1
  Column |    Type     | Nullable 

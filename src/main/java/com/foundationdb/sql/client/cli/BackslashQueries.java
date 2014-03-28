@@ -26,6 +26,54 @@ public class BackslashQueries
     private static final String DTV_ORDER = " ORDER BY ordinal_position ";
     private static final String DTV_SCHEMA = " table_schema ";
 
+    public static final String DT_INDEXES_BASE = "SELECT IF(i.index_type = 'UNIQUE', 'UNIQUE ', ''), i.index_name, group_concat(ic.column_name) ";
+    public static final String DT_INDEXEES_FROM = "FROM information_schema.indexes i INNER JOIN information_schema.index_columns ic "+
+                                                  " ON i.table_schema=ic.index_table_schema AND i.table_name=ic.index_table_name AND i.index_name=ic.index_name ";
+    public static final String DT_INDEXES_WHERE = "WHERE i.table_schema = ? AND i.table_name= ? ";
+    public static final String DT_INDEXES_ORDER = "GROUP BY i.index_name,i.index_type ORDER BY i.index_name ";
+
+    public static final String DT_FK_REFERENCES_BASE = "SELECT rc.constraint_name, GROUP_CONCAT(kcu.column_name), o_kcu.table_name, GROUP_CONCAT(o_kcu.column_name) ";
+    public static final String DT_FK_REFERENCES_FROM = "FROM information_schema.referential_constraints rc "+
+                                                       "INNER JOIN information_schema.key_column_usage kcu "+
+                                                       "  USING(constraint_schema, constraint_name) "+
+                                                       "INNER JOIN information_schema.key_column_usage o_kcu "+
+                                                       "  ON rc.unique_constraint_schema = o_kcu.constraint_schema "+
+                                                       "  AND rc.unique_constraint_name = o_kcu.constraint_name "+
+                                                       "  AND kcu.position_in_unique_constraint = o_kcu.ordinal_position ";
+    public static final String DT_FK_REFERENCES_WHERE = "WHERE rc.constraint_schema = ? AND kcu.table_name = ? ";
+    public static final String DT_FK_REFERENCES_ORDER = "GROUP BY rc.constraint_name,o_kcu.table_name";
+
+    public static final String DT_GFK_REFERENCES_BASE = DT_FK_REFERENCES_BASE.replace("rc", "gc");
+    public static final String DT_GFK_REFERENCES_FROM = DT_FK_REFERENCES_FROM.replace("rc", "gc")
+                                                                             .replace("referential_constraints", "grouping_constraints")
+                                                                             .replace("unique_constraint_schema", "unique_schema");
+    public static final String DT_GFK_REFERENCES_WHERE = DT_FK_REFERENCES_WHERE.replace("rc", "gc");
+    public static final String DT_GFK_REFERENCES_ORDER = DT_FK_REFERENCES_ORDER.replace("rc", "gc");
+
+    public static final String DT_FK_REFERENCED_BY_BASE = "SELECT kcu.table_name, rc.constraint_name, GROUP_CONCAT(kcu.column_name), GROUP_CONCAT(o_kcu.column_name) ";
+    public static final String DT_FK_REFERENCED_BY_FROM = "FROM information_schema.table_constraints tc "+
+                                                          "INNER JOIN information_schema.referential_constraints rc "+
+                                                          "  ON tc.table_schema = rc.unique_constraint_schema"+
+                                                          " AND tc.constraint_name = rc.unique_constraint_name "+
+                                                          "INNER JOIN information_schema.key_column_usage kcu "+
+                                                          " ON rc.constraint_schema = kcu.constraint_schema "+
+                                                          " AND rc.constraint_name = kcu.constraint_name "+
+                                                          "INNER JOIN information_schema.key_column_usage o_kcu "+
+                                                          " ON rc.unique_constraint_schema = o_kcu.constraint_schema "+
+                                                          " AND rc.unique_constraint_name = o_kcu.constraint_name "+
+                                                          " AND kcu.position_in_unique_constraint = o_kcu.ordinal_position ";
+    public static final String DT_FK_REFERENCED_BY_WHERE = "WHERE tc.table_schema = ? AND tc.table_name = ? ";
+    public static final String DT_FK_REFERENCED_BY_ORDER = "GROUP BY kcu.table_name,rc.constraint_schema,rc.constraint_name";
+
+
+    public static final String DT_GFK_REFERENCED_BY_BASE = DT_FK_REFERENCED_BY_BASE.replace("rc", "gc");
+    public static final String DT_GFK_REFERENCED_BY_FROM = DT_FK_REFERENCED_BY_FROM.replace("rc", "gc")
+                                                                                   .replace("referential_constraints", "grouping_constraints")
+                                                                                   .replace("unique_constraint_schema", "unique_schema");
+    public static final String DT_GFK_REFERENCED_BY_WHERE = DT_FK_REFERENCED_BY_WHERE.replace("rc", "gc");
+    public static final String DT_GFK_REFERENCED_BY_ORDER = DT_FK_REFERENCED_BY_ORDER.replace("rc", "gc");
+
+
     private static final String DQ_BASE = "SELECT data_type \"Type\", start_value \"Start\", minimum_value \"Min\", maximum_value \"Max\", increment \"Inc\", cycle_option \"Cycle\" ";
     private static final String DQ_DETAIL = " ";
     private static final String DQ_FROM = " FROM information_schema.sequences ";
@@ -84,6 +132,26 @@ public class BackslashQueries
 
     public static String describeTable(boolean isSystem, boolean isDetail) {
         return build(DTV_BASE, DTV_DETAIL, DTV_FROM, DTV_WHERE, DTV_ORDER, DTV_SCHEMA, isSystem, isDetail);
+    }
+
+    public static String describeTable_Indexes() {
+        return build(DT_INDEXES_BASE, "", DT_INDEXEES_FROM, DT_INDEXES_WHERE, DT_INDEXES_ORDER, "", true, false);
+    }
+
+    public static String describeTable_FKReferences() {
+        return build(DT_FK_REFERENCES_BASE, "", DT_FK_REFERENCES_FROM, DT_FK_REFERENCES_WHERE, DT_FK_REFERENCES_ORDER, "", true, false);
+    }
+
+    public static String describeTable_GFKReferences() {
+        return build(DT_GFK_REFERENCES_BASE, "", DT_GFK_REFERENCES_FROM, DT_GFK_REFERENCES_WHERE, DT_GFK_REFERENCES_ORDER, "", true, false);
+    }
+
+    public static String describeTable_FKReferencedBy() {
+        return build(DT_FK_REFERENCED_BY_BASE, "", DT_FK_REFERENCED_BY_FROM, DT_FK_REFERENCED_BY_WHERE, DT_FK_REFERENCED_BY_ORDER, "", true, false);
+    }
+
+    public static String describeTable_GFKReferencedBy() {
+        return build(DT_GFK_REFERENCED_BY_BASE, "", DT_GFK_REFERENCED_BY_FROM, DT_GFK_REFERENCED_BY_WHERE, DT_GFK_REFERENCED_BY_ORDER, "", true, false);
     }
 
     public static String describeView(boolean isSystem, boolean isDetail) {
