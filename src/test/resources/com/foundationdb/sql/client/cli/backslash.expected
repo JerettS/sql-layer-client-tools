@@ -14,19 +14,35 @@ ROWS: 0
 
 ROWS: 0
 
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
+ROWS: 0
+
  Schema | Name | Type 
 --------+------+------
 (0 rows)
 
  Schema | Name |   Type   
 --------+------+----------
+ test   | a    | TABLE    
+ test   | c    | TABLE    
+ test   | i    | TABLE    
+ test   | o    | TABLE    
  test   | s1   | SEQUENCE 
  test   | s2   | SEQUENCE 
  test   | t1   | TABLE    
  test   | t2   | TABLE    
  test   | v1   | VIEW     
  test   | v2   | VIEW     
-(6 rows)
+(10 rows)
 
  Schema | Name |   Type   
 --------+------+----------
@@ -50,11 +66,18 @@ ROWS: 0
  test   | v1   | VIEW 
 (1 row)
 
- Schema | Table | Name 
---------+-------+------
- test   | t1    | i1   
- test   | t2    | i2   
-(2 rows)
+ Schema | Table |  Name   
+--------+-------+---------
+ test   | a     | PRIMARY 
+ test   | a     | oid     
+ test   | c     | PRIMARY 
+ test   | i     | PRIMARY 
+ test   | i     | ofk     
+ test   | o     | PRIMARY 
+ test   | o     | cfk     
+ test   | t1    | i1      
+ test   | t2    | i2      
+(9 rows)
 
  Schema | Table | Name 
 --------+-------+------
@@ -79,9 +102,13 @@ ROWS: 0
 
  Schema | Name 
 --------+------
+ test   | a    
+ test   | c    
+ test   | i    
+ test   | o    
  test   | t1   
  test   | t2   
-(2 rows)
+(6 rows)
 
  Schema | Name 
 --------+------
@@ -98,6 +125,33 @@ ROWS: 0
 --------+------
  test   | v1   
 (1 row)
+
+ Table test.a
+ Column | Type | Nullable 
+--------+------+----------
+ cid    | INT  | NO       
+ oid    | INT  | NO       
+(2 rows)
+
+ Table test.c
+ Column | Type | Nullable 
+--------+------+----------
+ cid    | INT  | NO       
+(1 row)
+
+ Table test.i
+ Column | Type | Nullable 
+--------+------+----------
+ iid    | INT  | NO       
+ oid    | INT  | YES      
+(2 rows)
+
+ Table test.o
+ Column | Type | Nullable 
+--------+------+----------
+ oid    | INT  | NO       
+ cid    | INT  | YES      
+(2 rows)
 
  Sequence test.s1
   Type  | Start | Min |         Max         | Inc | Cycle 
@@ -150,6 +204,33 @@ ROWS: 0
 --------+-------+-----+---------------------+-----+-------
  bigint |     1 |   1 | 9223372036854775807 |   1 | NO    
 (1 row)
+
+ Table test.a
+ Column | Type | Nullable 
+--------+------+----------
+ cid    | INT  | NO       
+ oid    | INT  | NO       
+(2 rows)
+
+ Table test.c
+ Column | Type | Nullable 
+--------+------+----------
+ cid    | INT  | NO       
+(1 row)
+
+ Table test.i
+ Column | Type | Nullable 
+--------+------+----------
+ iid    | INT  | NO       
+ oid    | INT  | YES      
+(2 rows)
+
+ Table test.o
+ Column | Type | Nullable 
+--------+------+----------
+ oid    | INT  | NO       
+ cid    | INT  | YES      
+(2 rows)
 
  Table test.t1
  Column |    Type     | Nullable 
@@ -211,12 +292,20 @@ Invalid command: \xfoox. Try \? for help.
 
  Schema | Name 
 --------+------
+ test   | a    
+ test   | c    
+ test   | i    
+ test   | o    
  test   | t1   
  test   | t2   
-(2 rows)
+(6 rows)
 
  Schema | Name 
 --------+------
+ test   | a    
+ test   | c    
+ test   | i    
+ test   | o    
  test   | t1   
  test   | t2   
-(2 rows)
+(6 rows)
