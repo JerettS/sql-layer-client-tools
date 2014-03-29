@@ -103,19 +103,19 @@ ROWS: 0
  test   | s1   
 (1 row)
 
- Schema | Name 
---------+------
- test   | a    
- test   | c    
- test   | i    
- test   | o    
- test   | t1   
- test   | t2   
+ Schema | Name |      Group Path      
+--------+------+----------------------
+ test   | a    | test.c/test.a        
+ test   | c    | test.c               
+ test   | i    | test.c/test.o/test.i 
+ test   | o    | test.c/test.o        
+ test   | t1   | test.t1              
+ test   | t2   | test.t2              
 (6 rows)
 
- Schema | Name 
---------+------
- test   | t1   
+ Schema | Name | Group Path 
+--------+------+------------
+ test   | t1   | test.t1    
 (1 row)
 
  Schema | Name 
@@ -377,22 +377,22 @@ Indexes:
 
 Invalid command: \xfoox. Try \? for help.
 
- Schema | Name 
---------+------
- test   | a    
- test   | c    
- test   | i    
- test   | o    
- test   | t1   
- test   | t2   
+ Schema | Name |      Group Path      
+--------+------+----------------------
+ test   | a    | test.c/test.a        
+ test   | c    | test.c               
+ test   | i    | test.c/test.o/test.i 
+ test   | o    | test.c/test.o        
+ test   | t1   | test.t1              
+ test   | t2   | test.t2              
 (6 rows)
 
- Schema | Name 
---------+------
- test   | a    
- test   | c    
- test   | i    
- test   | o    
- test   | t1   
- test   | t2   
+ Schema | Name |      Group Path      
+--------+------+----------------------
+ test   | a    | test.c/test.a        
+ test   | c    | test.c               
+ test   | i    | test.c/test.o/test.i 
+ test   | o    | test.c/test.o        
+ test   | t1   | test.t1              
+ test   | t2   | test.t2              
 (6 rows)

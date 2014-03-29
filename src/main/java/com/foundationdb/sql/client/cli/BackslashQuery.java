@@ -199,9 +199,11 @@ public class BackslashQuery
     );
 
     public static final BackslashQuery LIST_TABLES = new BackslashQuery(
-        "SELECT table_schema \"Schema\", table_name \"Name\" ",
-        ", table_type \"Type\", table_id \"ID\", storage_name \"Storage Name\" ",
-        " FROM information_schema.tables ",
+        "SELECT t.table_schema \"Schema\", t.table_name \"Name\", gc.path \"Group Path\" ",
+        ", t.table_type \"Type\", t.table_id \"ID\", t.storage_name \"Storage Name\" ",
+        " FROM information_schema.tables t "+
+            " INNER JOIN information_schema.grouping_constraints gc "+
+            " ON t.table_schema = gc.constraint_schema AND t.table_name = gc.constraint_table_name ",
         " WHERE table_schema LIKE ? AND table_name LIKE ? AND table_type LIKE '%TABLE'",
         " ORDER BY table_schema,table_name ",
         " table_schema ",
@@ -222,9 +224,9 @@ public class BackslashQuery
         "SELECT * ",
         null,
         " FROM (" +
-            LIST_TABLES.base + ", table_type \"Type\" " + LIST_TABLES.from + " UNION " +
-            LIST_VIEWS.base + ", table_type \"Type\" " + LIST_VIEWS.from + " UNION " +
-            LIST_SEQUENCES.base +", 'SEQUENCE' " + LIST_SEQUENCES.from + ") sub ",
+            "SELECT table_schema \"Schema\", table_name \"Name\", table_type \"Type\" FROM information_schema.tables UNION "+
+            "SELECT sequence_schema, sequence_name, 'SEQUENCE' FROM information_schema.sequences "+
+            ") sub ",
         "WHERE \"Schema\" LIKE ? AND \"Name\" LIKE ? ",
         " ORDER BY \"Schema\", \"Name\", \"Type\" ",
         "\"Schema\"",
