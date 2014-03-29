@@ -31,14 +31,6 @@ public class BackslashParser
         public String argOr(int index, String defValue) {
             return (index >= 0 && index < args.size()) ? args.get(index) : defValue;
         }
-
-        public String getCanonical() {
-            return getCanonical(command, isSystem, isDetail);
-        }
-
-        public static String getCanonical(String command, boolean isSystem, boolean isDetail) {
-            return command + (isSystem ? "S" : "") + (isDetail ? "+" : "");
-        }
     }
 
     public static Parsed parseFrom(String input) {

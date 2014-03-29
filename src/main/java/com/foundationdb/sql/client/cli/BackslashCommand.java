@@ -46,9 +46,6 @@ public enum BackslashCommand
     public final String helpCmd;
     public final String helpArgs;
     public final String helpDesc;
-    public final boolean isDescribe;
-    public final boolean isList;
-
 
     private BackslashCommand(String cmd, boolean hasSystem, boolean hasDetail, String helpArgs, String helpDesc) {
         this.cmd = cmd;
@@ -57,7 +54,5 @@ public enum BackslashCommand
         this.hasDetail = hasDetail;
         this.helpArgs = helpArgs;
         this.helpDesc = helpDesc;
-        this.isDescribe = cmd.charAt(0) == 'd';
-        this.isList = cmd.charAt(0) == 'l';
     }
 }

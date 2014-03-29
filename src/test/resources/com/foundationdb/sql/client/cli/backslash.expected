@@ -26,6 +26,8 @@ ROWS: 0
 
 ROWS: 0
 
+ROWS: 0
+
  Schema | Name | Type 
 --------+------+------
 (0 rows)
@@ -66,18 +68,19 @@ ROWS: 0
  test   | v1   | VIEW 
 (1 row)
 
- Schema | Table |  Name   
---------+-------+---------
- test   | a     | PRIMARY 
- test   | a     | aid     
- test   | c     | PRIMARY 
- test   | i     | PRIMARY 
- test   | i     | ofk     
- test   | o     | PRIMARY 
- test   | o     | cfk     
- test   | t1    | i1      
- test   | t2    | i2      
-(9 rows)
+ Schema | Table |    Name    
+--------+-------+------------
+ test   | a     | PRIMARY    
+ test   | a     | aid        
+ test   | c     | PRIMARY    
+ test   | i     | PRIMARY    
+ test   | i     | ofk        
+ test   | o     | PRIMARY    
+ test   | o     | cfk        
+ test   | o     | odate_name 
+ test   | t1    | i1         
+ test   | t2    | i2         
+(10 rows)
 
  Schema | Table | Name 
 --------+-------+------
@@ -134,16 +137,17 @@ ROWS: 0
 (2 rows)
 
 Indexes:
-    PRIMARY (cid,aid)
+    PRIMARY (cid, aid)
     UNIQUE aid (aid)
 References:
     GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
  Table test.c
- Column | Type | Nullable 
---------+------+----------
- cid    | INT  | NO       
-(1 row)
+ Column |   Type   | Nullable 
+--------+----------+----------
+ cid    | INT      | NO       
+ name   | CHAR(32) | YES      
+(2 rows)
 
 Indexes:
     PRIMARY (cid)
@@ -170,12 +174,14 @@ References:
  Column | Type | Nullable 
 --------+------+----------
  oid    | INT  | NO       
+ odate  | DATE | YES      
  cid    | INT  | YES      
-(2 rows)
+(3 rows)
 
 Indexes:
     PRIMARY (oid)
     cfk (cid)
+    odate_name (o.odate, c.name) USING LEFT JOIN
 References:
     o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
     GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
@@ -249,16 +255,17 @@ Indexes:
 (2 rows)
 
 Indexes:
-    PRIMARY (cid,aid)
+    PRIMARY (cid, aid)
     UNIQUE aid (aid)
 References:
     GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
  Table test.c
- Column | Type | Nullable 
---------+------+----------
- cid    | INT  | NO       
-(1 row)
+ Column |   Type   | Nullable 
+--------+----------+----------
+ cid    | INT      | NO       
+ name   | CHAR(32) | YES      
+(2 rows)
 
 Indexes:
     PRIMARY (cid)
@@ -285,12 +292,14 @@ References:
  Column | Type | Nullable 
 --------+------+----------
  oid    | INT  | NO       
+ odate  | DATE | YES      
  cid    | INT  | YES      
-(2 rows)
+(3 rows)
 
 Indexes:
     PRIMARY (oid)
     cfk (cid)
+    odate_name (o.odate, c.name) USING LEFT JOIN
 References:
     o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
     GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
