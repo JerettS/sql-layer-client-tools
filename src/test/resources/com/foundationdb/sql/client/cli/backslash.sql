@@ -6,29 +6,52 @@ CREATE SEQUENCE s1;
 CREATE SEQUENCE s2;
 CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v2 AS SELECT * FROM t2;
-  \l test.foo
+
+CREATE TABLE c(cid INT NOT NULL PRIMARY KEY, name CHAR(32));
+CREATE TABLE a(cid INT NOT NULL, aid INT NOT NULL, PRIMARY KEY(cid, aid), UNIQUE(aid), GROUPING FOREIGN KEY(cid) REFERENCES c);
+CREATE TABLE o(oid INT NOT NULl PRIMARY KEY, odate DATE, cid INT, GROUPING FOREIGN KEY(cid) REFERENCES c);
+CREATE TABLE i(iid INT NOT NULL PRIMARY KEY, oid INT, GROUPING FOREIGN KEY(oid) REFERENCES o);
+ALTER TABLE o ADD CONSTRAINT cfk FOREIGN KEY(cid) REFERENCES c;
+ALTER TABLE i ADD CONSTRAINT ofk FOREIGN KEY(oid) REFERENCES o;
+CREATE INDEX odate_name ON o(o.odate, c.name) USING LEFT JOIN;
+
+
+\l test.foo
 \l test.%
 \l test.%1
 \l test.t1
 \l test.s1
 \l test.v1
+
 \li test.%.%
 \li test.t1.%
 \li test.t1.i1
+
 \lq test.%
 \lq test.s1
+
 \lt test.%
 \lt test.t1
+
 \lv test.%
 \lv test.v1
+
+\d test.%
+
+\dq test.%
+
 \dt test.%
 \dt test.t1
 \dt+ test.t1
+
 \dv test.%
 \dv test.v1
 \dv+ test.v1
+
 \xfoox
+
 \lt test.%;
 \lt test.% ;
+
 \q
 SELECT 'should not get here';
