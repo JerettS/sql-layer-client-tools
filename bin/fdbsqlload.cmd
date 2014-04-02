@@ -2,7 +2,7 @@
 
 SETLOCAL
 
-SET CLIENT_JAR=fdb-sql-layer-client-tools-1.9.4-SNAPSHOT.jar
+SET CLIENT_JAR=fdb-sql-layer-client-tools-1.9.4.jar
 
 IF EXIST "%~dp0..\pom.xml" GOTO FROM_BUILD
 
