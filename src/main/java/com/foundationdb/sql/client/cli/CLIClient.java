@@ -106,7 +106,7 @@ public class CLIClient implements Closeable
             // Connect to output file if output is requested. 
             if (options.output != null) {
                 String input = "\\o " + options.output;
-                client.runBackslashO(BackslashParser.parseFrom(input, false));
+                client.execOutput(BackslashParser.parseFrom(input, false));
             }
         } catch(Exception e) {
             System.err.println(e.getMessage());
