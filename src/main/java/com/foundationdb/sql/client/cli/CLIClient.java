@@ -103,6 +103,11 @@ public class CLIClient implements Closeable
                     client.openTerminal();
                 }
             }
+            // Connect to output file if output is requested. 
+            if (options.output != null) {
+                String input = "\\o " + options.output;
+                client.execOutput(BackslashParser.parseFrom(input, false));
+            }
         } catch(Exception e) {
             System.err.println(e.getMessage());
             if(e instanceof SQLException) {

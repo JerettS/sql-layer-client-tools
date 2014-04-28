@@ -31,6 +31,9 @@ public class CLIClientOptions extends ClientOptionsBase
 
     @Parameter(names = { "-f", "--file" }, description = "execute commands from file and then exit")
     public String file = null;
+    
+    @Parameter(names = {"-o", "--output"}, description = "output results to file" )
+    public String output = null;
 
     @Parameter(names = { "-q", "--quiet" }, description = "output only query results")
     public boolean quiet = false;
