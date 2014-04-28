@@ -83,6 +83,10 @@ public class CLIClient implements Closeable
                 } else {
                     client.openTerminal();
                 }
+                // Connect to output file if output is requested. 
+                if (options.output != null) {
+                    client.runBackslashO(BackslashParser.parseFrom(options.output, false));
+                }
             }
         } catch(Exception e) {
             System.err.println(e.getMessage());
