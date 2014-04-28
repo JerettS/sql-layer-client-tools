@@ -100,6 +100,74 @@ public class CLIClientMiscTest
     }
 
     @Test
+    public void dashOSingle() throws Exception {
+        File outFile = tmpFileFrom();
+
+        runAndCheck( false,
+                null, // Only checking outFile contents
+                "--skip-rc", "-q", "-o", outFile.getAbsolutePath(), "-c", "select 5; select 6;"
+            );
+
+        StringBuffer sb = new StringBuffer();
+        try(BufferedReader reader = new BufferedReader(new FileReader(outFile))) {
+            String l;
+            while((l = reader.readLine()) != null) {
+                sb.append(l);
+                sb.append('\n');
+            }
+        }
+        assertEquals(
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          5 \n" +
+            "(1 row)\n" +
+            "\n" +
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          6 \n" +
+            "(1 row)\n" +
+            "\n",
+            sb.toString()
+        );
+    }
+
+    @Test
+    public void dashOdashF() throws Exception {
+        File tmpFile = tmpFileFrom(
+                "select 5;",
+                "select 6;"
+            );
+    
+        File outFile = tmpFileFrom();
+    
+        runAndCheck( false,
+                null, // Only checking outFile contents
+                "--skip-rc", "-q", "-o", outFile.getAbsolutePath(), "-f", tmpFile.getAbsolutePath()
+            );
+    
+        StringBuffer sb = new StringBuffer();
+        try(BufferedReader reader = new BufferedReader(new FileReader(outFile))) {
+            String l;
+            while((l = reader.readLine()) != null) {
+                sb.append(l);
+                sb.append('\n');
+            }
+        }
+        assertEquals(
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          5 \n" +
+            "(1 row)\n" +
+            "\n" +
+            " _SQL_COL_1 \n" +
+            "------------\n" +
+            "          6 \n" +
+            "(1 row)\n" +
+            "\n",
+            sb.toString()
+        );
+    }
+    @Test
     public void backslashIMissing() throws Exception {
         File tmpFile = tmpFileFrom(
             "select 1;",
