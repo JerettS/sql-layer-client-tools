@@ -35,10 +35,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-
-import static com.foundationdb.sql.client.cli.BackslashQueries.*;
 
 public class CLIClient implements Closeable
 {
@@ -47,6 +47,25 @@ public class CLIClient implements Closeable
 
     private final static int MAX_PREPARED_RETRY = 5;
     private final static String STALE_STATEMENT_CODE = "0A50A";
+
+    private static final Map<BackslashCommand,BackslashQuery> LIST_QUERY;
+    private static final Map<BackslashCommand,BackslashQuery> DESC_QUERY;
+
+    static {
+        LIST_QUERY = new HashMap<>();
+        LIST_QUERY.put(BackslashCommand.L_ALL, BackslashQuery.LIST_ALL);
+        LIST_QUERY.put(BackslashCommand.L_INDEXES, BackslashQuery.LIST_INDEXES);
+        LIST_QUERY.put(BackslashCommand.L_SCHEMAS, BackslashQuery.LIST_SCHEMAS);
+        LIST_QUERY.put(BackslashCommand.L_SEQUENCES, BackslashQuery.LIST_SEQUENCES);
+        LIST_QUERY.put(BackslashCommand.L_TABLES, BackslashQuery.LIST_TABLES);
+        LIST_QUERY.put(BackslashCommand.L_VIEWS, BackslashQuery.LIST_VIEWS);
+
+        DESC_QUERY = new HashMap<>();
+        DESC_QUERY.put(BackslashCommand.D_ALL, BackslashQuery.LIST_ALL);
+        DESC_QUERY.put(BackslashCommand.D_SEQUENCE, BackslashQuery.LIST_SEQUENCES);
+        DESC_QUERY.put(BackslashCommand.D_TABLE, BackslashQuery.LIST_TABLES);
+        DESC_QUERY.put(BackslashCommand.D_VIEW, BackslashQuery.LIST_VIEWS);
+    }
 
 
     public static void main(String[] args) throws Exception {
@@ -202,8 +221,7 @@ public class CLIClient implements Closeable
                         sink.println(query);
                     }
                     if(isBackslash) {
-                        runBackslash(resultPrinter, query);
-
+                        runBackslash(query);
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
 
@@ -350,7 +368,7 @@ public class CLIClient implements Closeable
         sink.println();              
     }
 
-    private void runBackslash(ResultPrinter printer, String input) throws Exception {
+    private void runBackslash(String input) throws Exception {
         input = input.trim();
         if (input.endsWith(";")){
             input = input.substring(0, input.length()-1);
@@ -373,11 +391,11 @@ public class CLIClient implements Closeable
             break;
             case I_FILE:
                 // re-parse to not split on periods
-                runBackslashI(BackslashParser.parseFrom(input, false));
+                execInput(BackslashParser.parseFrom(input, false));
             break;
             case O_FILE:
                 // re-parse to not split on periods
-                runBackslashO(BackslashParser.parseFrom(input, false));
+                execOutput(BackslashParser.parseFrom(input, false));
             break;
             case TIMING:
                 toggleShowTiming();
@@ -390,7 +408,19 @@ public class CLIClient implements Closeable
                 isRunning = false;
             break;
             default:
-                runBackslash(printer, parsed, command);
+                // If fully qualified, include system even without S
+                parsed.isSystem = parsed.isSystem || (parsed.args.size() > 1);
+                BackslashQuery query = LIST_QUERY.get(command);
+                if(query != null) {
+                    execList(query, parsed);
+                }
+                else if((query = DESC_QUERY.get(command)) != null) {
+                    execDescribe(query, parsed);
+                }
+                else {
+                    throw new SQLException("Unexpected command: " + command);
+                }
+            break;
         }
     }
 
@@ -406,67 +436,82 @@ public class CLIClient implements Closeable
         sink.println(String.format("Timing is %s.", status));
     }
 
-    private void runBackslash(ResultPrinter printer, BackslashParser.Parsed parsed, BackslashCommand command) throws Exception {
-        final String query;
-        final int expectedArgs;
-        String prepKey = parsed.getCanonical();
-        boolean isSystem = parsed.isSystem;
-        switch(command) {
-            case L_ALL:
-                query = listAll(parsed.isSystem);
-                expectedArgs = 2;
-            break;
-            case L_INDEXES:
-                query = listIndexes(parsed.isSystem, parsed.isDetail);
-                expectedArgs = 3;
-            break;
-            case L_SEQUENCES:
-                query = listSequences(parsed.isSystem, parsed.isDetail);
-                expectedArgs = 2;
-            break;
-            case L_SCHEMAS:
-                query = listSchemata(parsed.isSystem, parsed.isDetail);
-                expectedArgs = 1;
-            break;
-            case D_TABLE:
-                // If fully qualified, include system even without S
-                isSystem = parsed.isSystem || (parsed.args.size() > 1);
-                prepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_TABLES.cmd, isSystem, parsed.isDetail);
-            case L_TABLES:
-                query = listTables(isSystem, parsed.isDetail);
-                expectedArgs = 2;
-            break;
-            case D_VIEW:
-                // If fully qualified, include system even without S
-                isSystem = parsed.isSystem || (parsed.args.size() > 1);
-                prepKey = BackslashParser.Parsed.getCanonical(BackslashCommand.L_VIEWS.cmd, isSystem, parsed.isDetail);
-            case L_VIEWS:
-                query = listViews(isSystem, parsed.isDetail);
-                expectedArgs = 2;
-            break;
-            default:
-                throw new SQLException("Unexpected command: " + command);
+    private void execList(BackslashQuery query, BackslashParser.Parsed parsed) throws Exception {
+        String[] args = reverseFillParams(parsed, query.argCount());
+        try(ResultSet rs = execPrepared(query.build(parsed.isDetail, parsed.isSystem), args)) {
+            resultPrinter.printResultSet(rs);
         }
-
-        String[] args = reverseFillParams(parsed, expectedArgs);
-        ResultSet rs = execPrepared(prepKey, query, args);
-        if(command == BackslashCommand.D_TABLE || command == BackslashCommand.D_VIEW) {
-            String query2 = describeTableOrView(isSystem, parsed.isDetail);
-            String typeDesc = (command == BackslashCommand.D_TABLE) ? "Table" : "View";
-            while(rs.next()) {
-                String[] args2 = { rs.getString(1), rs.getString(2) };
-                ResultSet rs2 = execPrepared(parsed.getCanonical(), query2, args2);
-                String description = String.format("%s %s.%s", typeDesc, args2[0], args2[1]);
-                printer.printResultSet(description, rs2);
-                rs2.close();
-            }
-        } else {
-            printer.printResultSet(rs);
-        }
-        rs.close();
     }
 
-    private void runBackslashI(BackslashParser.Parsed parsed) throws Exception {
+    private void execDescribe(BackslashQuery query, BackslashParser.Parsed parsed) throws Exception {
+        String[] listArgs = reverseFillParams(parsed, 2);
+        try(ResultSet lrs = execPrepared(query.build(parsed.isDetail, parsed.isSystem), listArgs)) {
+            while(lrs.next()) {
+                BackslashQuery descQuery = query.descQuery;
+                if(descQuery == null) {
+                    String type = lrs.getString(3);
+                    if(type.contains("SEQUENCE")) {
+                        descQuery = BackslashQuery.DESCRIBE_SEQUENCES;
+                    } else if(type.contains("VIEW")) {
+                        descQuery = BackslashQuery.DESCRIBE_VIEWS;
+                    } else {
+                        descQuery = BackslashQuery.DESCRIBE_TABLES;
+                    }
+                }
+                String schemaName = lrs.getString(1);
+                String tableName = lrs.getString(2);
+                String queryStr = descQuery.build(parsed.isDetail, parsed.isSystem);
+                try(ResultSet drs = execPrepared(queryStr, schemaName, tableName)) {
+                    String description = String.format("%s %s.%s", descQuery.descType, schemaName, tableName);
+                    resultPrinter.printResultSet(description, drs);
+                }
+                if(descQuery == BackslashQuery.DESCRIBE_TABLES) {
+                    execDescribeTableExtra(schemaName, tableName);
+                }
+            }
+        }
+    }
+
+    private void execDescribeTableExtra(String tableSchema, String tableName) throws Exception {
+        execDescribeTableExtra(BackslashQuery.EXTRA_TABLE_INDEXES, tableSchema, tableName,
+                               true, "Indexes", "%s%s (%s)%s", -1);
+
+        boolean first = execDescribeTableExtra(BackslashQuery.EXTRA_TABLE_FK_REFERENCES, tableSchema, tableName,
+                                               true, "References", "%s FOREIGN KEY (%s) REFERENCES %s (%s)", -1);
+        execDescribeTableExtra(BackslashQuery.EXTRA_TABLE_GFK_REFERENCES, tableSchema, tableName,
+                               first, "References", "GROUPING FOREIGN KEY (%s) REFERENCES %s (%s)", 1);
+
+        first = execDescribeTableExtra(BackslashQuery.EXTRA_TABLE_FK_REFERENCED_BY, tableSchema, tableName,
+                                       true, "Referenced By", "TABLE %s CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)", -1);
+        execDescribeTableExtra(BackslashQuery.EXTRA_TABLE_GFK_REFERENCED_BY, tableSchema, tableName,
+                               first, "Referenced By", "TABLE %s GROUPING FOREIGN KEY (%s) REFERENCES %s (%s)", 2);
+        sink.println();
+    }
+
+    private boolean execDescribeTableExtra(BackslashQuery query, String schema, String table,
+                                           boolean first, String description, String format, int skipArg) throws Exception {
+        List<String> args = new ArrayList<>();
+        try(ResultSet rs = execPrepared(query.build(false, false), schema, table)) {
+            while(rs.next()) {
+                if(first) {
+                    sink.print(description);
+                    sink.println(":");
+                    first = false;
+                }
+                for(int i = 1; i <= rs.getMetaData().getColumnCount(); ++i) {
+                    if(i != skipArg) {
+                        args.add(rs.getString(i));
+                    }
+                }
+                sink.print("    ");
+                sink.println(String.format(format, args.toArray(new String[args.size()])));
+                args.clear();
+            }
+        }
+        return first;
+    }
+
+    private void execInput(BackslashParser.Parsed parsed) throws Exception {
         if(parsed.args.isEmpty()) {
             sink.printlnError("Missing file argument");
         } else {
@@ -480,7 +525,7 @@ public class CLIClient implements Closeable
         }
     }
 
-    private void runBackslashO(BackslashParser.Parsed parsed) throws Exception {
+    private void execOutput(BackslashParser.Parsed parsed) throws Exception {
         if(otherSink != null) {
             otherSink.close();
             otherSink = null;
@@ -498,10 +543,14 @@ public class CLIClient implements Closeable
         }
     }
 
-    private ResultSet execPrepared(String prepKey, String query, String[] args) throws SQLException {
+    private ResultSet execPrepared(String query, String... args) throws SQLException {
         for(int retry = 0; retry < MAX_PREPARED_RETRY; ++retry) {
             try {
-                PreparedStatement pStmt = getPrepared(prepKey, query);
+                PreparedStatement pStmt = preparedStatements.get(query);
+                if(pStmt == null) {
+                    pStmt = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                    preparedStatements.put(query, pStmt);
+                }
                 for(int i = 0; i < args.length; ++i) {
                     pStmt.setString(i + 1, args[i]);
                 }
@@ -510,26 +559,13 @@ public class CLIClient implements Closeable
                 if(!STALE_STATEMENT_CODE.equals(e.getSQLState())) {
                     throw e;
                 }
-                closePrepared(prepKey);
+                PreparedStatement pStmt = preparedStatements.remove(query);
+                if(pStmt != null) {
+                    pStmt.close();
+                }
             }
         }
         throw new IllegalStateException("Unable to exec prepared statement");
-    }
-
-    private void closePrepared(String key) throws SQLException {
-        PreparedStatement pStmt = preparedStatements.remove(key);
-        if(pStmt != null) {
-            pStmt.close();
-        }
-    }
-
-    private PreparedStatement getPrepared(String key, String statement) throws SQLException {
-        PreparedStatement pStmt = preparedStatements.get(key);
-        if(pStmt == null) {
-            pStmt = connection.prepareStatement(statement, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            preparedStatements.put(key, pStmt);
-        }
-        return pStmt;
     }
 
     private String getConnectionDescription() {

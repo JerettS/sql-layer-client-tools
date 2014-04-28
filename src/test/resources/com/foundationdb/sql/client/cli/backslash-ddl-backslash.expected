@@ -1,10 +1,10 @@
-Schema | Name 
---------+------
+ Schema | Name | Group Path 
+--------+------+------------
 (0 rows)
 
 ROWS: 0
 
- Schema | Name 
---------+------
- test   | foo  
+ Schema | Name | Group Path 
+--------+------+------------
+ test   | foo  | test.foo   
 (1 row)

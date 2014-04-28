@@ -4,7 +4,7 @@
     <groupId>com.foundationdb</groupId>
     <artifactId>fdb-sql-layer-client-tools</artifactId>
     <packaging>jar</packaging>
-    <version>1.9.4-SNAPSHOT</version>
+    <version>1.9.5-SNAPSHOT</version>
     <name>FoundationDB SQL Layer Client Tools</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -25,7 +25,7 @@
         <dependency>
             <groupId>com.foundationdb</groupId>
             <artifactId>fdb-sql-layer-jdbc</artifactId>
-            <version>1.9-4-jdbc41-SNAPSHOT</version>
+            <version>1.9-5-jdbc41-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>jline</groupId>
