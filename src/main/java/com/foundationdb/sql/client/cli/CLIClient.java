@@ -51,6 +51,8 @@ public class CLIClient implements Closeable
     private static final Map<BackslashCommand,BackslashQuery> LIST_QUERY;
     private static final Map<BackslashCommand,BackslashQuery> DESC_QUERY;
 
+    private static Integer lastError = 0;
+
     static {
         LIST_QUERY = new HashMap<>();
         LIST_QUERY.put(BackslashCommand.L_ALL, BackslashQuery.LIST_ALL);
@@ -127,6 +129,7 @@ public class CLIClient implements Closeable
         } finally {
             client.close();
         }
+        System.exit(lastError);
     }
 
 
@@ -139,7 +142,7 @@ public class CLIClient implements Closeable
     private boolean isRunning = true;
     private boolean withQueryEcho = false;
     private boolean showTiming = false;
-
+    
     private Connection connection;
     private Statement statement;
     private Map<String,PreparedStatement> preparedStatements;
@@ -210,6 +213,7 @@ public class CLIClient implements Closeable
                 qb.reset();
             }
             while(isConsuming && isRunning && qb.hasQuery()) {
+                lastError = 0;
                 boolean isBackslash = qb.isBackslash();
                 String query = qb.nextQuery();
                 // User friendly: don't send empty or only semi, which will give a parse error
@@ -251,6 +255,7 @@ public class CLIClient implements Closeable
                     } else {
                         printWarnings(statement);
                         resultPrinter.printError(e);
+                        lastError = Integer.parseInt(e.getSQLState().substring(0, 2), 36);
                     }
                 }
                 sink.flush();
