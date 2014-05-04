@@ -40,6 +40,9 @@ public class LoadClient
             for (File file : options.files) {
                 loadClient.load(file);
             }
+        } catch (Exception e) {
+            System.err.println (e.getMessage());
+            System.exit(1);
         }
         finally {
             loadClient.clearConnections();
@@ -195,9 +198,8 @@ public class LoadClient
     }
 
     protected void clearConnections() throws SQLException {
-        while (true) {
-            Connection connection = connections.poll();
-            if (connection == null) break;
+        
+        for (Connection connection : connections) {
             connection.close();
         }
     }
