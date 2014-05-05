@@ -68,8 +68,32 @@ public class CLIClient implements Closeable
     }
 
 
+    /**
+     * A private static entry point used for testing. 
+     * @param args
+     * @throws Exception
+     */
+    public static void test_main (String[] args) throws Exception  {
+        int lastError = real_main (args);
+    }
+    
+    /**
+     * The real main() entry point for the fdbsqlcli program. Exits
+     * with an return code > 0 if a statement failed. 
+     * @param args - command line parameters
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
-        
+        System.exit(real_main(args));
+    }
+    
+    /**
+     * The real, full processing loop internals. 
+     * @param args - command line parameters
+     * @return exit code. 
+     * @throws Exception
+     */
+    private static int real_main(String[] args) throws Exception {
         int lastError = 0;
         
         CLIClientOptions options = new CLIClientOptions();
@@ -116,7 +140,7 @@ public class CLIClient implements Closeable
             if(e instanceof SQLException) {
                 System.err.println("Connection details: " + client.getConnectionDescription());
             }
-            System.exit(1);
+            return 1;
         }
         try {
             if(!options.quiet) {
@@ -130,7 +154,7 @@ public class CLIClient implements Closeable
         } finally {
             client.close();
         }
-        System.exit(lastError);
+        return lastError;
     }
 
 
@@ -257,7 +281,11 @@ public class CLIClient implements Closeable
                     } else {
                         printWarnings(statement);
                         resultPrinter.printError(e);
-                        lastError = Integer.parseInt(e.getSQLState().substring(0, 2), 36);
+                        if (e.getSQLState() != null) {
+                            lastError = Integer.parseInt(e.getSQLState().substring(0, 2), 36);
+                        } else {
+                            lastError = 3;
+                        }
                         // Should never happen because the SQLCode values in the SQLLayer 
                         // as of the time of this merge request don't exceed 252. 
                         lastError = lastError > 255 ? 4 : lastError;
