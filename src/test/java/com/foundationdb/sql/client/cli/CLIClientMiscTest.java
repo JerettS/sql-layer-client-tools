@@ -167,6 +167,7 @@ public class CLIClientMiscTest
             sb.toString()
         );
     }
+
     @Test
     public void backslashIMissing() throws Exception {
         File tmpFile = tmpFileFrom(
@@ -317,7 +318,7 @@ public class CLIClientMiscTest
             System.setOut(new PrintStream(testOut));
             System.setErr(System.out);
 
-            CLIClient.main(args);
+            CLIClient.test_main(args);
             if(expected != null) {
                 if (startsWith){
                     assertEquals(expected, testOut.toString().substring(0, expected.length()));                    

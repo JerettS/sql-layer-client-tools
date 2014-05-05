@@ -68,7 +68,34 @@ public class CLIClient implements Closeable
     }
 
 
+    /**
+     * A private static entry point used for testing. 
+     * @param args
+     * @throws Exception
+     */
+    public static void test_main (String[] args) throws Exception  {
+        int lastError = real_main (args);
+    }
+    
+    /**
+     * The real main() entry point for the fdbsqlcli program. Exits
+     * with an return code > 0 if a statement failed. 
+     * @param args - command line parameters
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
+        System.exit(real_main(args));
+    }
+    
+    /**
+     * The real, full processing loop internals. 
+     * @param args - command line parameters
+     * @return exit code. 
+     * @throws Exception
+     */
+    private static int real_main(String[] args) throws Exception {
+        int lastError = 0;
+        
         CLIClientOptions options = new CLIClientOptions();
         options.parseOrDie(PROGRAM_NAME, args);
         // Positional arg overrides named parameter
@@ -113,7 +140,7 @@ public class CLIClient implements Closeable
             if(e instanceof SQLException) {
                 System.err.println("Connection details: " + client.getConnectionDescription());
             }
-            System.exit(1);
+            return 1;
         }
         try {
             if(!options.quiet) {
@@ -123,10 +150,11 @@ public class CLIClient implements Closeable
                 }
                 client.printVersionInfo();
             }
-            client.runLoop();
+            lastError = client.runLoop();
         } finally {
             client.close();
         }
+        return lastError;
     }
 
 
@@ -139,7 +167,7 @@ public class CLIClient implements Closeable
     private boolean isRunning = true;
     private boolean withQueryEcho = false;
     private boolean showTiming = false;
-
+    
     private Connection connection;
     private Statement statement;
     private Map<String,PreparedStatement> preparedStatements;
@@ -169,11 +197,12 @@ public class CLIClient implements Closeable
         }
     }
 
-    public void runLoop() throws Exception {
-        consumeSource(source, withPrompt, withQueryEcho);
+    public int runLoop() throws Exception {
+        return consumeSource(source, withPrompt, withQueryEcho);
     }
 
-    private void consumeSource(InputSource localSource, boolean doPrompt, boolean doEcho) throws Exception {
+    private int consumeSource(InputSource localSource, boolean doPrompt, boolean doEcho) throws Exception {
+        int lastError = 0;
         QueryBuffer qb = new QueryBuffer();
         boolean isConsuming = true;
         while(isConsuming && isRunning) {
@@ -210,6 +239,7 @@ public class CLIClient implements Closeable
                 qb.reset();
             }
             while(isConsuming && isRunning && qb.hasQuery()) {
+                lastError = 0;
                 boolean isBackslash = qb.isBackslash();
                 String query = qb.nextQuery();
                 // User friendly: don't send empty or only semi, which will give a parse error
@@ -251,6 +281,14 @@ public class CLIClient implements Closeable
                     } else {
                         printWarnings(statement);
                         resultPrinter.printError(e);
+                        if (e.getSQLState() != null) {
+                            lastError = Integer.parseInt(e.getSQLState().substring(0, 2), 36);
+                        } else {
+                            lastError = 3;
+                        }
+                        // Should never happen because the SQLCode values in the SQLLayer 
+                        // as of the time of this merge request don't exceed 252. 
+                        lastError = lastError > 255 ? 4 : lastError;
                     }
                 }
                 sink.flush();
@@ -260,6 +298,7 @@ public class CLIClient implements Closeable
                 localSource.addHistory(completed);
             }
         }
+        return lastError;
     }
 
 

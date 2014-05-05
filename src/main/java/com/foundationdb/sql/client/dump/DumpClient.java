@@ -46,6 +46,9 @@ public class DumpClient
         DumpClient dumpClient = new DumpClient(options);
         try {
             dumpClient.dump();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
         }
         finally {
             dumpClient.close();
