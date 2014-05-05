@@ -51,8 +51,6 @@ public class CLIClient implements Closeable
     private static final Map<BackslashCommand,BackslashQuery> LIST_QUERY;
     private static final Map<BackslashCommand,BackslashQuery> DESC_QUERY;
 
-    private static Integer lastError = 0;
-
     static {
         LIST_QUERY = new HashMap<>();
         LIST_QUERY.put(BackslashCommand.L_ALL, BackslashQuery.LIST_ALL);
@@ -71,6 +69,9 @@ public class CLIClient implements Closeable
 
 
     public static void main(String[] args) throws Exception {
+        
+        int lastError = 0;
+        
         CLIClientOptions options = new CLIClientOptions();
         options.parseOrDie(PROGRAM_NAME, args);
         // Positional arg overrides named parameter
@@ -125,7 +126,7 @@ public class CLIClient implements Closeable
                 }
                 client.printVersionInfo();
             }
-            client.runLoop();
+            lastError = client.runLoop();
         } finally {
             client.close();
         }
@@ -172,11 +173,12 @@ public class CLIClient implements Closeable
         }
     }
 
-    public void runLoop() throws Exception {
-        consumeSource(source, withPrompt, withQueryEcho);
+    public int runLoop() throws Exception {
+        return consumeSource(source, withPrompt, withQueryEcho);
     }
 
-    private void consumeSource(InputSource localSource, boolean doPrompt, boolean doEcho) throws Exception {
+    private int consumeSource(InputSource localSource, boolean doPrompt, boolean doEcho) throws Exception {
+        int lastError = 0;
         QueryBuffer qb = new QueryBuffer();
         boolean isConsuming = true;
         while(isConsuming && isRunning) {
@@ -256,6 +258,9 @@ public class CLIClient implements Closeable
                         printWarnings(statement);
                         resultPrinter.printError(e);
                         lastError = Integer.parseInt(e.getSQLState().substring(0, 2), 36);
+                        // Should never happen because the SQLCode values in the SQLLayer 
+                        // as of the time of this merge request don't exceed 252. 
+                        lastError = lastError > 255 ? 4 : lastError;
                     }
                 }
                 sink.flush();
@@ -265,6 +270,7 @@ public class CLIClient implements Closeable
                 localSource.addHistory(completed);
             }
         }
+        return lastError;
     }
 
 
