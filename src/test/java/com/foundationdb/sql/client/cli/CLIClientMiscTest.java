@@ -299,7 +299,7 @@ public class CLIClientMiscTest
     @Test
     public void badOnError1() throws Exception {
         runAndCheck(false, 
-                "Wrong error type: invalid, expected [EXIT|CONTINUE]\n",
+                "Wrong error type: invalid, expected [CONTINUE|EXIT]\n",
                 "--skip-rc", "-q", "-c", "\\onerror invalid"
             );
     }

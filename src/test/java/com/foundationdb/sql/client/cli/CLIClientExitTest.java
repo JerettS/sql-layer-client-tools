@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2012-2013 FoundationDB, LLC
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses.
+ */
+
 package com.foundationdb.sql.client.cli;
 
 import static org.junit.Assert.assertEquals;
@@ -104,12 +119,12 @@ public class CLIClientExitTest {
     @Test
     public void continueSuccess() throws Exception {
         File tmpFile = tmpFileFrom(
-            "\\onerror CONTINUE success",
+            "\\onerror CONTINUE",
             "select from t;"
         );
         runAndCheck(false,
                 0, 
-            "\\onerror CONTINUE success\n" +
+            "\\onerror CONTINUE\n" +
             "On-Error is CONTINUE SUCCESS\n" +
             "select from t;\n"+
             "ERROR: Encountered \" \"from\" \"from \"\" at line 1, column 8.\n"+
@@ -123,6 +138,9 @@ public class CLIClientExitTest {
         );
     }
 
+    // NOTE: This test is correct. The \onerror CONTINUE 
+    // uses only one parameter, but will accept two, 
+    // the second being ignored. This test verifies this.
     @Test
     public void continueSqlcode() throws Exception {
         File tmpFile = tmpFileFrom(
@@ -224,7 +242,78 @@ public class CLIClientExitTest {
             "--skip-rc", "-q", "--on-error", "EXIT", "xxdD", "-f", tmpFile.getAbsolutePath()
         );
     }
-   
+
+    @Test
+    public void quitCode() throws Exception {
+        File tmpFile = tmpFileFrom(
+            "\\q 42"
+        );
+        runAndCheck(false,
+                42, 
+            "\\q 42" +    
+            "\n",
+
+            "--skip-rc", "-q", "-f", tmpFile.getAbsolutePath()
+        );
+    }
+    
+    @Test
+    public void quitPlain() throws Exception {
+        File tmpFile = tmpFileFrom(
+            "\\q"
+        );
+        runAndCheck(false,
+                0, 
+            "\\q" +    
+            "\n",
+
+            "--skip-rc", "-q", "-f", tmpFile.getAbsolutePath()
+        );
+    }
+    
+    @Test
+    public void exitInclude() throws Exception {
+        File tmpFile1 = tmpFileFrom (
+                "select from t;"
+        );
+        
+        File tmpFile2 = tmpFileFrom (
+                "\\onerror EXIT FAILURE",
+                "\\i " + tmpFile1.getAbsolutePath(),
+                "select * from t;"
+        );
+        
+        runAndCheck(false,
+            1,
+            "\\onerror EXIT FAILURE\n" +
+            "On-Error is EXIT FAILURE\n" +
+            "\\i "+ tmpFile1.getAbsolutePath() + "\n" +                    
+            "select from t;\n"+
+            "ERROR: Encountered \" \"from\" \"from \"\" at line 1, column 8.\n"+
+            "Was expecting one of:\n"+
+            "    \"*\" ...\n" +
+            "    \"**\" ...\n"+
+            "    \n" +
+            "\n",
+            
+            "--skip-rc", "-q", "-f", tmpFile2.getAbsolutePath()
+        );
+    }
+    
+    @Test
+    public void testSetting() throws Exception {
+        File tmpFile = tmpFileFrom(
+                "\\onerror"
+            );
+            runAndCheck(false,
+                    0, 
+                "\\onerror\n" +
+                "On-Error is CONTINUE SUCCESS\n",
+
+                "--skip-rc", "-q", "-f", tmpFile.getAbsolutePath()
+            );
+        
+    }
     
     private static File tmpFileFrom(String... lines) throws IOException {
         File tmpFile = File.createTempFile(CLIClientMiscTest.class.getSimpleName(), null);
@@ -263,6 +352,4 @@ public class CLIClientExitTest {
             System.setErr(origErr);
         }
     }
-
-
 }
