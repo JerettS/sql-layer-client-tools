@@ -46,7 +46,20 @@ public abstract class ClientTestBase
     }
 
     protected void dropSchema(String schema) throws Exception {
-        openConnection().createStatement().execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+        Connection conn = null;
+        StatementHelper helper = null;
+        try {
+            conn = openConnection();
+            helper = new StatementHelper(conn);
+            helper.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+        } finally {
+            if(helper != null) {
+                helper.close();
+            }
+            if(conn != null) {
+                conn.close();
+            }
+        }
     }
 
     public static File[] listMatchingFiles(File dir, String pattern) {
