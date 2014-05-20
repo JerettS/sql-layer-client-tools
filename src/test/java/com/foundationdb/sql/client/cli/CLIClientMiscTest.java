@@ -296,6 +296,45 @@ public class CLIClientMiscTest
         );
     }
 
+    @Test
+    public void badOnError1() throws Exception {
+        runAndCheck(false, 
+                "Wrong error type: invalid, expected [CONTINUE|EXIT]\n",
+                "--skip-rc", "-q", "-c", "\\onerror invalid"
+            );
+    }
+    
+    @Test
+    public void badOnError2() throws Exception {
+        runAndCheck(false, 
+                "Wrong onError status: bad, expected [SUCCESS|FAILURE|SQLCODE|<n>]\n",
+                "--skip-rc", "-q", "-c", "\\onerror EXIT bad"
+            );
+    }
+    
+    @Test
+    public void onErrorSuccess() throws Exception {
+        runAndCheck(false, 
+                "On-Error is CONTINUE SUCCESS\n",
+                "--skip-rc", "-q", "-c", "\\onerror CONTINUE"
+            );
+    }
+    
+    @Test
+    public void onErrorExitFailure() throws Exception {
+        runAndCheck(false, 
+                "On-Error is EXIT FAILURE\n",
+                "--skip-rc", "-q", "-c", "\\onerror exit failure"
+            );
+    }
+
+    @Test
+    public void onErrorExitode() throws Exception {
+        runAndCheck(false, 
+                "On-Error is EXIT CODE\n",
+                "--skip-rc", "-q", "-c", "\\onerror exit 21"
+            );
+    }
 
     private static File tmpFileFrom(String... lines) throws IOException {
         File tmpFile = File.createTempFile(CLIClientMiscTest.class.getSimpleName(), null);

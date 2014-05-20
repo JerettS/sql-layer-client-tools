@@ -143,7 +143,16 @@ public class BackslashParserTest
         expect("\\i \"my file.sql\"", "i", false, false, false, "my file.sql");
     }
 
+    @Test
+    public void onerrorSplit1() {
+        expect ("\\onerror CONTINUE", "onerror", false, false, "CONTINUE");
+    }
 
+    @Test
+    public void onerrorSplit2() {
+        expect("\\onerror EXIT 1", "onerror", false, false, "EXIT", "1");
+    }
+    
     private static void expect(String input, String command, boolean isSystem, boolean isDetail, String... args) {
         expect(input, command, isSystem, isDetail, true, args);
     }

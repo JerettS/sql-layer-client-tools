@@ -19,6 +19,9 @@ package com.foundationdb.sql.client.cli;
 import org.fusesource.jansi.internal.CLibrary;
 import org.postgresql.util.PSQLState;
 
+import com.foundationdb.sql.client.cli.CLIClientOptions.OnErrorStatus;
+import com.foundationdb.sql.client.cli.CLIClientOptions.OnErrorType;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -73,8 +76,8 @@ public class CLIClient implements Closeable
      * @param args
      * @throws Exception
      */
-    public static void test_main (String[] args) throws Exception  {
-        int lastError = real_main (args);
+    public static int test_main (String[] args) throws Exception  {
+        return real_main (args);
     }
     
     /**
@@ -135,6 +138,12 @@ public class CLIClient implements Closeable
                 String input = "\\o " + options.output;
                 client.execOutput(BackslashParser.parseFrom(input, false));
             }
+            
+            if (options.onError.size() == 2) {
+                String input = "\\onerror " + options.onError.get(0) + " " + options.onError.get(1);
+                client.toggleOnError(BackslashParser.parseFrom(input, false));
+            }
+            
         } catch(Exception e) {
             System.err.println(e.getMessage());
             if(e instanceof SQLException) {
@@ -251,7 +260,10 @@ public class CLIClient implements Closeable
                         sink.println(query);
                     }
                     if(isBackslash) {
-                        runBackslash(query);
+                        lastError = runBackslash(query);
+                        if (options.onErrorType == OnErrorType.EXIT && lastError != 0) {
+                            isRunning = false;
+                        }
                     } else {
                         // TODO: No way to get the ResultSet *and* updateCount for RETURNING?
 
@@ -281,14 +293,31 @@ public class CLIClient implements Closeable
                     } else {
                         printWarnings(statement);
                         resultPrinter.printError(e);
-                        if (e.getSQLState() != null) {
-                            lastError = Integer.parseInt(e.getSQLState().substring(0, 2), 36);
-                        } else {
-                            lastError = 3;
+                        
+                        switch (options.onErrorStatus) {
+                        case CODE:
+                            lastError = options.statusCode;
+                            break;
+                        case FAILURE:
+                            lastError = 1;
+                            break;
+                        case SQLCODE:
+                            if (state != null) {
+                                lastError = Integer.parseInt(state.substring(0, 2), 36);
+                                // Should never happen because the SQLCode values in the SQLLayer 
+                                // as of the time of this merge request don't exceed 252. 
+                                lastError = lastError > 255 ? 4 : lastError;
+                            } else {
+                                lastError = 3;
+                            }
+                            break;
+                        case SUCCESS:
+                            lastError = 0;
+                            break;
                         }
-                        // Should never happen because the SQLCode values in the SQLLayer 
-                        // as of the time of this merge request don't exceed 252. 
-                        lastError = lastError > 255 ? 4 : lastError;
+                        if (options.onErrorType == OnErrorType.EXIT) {
+                            isRunning = false;
+                        }
                     }
                 }
                 sink.flush();
@@ -407,7 +436,8 @@ public class CLIClient implements Closeable
         sink.println();              
     }
 
-    private void runBackslash(String input) throws Exception {
+    private int runBackslash(String input) throws Exception {
+        int lastError = 0;
         input = input.trim();
         if (input.endsWith(";")){
             input = input.substring(0, input.length()-1);
@@ -430,7 +460,7 @@ public class CLIClient implements Closeable
             break;
             case I_FILE:
                 // re-parse to not split on periods
-                execInput(BackslashParser.parseFrom(input, false));
+                lastError = execInput(BackslashParser.parseFrom(input, false));
             break;
             case O_FILE:
                 // re-parse to not split on periods
@@ -443,7 +473,21 @@ public class CLIClient implements Closeable
             case HELP:
                 printBackslashHelp();
             break;
+            case ON_ERROR:
+                toggleOnError(parsed);
+                break;
             case QUIT:
+                if (parsed.args.size() == 1) {
+                    try {
+                        Integer value = Integer.parseInt(parsed.args.get(0));
+                        if (value >= 0 && value <= 255) {
+                            lastError = value;
+                        }
+                    } catch (NumberFormatException e) {
+                        // Explicitly do nothing. 
+                    }
+                }
+                
                 isRunning = false;
             break;
             default:
@@ -461,12 +505,58 @@ public class CLIClient implements Closeable
                 }
             break;
         }
+        return lastError;
     }
 
     private void toggleShowTiming() {
         showTiming = !showTiming;
     }
     
+    
+    private void toggleOnError(BackslashParser.Parsed parsed) throws IOException {
+        if(parsed.args.isEmpty()) {
+            // Do Nothing, the status is printed below on the way out
+        } else if (parsed.args.size() == 1) {
+            String typeName = parsed.argOr(0, CLIClientOptions.OnErrorType.CONTINUE.name());
+            OnErrorType type = OnErrorType.fromString(typeName);
+            if (type != OnErrorType.CONTINUE) {
+                sink.printlnError ("Wrong error type: " + typeName + ", expected [CONTINUE|EXIT]");
+                return;
+            }
+            options.onErrorType = type;
+            options.onErrorStatus = OnErrorStatus.SUCCESS;
+            
+        } else if (parsed.args.size() == 2) {
+            String typeName = parsed.argOr(0, CLIClientOptions.OnErrorType.CONTINUE.name());
+            String valueName = parsed.argOr(1, CLIClientOptions.OnErrorStatus.SUCCESS.name());
+        
+            OnErrorType type = OnErrorType.fromString(typeName);
+            if (type == null) {
+                sink.printlnError ("Wrong error type: " + typeName + ", expected [CONTINUE|EXIT]");
+                return;
+            }
+            OnErrorStatus status = OnErrorStatus.fromString(valueName);
+            if (status == null) {
+                sink.printlnError("Wrong onError status: " + valueName + ", expected [SUCCESS|FAILURE|SQLCODE|<n>]");
+                return;
+            }
+            options.onErrorType= type;
+            options.onErrorStatus = status;
+            
+            if (type == OnErrorType.CONTINUE) {
+                options.onErrorStatus = OnErrorStatus.SUCCESS;
+            }
+            
+            if (status == OnErrorStatus.CODE) {
+                options.statusCode = Integer.parseInt(valueName);
+            }
+        } else {
+            sink.printlnError("Missing on-error arguments, expected [CONTINUE|EXIT [SUCCESS|FAILURE|SQLCODE|<n>]]");
+            return;
+        }
+        sink.println(String.format("On-Error is %s %s", options.onErrorType.name(), options.onErrorStatus.name()));
+    }
+
     private void printTimingStatus() throws IOException{
         String status = "off";
         if (showTiming){
@@ -550,18 +640,20 @@ public class CLIClient implements Closeable
         return first;
     }
 
-    private void execInput(BackslashParser.Parsed parsed) throws Exception {
+    private int execInput(BackslashParser.Parsed parsed) throws Exception {
+        int lastError = 0;
         if(parsed.args.isEmpty()) {
             sink.printlnError("Missing file argument");
         } else {
             try {
                 FileReader reader = new FileReader(new File(options.includedParent, parsed.args.get(0)));
                 InputSource localSource = new ReaderSource(reader);
-                consumeSource(localSource, false, true);
+                lastError = consumeSource(localSource, false, true);
             } catch(FileNotFoundException e) {
                 sink.printlnError(e.getMessage());
             }
         }
+        return lastError;
     }
 
     private void execOutput(BackslashParser.Parsed parsed) throws Exception {
