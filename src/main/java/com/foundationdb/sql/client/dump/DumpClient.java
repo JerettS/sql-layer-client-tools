@@ -15,6 +15,7 @@
 
 package com.foundationdb.sql.client.dump;
 
+import com.foundationdb.sql.client.StatementHelper;
 import org.postgresql.copy.CopyManager;
 
 import java.io.*;
@@ -33,6 +34,7 @@ public class DumpClient
     private Map<String, Map<String,Sequence>> sequences = new TreeMap<String,Map<String, Sequence>>();
     private Map<String,Map<String,View>> views = new TreeMap<>();
     private Queue<String> afterDataStatements = new ArrayDeque<String>();
+    private StatementHelper stmtHelper = null;
     private String defaultSchema = null;
     private Writer output;
     private Connection connection;
@@ -83,8 +85,7 @@ public class DumpClient
         }
         openConnection();
         if (schemas.isEmpty()) {
-            Statement stmt = connection.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT schema_name FROM information_schema.schemata");
+            ResultSet rs = stmtHelper.executeQuery("SELECT schema_name FROM information_schema.schemata");
             while (rs.next()) {
                 String name = rs.getString(1);
                 if (!"information_schema".equals(name) &&
@@ -92,7 +93,6 @@ public class DumpClient
                     addSchema(name);
                 }
             }
-            stmt.close();
         }
         if (schemas.isEmpty()) {
             System.err.println("Database is empty.");
@@ -134,35 +134,45 @@ public class DumpClient
         }
         close();
     }
-    
+
+    private static final String LOAD_TABLES_QUERY =
+        "SELECT QUOTE_IDENT(table_schema, '`'), "+
+        "       table_name, "+
+        "       QUOTE_IDENT(table_name, '`') "+
+        "FROM information_schema.tables "+
+        "WHERE table_schema = ? AND table_type = 'TABLE' "+
+        "ORDER BY table_id";
+
     protected void loadTables(String schema) throws SQLException {
         Map<String,Table> tables = schemas.get(schema);
-        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(table_schema, '`'), table_name, QUOTE_IDENT(table_name, '`') FROM information_schema.tables "+
-                                                             "WHERE table_schema = ? AND table_type = 'TABLE' ORDER BY table_id");
-        stmt.setString(1, schema);
-        ResultSet rs = stmt.executeQuery();
+        ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_TABLES_QUERY, schema);
         while (rs.next()) {
             String quotedSchema = rs.getString(1);
             String name = rs.getString(2);
             tables.put(name, new Table(schema, quotedSchema, name, rs.getString(3)));
         }
-        stmt.close();
+        rs.close();
     }
+
+    private static final String LOAD_SEQUENCES_QUERY =
+        "SELECT QUOTE_IDENT(s.sequence_schema, '`'), "+
+        "       s.sequence_name, "+
+        "       QUOTE_IDENT(s.sequence_name, '`'), "+
+        "       NEXTVAL(s.sequence_schema, s.sequence_name), "+
+        "       s.increment, "+
+        "       s.minimum_value, "+
+        "       s.maximum_value, "+
+        "       s.cycle_option = 'YES', "+
+        "       c.sequence_name IS NOT NULL "+
+        "FROM information_schema.sequences s " +
+        "LEFT JOIN information_schema.columns c ON "+
+        "   s.sequence_schema=c.sequence_schema AND s.sequence_name=c.sequence_name " +
+        "WHERE s.sequence_schema = ? "+
+        "ORDER BY s.sequence_name";
 
     protected void loadSequences (String schema) throws SQLException {
         Map<String, Sequence> seqs = sequences.get(schema);
-        PreparedStatement stmt = connection.prepareStatement(
-                "select QUOTE_IDENT(s.sequence_schema, '`'), s.sequence_name, QUOTE_IDENT(s.sequence_name, '`')," +
-                " nextval(s.sequence_schema, s.sequence_name), " +
-                " s.increment, s.minimum_value, s.maximum_value, " +
-                " s.cycle_option = 'YES', " +
-                " c.sequence_name is not null" +
-                " from information_schema.sequences s " +
-                " left join information_schema.columns c on "+
-                "   s.sequence_schema=c.sequence_schema and s.sequence_name=c.sequence_name" +
-                " where s.sequence_schema = ? order by s.sequence_name");
-        stmt.setString(1, schema);
-        ResultSet rs = stmt.executeQuery();
+        ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_SEQUENCES_QUERY, schema);
         while (rs.next()) {
             String quotedSchema = rs.getString(1);
             String name = rs.getString(2);
@@ -170,51 +180,62 @@ public class DumpClient
                                          rs.getLong(4), rs.getLong(5), rs.getLong(6), rs.getLong(7),
                                          rs.getBoolean(8), rs.getBoolean(9)));
         }
+        rs.close();
     }
 
+    private static final String LOAD_GROUPS_QUERY =
+        "SELECT c.constraint_schema, "+
+        "       QUOTE_IDENT(c.constraint_schema, '`'), "+
+        "       c.constraint_table_name, "+
+        "       QUOTE_IDENT(c.constraint_table_name, '`'), "+
+        "       p.table_schema, "+
+        "       QUOTE_IDENT(p.table_schema, '`'), "+
+        "       p.table_name, "+
+        "       QUOTE_IDENT(p.table_name, '`'), "+
+        "       c.constraint_name, "+
+        "       c.unique_constraint_name, "+
+        "       p.constraint_type = 'PRIMARY KEY' "+
+        "FROM information_schema.grouping_constraints c "+
+        "LEFT JOIN information_schema.table_constraints p "+
+        "  ON  c.unique_schema = p.constraint_schema "+
+        "  AND c.unique_constraint_name = p.constraint_name "+
+        "WHERE p.table_name IS NOT NULL AND (c.constraint_schema = ? OR c.unique_schema = ?)";
+
     protected void loadGroups(String schema, Deque<String> pending) throws SQLException {
-        PreparedStatement kstmt = connection.prepareStatement("SELECT QUOTE_IDENT(column_name, '`') FROM information_schema.key_column_usage WHERE table_schema = ? AND table_name = ? AND constraint_name = ? ORDER BY ordinal_position");
-        PreparedStatement stmt = connection.prepareStatement("SELECT c.constraint_schema, QUOTE_IDENT(c.constraint_schema, '`'), c.constraint_table_name, QUOTE_IDENT(c.constraint_table_name, '`'), p.table_schema, "+
-                                                             "QUOTE_IDENT(p.table_schema, '`'), p.table_name, QUOTE_IDENT(p.table_name, '`'), c.constraint_name, c.unique_constraint_name, p.constraint_type = 'PRIMARY KEY'"+
-                                                             "FROM information_schema.grouping_constraints c "+
-                                                             "LEFT JOIN information_schema.table_constraints p "+
-                                                             "  ON  c.unique_schema = p.constraint_schema "+
-                                                             "  AND c.unique_constraint_name = p.constraint_name "+
-                                                             "WHERE p.table_name IS NOT NULL AND (c.constraint_schema = ? OR c.unique_schema = ?)");
-        stmt.setString(1, schema);
-        stmt.setString(2, schema);
-        ResultSet rs = stmt.executeQuery();
+        ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_GROUPS_QUERY, schema, schema);
         while (rs.next()) {
             Table child = findOrCreateTable(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), pending);
             Table parent = findOrCreateTable(rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), pending);
             child.parent = parent;
             parent.children.add(child);
-            child.childKeys = loadKeys(kstmt, child.schema, child.name, rs.getString(9));
+            child.childKeys = loadKeys(child.schema, child.name, rs.getString(9));
             boolean parentIsPrimary = rs.getBoolean(11);
             List<String> keys = null;
             if (parentIsPrimary)
                 keys = parent.primaryKeys;
             if (keys == null)
-                keys = loadKeys(kstmt, parent.schema, parent.name, rs.getString(10));
+                keys = loadKeys(parent.schema, parent.name, rs.getString(10));
             child.parentKeys = keys;
             if ((parent.primaryKeys == null) && parentIsPrimary)
                 parent.primaryKeys = keys;
         }
-        stmt.close();
+        rs.close();
         for (Table table : schemas.get(schema).values()) {
             if (table.primaryKeys == null) {
-                table.primaryKeys = loadKeys(kstmt, table.schema, table.name, table.name+".PRIMARY");
+                table.primaryKeys = loadKeys(table.schema, table.name, table.name+".PRIMARY");
             }
         }
-        kstmt.close();
     }
 
-    protected List<String> loadKeys(PreparedStatement kstmt, String schema, String table, String constraint) throws SQLException {
+    private static final String LOAD_KEYS_QUERY =
+        "SELECT QUOTE_IDENT(column_name, '`') "+
+        "FROM information_schema.key_column_usage "+
+        "WHERE table_schema = ? AND table_name = ? AND constraint_name = ? "+
+        "ORDER BY ordinal_position";
+
+    protected List<String> loadKeys(String schema, String table, String constraint) throws SQLException {
         List<String> keys = new ArrayList<String>();
-        kstmt.setString(1, schema);
-        kstmt.setString(2, table);
-        kstmt.setString(3, constraint);
-        ResultSet rs = kstmt.executeQuery();
+        ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_KEYS_QUERY, schema, table, constraint);
         while (rs.next()) {
             keys.add(rs.getString(1));
         }
@@ -222,14 +243,26 @@ public class DumpClient
         return keys;
     }
 
+    private static final String LOAD_VIEWS_QUERY =
+        "SELECT QUOTE_IDENT(table_schema, '`'), "+
+        "       table_name, " +
+        "       QUOTE_IDENT(table_name, '`'), "+
+        "       view_definition "+
+        "FROM information_schema.views "+
+        "WHERE table_schema = ? "+
+        "ORDER BY table_name";
+
+    private static final String LOAD_VIEWS_USAGE_QUERY =
+        "SELECT table_schema, "+
+        "       table_name "+
+        "FROM information_schema.view_table_usage "+
+        "WHERE view_schema = ? AND view_name = ?";
+
     protected void loadViews() throws SQLException {
-        PreparedStatement stmt = connection.prepareStatement("SELECT QUOTE_IDENT(table_schema, '`'), table_name, QUOTE_IDENT(table_name, '`'), view_definition "+
-                                                             "FROM information_schema.views WHERE table_schema = ? ORDER BY table_name");
         for (Map.Entry<String,Map<String,View>> entry : views.entrySet()) {
             String schema = entry.getKey();
             Map<String,View> views = entry.getValue();
-            stmt.setString(1, schema);
-            ResultSet rs = stmt.executeQuery();
+            ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_VIEWS_QUERY, schema);
             while (rs.next()) {
                 String quotedSchema = rs.getString(1);
                 String name = rs.getString(2);
@@ -238,13 +271,9 @@ public class DumpClient
             }
             rs.close();
         }
-        stmt.close();
-        stmt = connection.prepareStatement("SELECT table_schema, table_name FROM information_schema.view_table_usage WHERE view_schema = ? AND view_name = ?");
         for (Map.Entry<String,Map<String,View>> entry : views.entrySet()) {
-            stmt.setString(1, entry.getKey());
             for (View view : entry.getValue().values()) {
-                stmt.setString(2, view.name);
-                ResultSet rs = stmt.executeQuery();
+                ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_VIEWS_USAGE_QUERY, entry.getKey(), view.name);
                 while (rs.next()) {
                     String schema = rs.getString(1);
                     String name = rs.getString(2);
@@ -265,26 +294,37 @@ public class DumpClient
                 rs.close();
             }
         }
-        stmt.close();
     }
 
+    private static final String LOAD_FOREIGN_KEYS_QUERY =
+        "SELECT kcu1.position_in_unique_constraint, "+
+        "       rc.constraint_name, "+
+        "       QUOTE_IDENT(rc.constraint_name, '`'), "+
+        "       rc.match_option, "+
+        "       rc.update_rule, "+
+        "       rc.delete_rule, "+
+        "       kcu1.table_schema, "+
+        "       QUOTE_IDENT(kcu1.table_schema, '`'), "+
+        "       kcu1.table_name, "+
+        "       QUOTE_IDENT(kcu1.table_name, '`'), "+
+        "       kcu1.column_name, "+
+        "       kcu2.table_schema, "+
+        "       QUOTE_IDENT(kcu2.table_schema, '`'), "+
+        "       kcu2.table_name, "+
+        "       QUOTE_IDENT(kcu2.table_schema, '`'), "+
+        "       kcu2.column_name "+
+        "FROM information_schema.referential_constraints rc "+
+        "INNER JOIN information_schema.key_column_usage kcu1 USING (constraint_schema, constraint_name) "+
+        "INNER JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_schema = kcu2.constraint_schema "+
+        "   AND rc.unique_constraint_name = kcu2.constraint_name "+
+        "   AND kcu1.position_in_unique_constraint = kcu2.ordinal_position "+
+        "WHERE kcu1.table_schema = ? OR (kcu2.table_schema = ? AND kcu1.table_schema <> kcu2.table_schema)";
+
     protected void loadForeignKeys() throws SQLException {
-        PreparedStatement stmt = connection.prepareStatement("SELECT kcu1.position_in_unique_constraint," +
-                " rc.constraint_name, QUOTE_IDENT(rc.constraint_name, '`'), rc.match_option, rc.update_rule, rc.delete_rule, kcu1.table_schema, " +
-                "QUOTE_IDENT(kcu1.table_schema, '`'), kcu1.table_name, QUOTE_IDENT(kcu1.table_name, '`')," +
-                " kcu1.column_name, kcu2.table_schema, QUOTE_IDENT(kcu2.table_schema, '`'), kcu2.table_name, " +
-                "QUOTE_IDENT(kcu2.table_schema, '`'), kcu2.column_name FROM information_schema.referential_constraints rc" +
-                " INNER JOIN information_schema.key_column_usage kcu1 USING (constraint_schema, constraint_name) " +
-                "INNER JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_schema = kcu2.constraint_schema " +
-                "AND rc.unique_constraint_name = kcu2.constraint_name " +
-                "AND kcu1.position_in_unique_constraint = kcu2.ordinal_position " +
-                "WHERE kcu1.table_schema = ? OR (kcu2.table_schema = ? AND kcu1.table_schema <> kcu2.table_schema)");
         ForeignKey fkey = null;
         Set<String> schemas = this.schemas.keySet();
         for (String schema : schemas) {
-            stmt.setString(1, schema);
-            stmt.setString(2, schema);
-            ResultSet rs = stmt.executeQuery();
+            ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_FOREIGN_KEYS_QUERY, schema, schema);
             while (rs.next()) {
                 int pos = rs.getInt(1);
                 String name = rs.getString(2);
@@ -333,8 +373,8 @@ public class DumpClient
                 fkey.referencingColumns.add(referencingColumn);
                 fkey.referencedColumns.add(referencedColumn);
             }
+            rs.close();
         }
-        stmt.close();
     }
 
     protected static class Named implements Comparable<Named> {
@@ -565,25 +605,31 @@ public class DumpClient
         table.dropped = true;
     }
 
-    protected void outputCreateTables(Table rootTable) throws SQLException, IOException {
-        PreparedStatement stmt = connection.prepareStatement(
-                "SELECT column_name, QUOTE_IDENT(column_name, '`'), " +
-                " data_type, character_maximum_length, numeric_precision, numeric_scale," +
-                " character_set_name, collation_name, is_nullable," +
-                " sequence_schema, sequence_name, identity_generation" +
-                " FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position");
-        outputCreateTables(stmt, rootTable);
-        stmt.close();
-    }
-
-    protected void outputCreateTables(PreparedStatement stmt, Table parentTable) throws SQLException, IOException {
-        outputCreateTable(stmt, parentTable);
+    protected void outputCreateTables(Table parentTable) throws SQLException, IOException {
+        outputCreateTable(parentTable);
         for (Table child : parentTable.children) {
-            outputCreateTables(stmt, child);
+            outputCreateTables(child);
         }
     }
-    
-    protected void outputCreateTable(PreparedStatement stmt, Table table) throws SQLException, IOException {
+
+    private static final String OUTPUT_CREATE_TABLE_QUERY =
+        "SELECT column_name, "+
+        "       QUOTE_IDENT(column_name, '`'), "+
+        "       data_type, "+
+        "       character_maximum_length, "+
+        "       numeric_precision, "+
+        "       numeric_scale, "+
+        "       character_set_name, "+
+        "       collation_name, "+
+        "       is_nullable, "+
+        "       sequence_schema, "+
+        "       sequence_name, "+
+        "       identity_generation "+
+        "FROM information_schema.columns "+
+        "WHERE table_schema = ? AND table_name = ? "+
+        "ORDER BY ordinal_position";
+
+    protected void outputCreateTable(Table table) throws SQLException, IOException {
         Set<String> pkey = null, gkey = null;
         if (!table.primaryKeys.isEmpty())
             pkey = new HashSet<String>(table.primaryKeys);
@@ -592,9 +638,7 @@ public class DumpClient
         StringBuilder sql = new StringBuilder("CREATE TABLE ");
         qualifiedName(table, sql);
         sql.append('(');
-        stmt.setString(1, table.schema);
-        stmt.setString(2, table.name);
-        ResultSet rs = stmt.executeQuery();
+        ResultSet rs = stmtHelper.executeQueryPrepared(OUTPUT_CREATE_TABLE_QUERY, table.schema, table.name);
         boolean first = true;
         while (rs.next()) {
             if (first) {
@@ -667,8 +711,8 @@ public class DumpClient
             }
         }
         rs.close();
-        assert (pkey == null);
-        assert (gkey == null);
+        assert (pkey == null) : pkey;
+        assert (gkey == null) : gkey;
         sql.append(NL).append(");").append(NL).append(NL);
         output.write(sql.toString());
         table.dumped = true;
@@ -706,40 +750,45 @@ public class DumpClient
         if (unsigned)
             sql.append(" UNSIGNED");
     }
-    
-    protected void outputCreateIndexes(Table rootTable) throws SQLException, IOException {
-        PreparedStatement istmt = connection.prepareStatement("SELECT index_name, QUOTE_IDENT(index_name, '`')," +
-                " is_unique, join_type, index_method FROM information_schema.indexes " +
-                "WHERE table_schema = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') " +
-                "ORDER BY index_id");
-        PreparedStatement icstmt = connection.prepareStatement("SELECT column_schema, QUOTE_IDENT(column_schema, '`'), " +
-                "column_table, QUOTE_IDENT(column_table, '`'), column_name, QUOTE_IDENT(column_name, '`'), is_ascending " +
-                "FROM information_schema.index_columns " +
-                "WHERE column_schema = ? AND index_table_name = ? AND index_name = ? " +
-                "ORDER BY ordinal_position");
-        outputCreateIndexes(istmt, icstmt, rootTable);
-        icstmt.close();
-        istmt.close();
-    }
 
-    protected void outputCreateIndexes(PreparedStatement istmt, PreparedStatement icstmt, Table parentTable) throws SQLException, IOException {
-        outputCreateIndexesForTable(istmt, icstmt, parentTable);
+    protected void outputCreateIndexes(Table parentTable) throws SQLException, IOException {
+        outputCreateIndexesForTable(parentTable);
         for (Table child : parentTable.children) {
-            outputCreateIndexes(istmt, icstmt, child);
+            outputCreateIndexes(child);
         }
     }
 
-    protected void outputCreateIndexesForTable(PreparedStatement istmt, PreparedStatement icstmt, Table table) throws SQLException, IOException {
-        istmt.setString(1, table.schema);
-        istmt.setString(2, table.name);
-        ResultSet rs = istmt.executeQuery();
+    private static final String OUTPUT_CREATE_INDEXES_FOR_TABLE_QUERY =
+        "SELECT index_name, "+
+        "       QUOTE_IDENT(index_name, '`'), "+
+        "       is_unique, "+
+        "       join_type, "+
+        "       index_method "+
+        "FROM information_schema.indexes "+
+        "WHERE table_schema = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') "+
+        "ORDER BY index_id";
+
+    protected void outputCreateIndexesForTable(Table table) throws SQLException, IOException {
+        ResultSet rs = stmtHelper.executeQueryPrepared(OUTPUT_CREATE_INDEXES_FOR_TABLE_QUERY, table.schema, table.name);
         while (rs.next()) {
-            outputCreateIndex(icstmt, table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5));
+            outputCreateIndex(table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5));
         }
         rs.close();
     }    
 
-    protected void outputCreateIndex(PreparedStatement icstmt, Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod) throws SQLException, IOException {
+    private static final String OUTPUT_CREATE_INDEX_QUERY =
+        "SELECT column_schema, "+
+        "       QUOTE_IDENT(column_schema, '`'), "+
+        "       column_table, "+
+        "       QUOTE_IDENT(column_table, '`'), "+
+        "       column_name, "+
+        "       QUOTE_IDENT(column_name, '`'), "+
+        "       is_ascending "+
+        "FROM information_schema.index_columns " +
+        "WHERE index_table_schema = ? AND index_table_name = ? AND index_name = ? " +
+        "ORDER BY ordinal_position";
+
+    protected void outputCreateIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod) throws SQLException, IOException {
         for (ForeignKey fkey : table.foreignKeys) {
             if ((fkey.referencingTable == table) &&
                 index.equals(fkey.name)) {
@@ -756,10 +805,7 @@ public class DumpClient
         sql.append('(');
         if (indexMethod != null)
             sql.append(indexMethod).append("(");
-        icstmt.setString(1, table.schema);
-        icstmt.setString(2, table.name);
-        icstmt.setString(3, index);
-        ResultSet rs = icstmt.executeQuery();
+        ResultSet rs = stmtHelper.executeQueryPrepared(OUTPUT_CREATE_INDEX_QUERY, table.schema, table.name, index);
         boolean first = true;
         while (rs.next()) {
             if (first) {
@@ -1007,16 +1053,16 @@ public class DumpClient
     protected void openConnection() throws Exception {
         String url = options.getURL((defaultSchema != null) ? defaultSchema : "information_schema");
         connection = DriverManager.getConnection(url, options.user, options.password);
+        stmtHelper = new StatementHelper(connection);
         if (options.commitFrequency == DumpClientOptions.COMMIT_AUTO) {
-            Statement stmt = connection.createStatement();
-            stmt.execute("SET transactionPeriodicallyCommit TO 'true'");
-            stmt.close();
+            stmtHelper.executeQuery("SET transactionPeriodicallyCommit TO 'true'");
         }
         if (dumpData)
             copyManager = new CopyManager((org.postgresql.core.BaseConnection)connection);
     }
 
     protected void close() {
+        stmtHelper.close();
         if (output != null) {
             try {
                 output.close();
