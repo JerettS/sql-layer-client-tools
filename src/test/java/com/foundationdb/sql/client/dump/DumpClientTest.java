@@ -22,7 +22,9 @@ import com.foundationdb.junit.NamedParameterizedRunner;
 import com.foundationdb.junit.NamedParameterizedRunner.TestParameters;
 import com.foundationdb.junit.Parameterization;
 */
+import com.foundationdb.sql.client.StatementHelper;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
@@ -41,7 +43,7 @@ public class DumpClientTest extends ClientTestBase
                  + DumpClientTest.class.getPackage().getName().replace('.', '/'));
     public static final String SQL_PATTERN = ".*\\.sql";
 
-    @Parameters
+    @Parameters(name="{0}")
     public static Collection<Object[]> dumps() throws Exception {
         List<Object[]> result = new ArrayList<Object[]>();
         for (File sqlFile : listMatchingFiles(RESOURCE_DIR, SQL_PATTERN)) {
@@ -58,7 +60,8 @@ public class DumpClientTest extends ClientTestBase
         this.caseName = caseName;
         this.loadFile = loadFile;
     }
-    
+
+    @Before
     @After
     public void cleanUp() throws Exception {
         dropSchema();
@@ -71,10 +74,10 @@ public class DumpClientTest extends ClientTestBase
         String loaded = fileContents(loadFile);
 
         Connection conn = openConnection();
-        Statement stmt = conn.createStatement();
+        StatementHelper helper = new StatementHelper(conn);
         for (String sql : loaded.split("\\;\\s*")) {
             try {
-                stmt.execute(sql);
+                helper.execute(sql);
             }
             catch (SQLException ex) {
                 if (sql.indexOf("IGNORE ERRORS") < 0)
@@ -83,7 +86,7 @@ public class DumpClientTest extends ClientTestBase
                     System.out.println("IGNORED: " + ex);
             }
         }
-        stmt.close();
+        helper.close();
         conn.close();
 
         File dumpFile = File.createTempFile("dump-", ".sql");
