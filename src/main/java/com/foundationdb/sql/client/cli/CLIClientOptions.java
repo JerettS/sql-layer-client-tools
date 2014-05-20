@@ -16,11 +16,13 @@
 package com.foundationdb.sql.client.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 import com.foundationdb.sql.client.ClientOptionsBase;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Parameters (separators = "=")
 public class CLIClientOptions extends ClientOptionsBase
 {
     @Parameter(names = { "-s", "--schema" }, description = "schema name")
@@ -44,6 +46,9 @@ public class CLIClientOptions extends ClientOptionsBase
     @Parameter(names = {"--rc"}, description = "set configuration file to new path")
     public String configFileName = System.getProperty("user.home") + "/.fdbsqlclirc";
 
+    @Parameter(names = "--on-error", arity = 2, description = "on error handling")
+    public List<String> onError = new ArrayList<>();
+    
     @Parameter(description="[schema]")
     public List<String> positional = new ArrayList<>();
 
@@ -55,4 +60,54 @@ public class CLIClientOptions extends ClientOptionsBase
     String urlOptions = "";
     // Used as the parent directory for any \i file
     String includedParent = null;
+    OnErrorType onErrorType = OnErrorType.CONTINUE;
+    OnErrorStatus onErrorStatus = OnErrorStatus.SUCCESS;
+    Integer statusCode = 0;
+    
+    protected enum OnErrorType {
+        CONTINUE, 
+        EXIT;
+
+        public static OnErrorType fromString(String text) {
+            if (text != null) {
+                for (OnErrorType t : OnErrorType.values()) {
+                    if (text.equalsIgnoreCase(t.name())) {
+                        return t;
+                    }
+                }
+            }
+            return null;
+        }       
+    }
+    
+    protected enum OnErrorStatus {
+        SUCCESS (0),
+        FAILURE (1),
+        SQLCODE (-1),
+        CODE (-2),;
+        
+        public final Integer statusValue;
+        
+        private OnErrorStatus (int status) {
+            statusValue = status;
+        }
+        public static OnErrorStatus fromString(String text) {
+            if (text != null) {
+                for (OnErrorStatus s : OnErrorStatus.values()) {
+                    if (text.equalsIgnoreCase(s.name())) {
+                        return s;
+                    }
+                }
+                try  {
+                    Integer value = Integer.parseInt(text);
+                    if (value >= 0 && value <= 255) {
+                        return OnErrorStatus.CODE;
+                    }
+                } catch (NumberFormatException e) {
+                    // Explicitly do nothing. 
+                }
+            }
+            return null;
+        }       
+    }
 }

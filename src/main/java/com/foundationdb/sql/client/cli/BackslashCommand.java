@@ -36,6 +36,7 @@ public enum BackslashCommand
     L_VIEWS     ("lv", true, true,  "[[SCHEMA] NAME]",          "List views"),
 
     TIMING  ("timing", false, false, "",                         "Toggles switch to display time per query in milliseconds"),
+    ON_ERROR("onerror", false, false, "[CONTINUE|EXIT [N|SQLCODE|FAILURE|SUCCESS]]", "Handing errors when running multiple statements"),
     HELP    ("?", false, false, "", "display this help"),
     QUIT    ("q", false, false, "", "quit"),
     ;
