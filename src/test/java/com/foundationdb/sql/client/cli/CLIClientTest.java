@@ -74,6 +74,7 @@ public class CLIClientTest extends ClientTestBase
         options.includedParent = RESOURCE_DIR.getAbsolutePath();
     }
 
+    @Before
     @After
     public void cleanUp() throws Exception {
         dropSchema(options.schema);

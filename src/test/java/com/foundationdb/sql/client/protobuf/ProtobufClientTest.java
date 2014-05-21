@@ -17,6 +17,7 @@ package com.foundationdb.sql.client.protobuf;
 
 import com.foundationdb.sql.client.ClientTestBase;
 
+import com.foundationdb.sql.client.StatementHelper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -56,7 +57,8 @@ public class ProtobufClientTest extends ClientTestBase
         this.caseName = caseName;
         this.loadFile = loadFile;
     }
-    
+
+    @Before
     @After
     public void cleanUp() throws Exception {
         dropSchema();
@@ -67,11 +69,11 @@ public class ProtobufClientTest extends ClientTestBase
         String ddl = fileContents(loadFile);
 
         Connection conn = openConnection();
-        Statement stmt = conn.createStatement();
+        StatementHelper helper = new StatementHelper(conn);
         for (String sql : ddl.split("\\;\\s*")) {
-            stmt.execute(sql);
+            helper.execute(sql);
         }
-        stmt.close();
+        helper.close();
         conn.close();
 
         File protoFile = File.createTempFile("test-", ".proto");

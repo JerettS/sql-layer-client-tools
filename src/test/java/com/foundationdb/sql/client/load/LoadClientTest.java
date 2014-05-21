@@ -23,6 +23,7 @@ import com.foundationdb.junit.NamedParameterizedRunner.TestParameters;
 import com.foundationdb.junit.Parameterization;
 */
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
@@ -41,7 +42,7 @@ public class LoadClientTest extends ClientTestBase
                  + LoadClientTest.class.getPackage().getName().replace('.', '/'));
     public static final String PROPERTIES_PATTERN = ".*\\.properties";
 
-    @Parameters
+    @Parameters(name="{0}")
     public static Collection<Object[]> loads() throws Exception {
         List<Object[]> result = new ArrayList<Object[]>();
         for (File propertiesFile : listMatchingFiles(RESOURCE_DIR, PROPERTIES_PATTERN)) {
@@ -58,7 +59,8 @@ public class LoadClientTest extends ClientTestBase
         this.caseName = caseName;
         this.propertiesFile = propertiesFile;
     }
-    
+
+    @Before
     @After
     public void cleanUp() throws Exception {
         dropSchema();
