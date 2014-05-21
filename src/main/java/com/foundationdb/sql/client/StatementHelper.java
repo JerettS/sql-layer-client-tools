@@ -29,6 +29,7 @@ public class StatementHelper implements Closeable
 {
     public final static String STALE_STATEMENT_CODE = "0A50A";
     public final static String ROLLBACK_PREFIX = "40";
+    public final static boolean RETRY_ROLLBACK_DEFAULT = false;
 
     private final Connection conn;
     private final Map<String,PreparedStatement> preparedMap = new HashMap<String,PreparedStatement>();
@@ -57,19 +58,19 @@ public class StatementHelper implements Closeable
 
 
     public ResultSet executeQuery(String query) throws SQLException {
-        return executeQuery(query, true);
+        return executeQuery(query, RETRY_ROLLBACK_DEFAULT);
     }
 
-    public ResultSet executeQuery(String query, boolean doRetry) throws SQLException {
-        execute(query, doRetry);
+    public ResultSet executeQuery(String query, boolean retryRollback) throws SQLException {
+        execute(query, retryRollback);
         return stmt.getResultSet();
     }
 
     public boolean execute(String query) throws SQLException {
-        return execute(query, true);
+        return execute(query, RETRY_ROLLBACK_DEFAULT);
     }
 
-    public boolean execute(String query, boolean doRetry) throws SQLException {
+    public boolean execute(String query, boolean retryRollback) throws SQLException {
         for(;;) {
             try {
                 if(stmt == null) {
@@ -77,7 +78,7 @@ public class StatementHelper implements Closeable
                 }
                 return stmt.execute(query);
             } catch(SQLException e) {
-                if(!shouldRetry(e, doRetry)) {
+                if(!shouldRetry(e, retryRollback)) {
                     throw e;
                 }
                 // else retry
@@ -86,10 +87,10 @@ public class StatementHelper implements Closeable
     }
 
     public ResultSet executeQueryPrepared(String query, String... args) throws SQLException {
-        return executeQueryPrepared(query, true, args);
+        return executeQueryPrepared(query, RETRY_ROLLBACK_DEFAULT, args);
     }
 
-    public ResultSet executeQueryPrepared(String query, boolean doRetry, String... args) throws SQLException {
+    public ResultSet executeQueryPrepared(String query, boolean retryRollback, String... args) throws SQLException {
         for(;;) {
             PreparedStatement ps;
             try {
@@ -102,7 +103,7 @@ public class StatementHelper implements Closeable
                 }
                 return ps.executeQuery();
             } catch(SQLException e) {
-                if(!shouldRetry(e, doRetry)) {
+                if(!shouldRetry(e, retryRollback)) {
                     throw e;
                 }
                 preparedMap.remove(query);
@@ -111,7 +112,7 @@ public class StatementHelper implements Closeable
         }
     }
 
-    private boolean shouldRetry(SQLException e, boolean retryRollback) {
+    private static boolean shouldRetry(SQLException e, boolean retryRollback) {
         return STALE_STATEMENT_CODE.equals(e.getSQLState()) ||
                (retryRollback && e.getSQLState().startsWith(ROLLBACK_PREFIX));
     }

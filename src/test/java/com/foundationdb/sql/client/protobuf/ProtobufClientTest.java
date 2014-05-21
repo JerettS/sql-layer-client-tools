@@ -71,7 +71,7 @@ public class ProtobufClientTest extends ClientTestBase
         Connection conn = openConnection();
         StatementHelper helper = new StatementHelper(conn);
         for (String sql : ddl.split("\\;\\s*")) {
-            helper.execute(sql);
+            helper.execute(sql, true);
         }
         helper.close();
         conn.close();

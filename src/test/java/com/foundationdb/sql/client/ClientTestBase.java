@@ -51,7 +51,7 @@ public abstract class ClientTestBase
         try {
             conn = openConnection();
             helper = new StatementHelper(conn);
-            helper.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+            helper.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE", true);
         } finally {
             if(helper != null) {
                 helper.close();
