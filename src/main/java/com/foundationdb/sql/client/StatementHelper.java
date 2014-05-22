@@ -66,6 +66,15 @@ public class StatementHelper implements Closeable
         return stmt.getResultSet();
     }
 
+    public int executeUpdate(String query) throws SQLException {
+        return executeUpdate(query, RETRY_ROLLBACK_DEFAULT);
+    }
+
+    public int executeUpdate(String query, boolean retryRollback) throws SQLException {
+        execute(query, retryRollback);
+        return stmt.getUpdateCount();
+    }
+
     public boolean execute(String query) throws SQLException {
         return execute(query, RETRY_ROLLBACK_DEFAULT);
     }

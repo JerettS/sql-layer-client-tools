@@ -15,6 +15,8 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
@@ -84,7 +86,7 @@ class DumpLoader extends FileLoader
                                           start, end);
         StringBuilder str = new StringBuilder();
         Connection conn = getConnection(hasDDL);
-        Statement stmt = conn.createStatement();
+        StatementHelper helper = new StatementHelper(conn);
         long count = 0;
         int pending = 0;
         boolean success = false;
@@ -110,7 +112,7 @@ class DumpLoader extends FileLoader
                     if (hasDDL && conn.getAutoCommit()) {
                         conn.setAutoCommit(false);
                     }
-                    pending += stmt.executeUpdate(sql);
+                    pending += helper.executeUpdate(sql);
                     if ((client.getCommitFrequency() > 0) &&
                         (pending >= client.getCommitFrequency())) {
                         conn.commit();
@@ -126,7 +128,7 @@ class DumpLoader extends FileLoader
                     }
                     conn.setAutoCommit(true);
                     hasDDL = true; // Just in case.
-                    stmt.execute(sql);
+                    helper.execute(sql);
                 }
             }
             if (pending > 0) {
@@ -136,7 +138,7 @@ class DumpLoader extends FileLoader
             success = true;
         }
         finally {
-            stmt.close();
+            helper.close();
             returnConnection(conn, success);
         }
         return count;
