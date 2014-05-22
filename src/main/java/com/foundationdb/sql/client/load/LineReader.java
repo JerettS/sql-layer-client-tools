@@ -22,6 +22,8 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 
+import com.foundationdb.sql.client.cli.QueryBuffer;
+
 public class LineReader
 {
     public static final int SHORT_LINE = 128;
@@ -80,6 +82,39 @@ public class LineReader
         return str.toString();
     }
 
+    
+    public boolean readLine (QueryBuffer into) throws IOException {
+        StringBuilder line = new StringBuilder (SHORT_LINE);
+        boolean eol = false;
+        while (true) {
+            while (chars.hasRemaining()) {
+                char ch = chars.get();
+                if (ch == '\n') {
+                    eol = true;
+                    break;
+                }
+                else if (ch != '\r')
+                    line.append(ch);
+            }
+            
+            if (eol) {
+                if(!into.isEmpty()) {
+                    into.append(' '); // Collapsing multiple lines into one, add space
+                    into.appendLine(line.toString());
+                } else {
+                    into.appendLine(line.toString());
+                }
+                line.setLength(0);
+                eol = false;
+                if (into.hasQuery()) return true;
+            } else {
+                if (!refillCharsBuffer()) {
+                    return false;
+                }
+            }
+        }
+    }
+    
     public boolean readLine(StringBuilder into) throws IOException {
         while (true) {
             while (chars.hasRemaining()) {
@@ -88,25 +123,62 @@ public class LineReader
                 else if (ch != '\r')
                     into.append(ch);
             }
-            if (position >= limit) return false;
-            chars.clear();
-            if (bytes.hasRemaining()) {
-                if (position + bytes.limit() > limit)
-                    bytes.limit((int)(limit - position));
-                channel.read(bytes, position + bytes.position());
+            if (!refillCharsBuffer()) {
+                return false;
             }
-            bytes.flip();
-            decoder.decode(bytes, chars, (position + bytes.limit() >= limit));
-            position += bytes.position();
-            bytes.compact();
-            chars.flip();
         }
+    }
+
+    private boolean refillCharsBuffer() throws IOException {
+        long startPosition = position;
+        if (position >= limit) return false;
+        chars.clear();
+        if (bytes.hasRemaining()) {
+            if (position + bytes.limit() > limit)
+                bytes.limit((int)(limit - position));
+            channel.read(bytes, position + bytes.position());
+        }
+        bytes.flip();
+        decoder.decode(bytes, chars, (position + bytes.limit() >= limit));
+        position += bytes.position();
+        
+        // This case occurs when, due to a bug, the limit 
+        // is beyond the end of the channel. This becomes an infinite 
+        // loop.
+        if (position == startPosition) {
+            return false;
+        }
+        bytes.compact();
+        chars.flip();
+        return true;
     }
 
     public long newLineNear(long point) throws IOException {
         return newLineNear(point, -1);
     }
 
+    public long splitParse (long point) throws IOException {
+        QueryBuffer b  = new QueryBuffer();
+        long before = -1;
+        long after = -1;
+        
+        while (position < point) {
+            before = position;
+            readLine(b);
+            after = position;
+        }
+        
+        if (before <= 0) {
+            return after;
+        }
+        if ((point - before) < (after - point)) {
+            return before;
+        } else {
+            return after;
+        }
+    }
+    
+    
     public long newLineNear(long point, int prevChar) throws IOException {
         // NB: ints are relative positions, longs are absolute.
         // Find nearest in region around given point.

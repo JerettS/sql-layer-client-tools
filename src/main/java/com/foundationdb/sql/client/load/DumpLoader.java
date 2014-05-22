@@ -23,6 +23,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.foundationdb.sql.client.cli.QueryBuffer;
+
 class DumpLoader extends FileLoader
 {
     boolean hasDDL;
@@ -54,6 +56,26 @@ class DumpLoader extends FileLoader
         }
     }
 
+    protected class DumpSegmentQueryLoader extends SegmentLoader {
+        public DumpSegmentQueryLoader(long start, long end) {
+            super(DumpLoader.this.client, DumpLoader.this.channel, start, end);
+        }
+        
+        @Override
+        public void prepare() throws IOException {
+        }
+        
+        @Override
+        public void run() {
+            try {
+                count += executeSegmentQuery (start, end);
+            } catch (Exception ex) {
+                //TODO: Handle this better?
+                ex.printStackTrace();
+                
+            }
+        }
+    }
     protected class DumpSegmentLoader extends SegmentLoader {
         public DumpSegmentLoader(long start, long end) {
             super(DumpLoader.this.client, DumpLoader.this.channel,
@@ -77,6 +99,37 @@ class DumpLoader extends FileLoader
         }
     }
 
+    protected long executeSegmentQuery (long start, long end)
+        throws SQLException, IOException {
+        LineReader lines = new LineReader(channel, client.getEncoding(), 
+                BUFFER_SIZE, BUFFER_SIZE, 
+                start, end);
+        QueryBuffer buffer = new QueryBuffer (); 
+        Connection conn = getConnection(hasDDL);
+        Statement stmt = conn.createStatement();
+        long count = 0;
+        boolean success = false;
+        try {
+            while (true) {
+                if(!buffer.hasNonSpace()) {
+                    buffer.reset();
+                }
+                if (lines.readLine(buffer)) {
+                    while (buffer.hasQuery()) {
+                        String sql = buffer.nextQuery();
+                        count += executeSQL (conn, stmt, sql);
+                    }
+                } else {
+                    break;
+                }
+            }
+        } finally {
+            stmt.close();
+            returnConnection(conn, success);
+        }
+        return count;
+    }
+    
     protected long executeSegment(long start, long end) 
             throws SQLException, IOException {
         LineReader lines = new LineReader(channel, client.getEncoding(), 
@@ -106,28 +159,7 @@ class DumpLoader extends FileLoader
                     }
                 }
                 String sql = str.toString();
-                if (sql.startsWith("INSERT INTO ")) {
-                    if (hasDDL && conn.getAutoCommit()) {
-                        conn.setAutoCommit(false);
-                    }
-                    pending += stmt.executeUpdate(sql);
-                    if ((client.getCommitFrequency() > 0) &&
-                        (pending >= client.getCommitFrequency())) {
-                        conn.commit();
-                        count += pending;
-                        pending = 0;
-                    }
-                }
-                else {
-                    if (pending > 0) {
-                        conn.commit();
-                        count += pending;
-                        pending = 0;
-                    }
-                    conn.setAutoCommit(true);
-                    hasDDL = true; // Just in case.
-                    stmt.execute(sql);
-                }
+                count += executeSQL (conn, stmt, sql);
             }
             if (pending > 0) {
                 conn.commit();
@@ -142,12 +174,59 @@ class DumpLoader extends FileLoader
         return count;
     }
 
+    private int executeSQL (Connection conn, Statement stmt, String sql ) throws SQLException {
+        int pending = 0;
+        int count = 0;
+        if (sql.startsWith("INSERT INTO ")) {
+            if (hasDDL && conn.getAutoCommit()) {
+                conn.setAutoCommit(false);
+            }
+            pending += stmt.executeUpdate(sql);
+            if ((client.getCommitFrequency() > 0) &&
+                (pending >= client.getCommitFrequency())) {
+                conn.commit();
+                count += pending;
+                pending = 0;
+            }
+        }
+        else {
+            if (pending > 0) {
+                conn.commit();
+                count += pending;
+                pending = 0;
+            }
+            conn.setAutoCommit(true);
+            hasDDL = true; // Just in case.
+            stmt.execute(sql);
+        }
+        return count;
+    }
+    
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
         return new DumpSegmentLoader(start, end);
     }
 
+    public List<? extends SegmentLoader> splitParse (int nsegments) throws IOException {
+        List<DumpSegmentQueryLoader> segments = new ArrayList<>(nsegments);
+        long start = 0;
+        long end = channel.size();
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                                          FileLoader.SMALL_BUFFER_SIZE, 1,
+                                          start, end);
+        while (nsegments > 1) {
+            long mid = start + (end - start) / nsegments;
+            mid = lines.splitParse (mid);
+            segments.add(new DumpSegmentQueryLoader(start, mid));
+            start = mid;
+            lines.position(mid);
+            nsegments--;
+        }
+        segments.add(new DumpSegmentQueryLoader(start, end));
+        return segments;
+    }
+    
     public List<? extends SegmentLoader> split(int nsegments) throws IOException {
         List<DumpSegmentLoader> segments = new ArrayList<>(nsegments);
         long start = 0;

@@ -18,6 +18,7 @@ package com.foundationdb.sql.client.load;
 import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.BaseConverter;
 import com.foundationdb.sql.client.ClientOptionsBase;
 
@@ -25,6 +26,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+@Parameters (separators = "=")
 public class LoadClientOptions extends ClientOptionsBase
 {
     public static final int COMMIT_AUTO = -1;
