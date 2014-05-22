@@ -107,7 +107,7 @@ class DumpLoader extends FileLoader
         QueryBuffer buffer = new QueryBuffer (); 
         Connection conn = getConnection(hasDDL);
         Statement stmt = conn.createStatement();
-        long count = 0;
+        CommitStatus status = new CommitStatus();
         boolean success = false;
         try {
             while (true) {
@@ -117,17 +117,21 @@ class DumpLoader extends FileLoader
                 if (lines.readLine(buffer)) {
                     while (buffer.hasQuery()) {
                         String sql = buffer.nextQuery();
-                        count += executeSQL (conn, stmt, sql);
+                        executeSQL (conn, stmt, sql, status);
                     }
                 } else {
                     break;
                 }
             }
+            if (status.pending > 0) {
+                conn.commit();
+                status.commit();
+            }
         } finally {
             stmt.close();
             returnConnection(conn, success);
         }
-        return count;
+        return status.count;
     }
     
     protected long executeSegment(long start, long end) 
@@ -138,8 +142,7 @@ class DumpLoader extends FileLoader
         StringBuilder str = new StringBuilder();
         Connection conn = getConnection(hasDDL);
         Statement stmt = conn.createStatement();
-        long count = 0;
-        int pending = 0;
+        CommitStatus status = new CommitStatus();
         boolean success = false;
         try {
             top: while (true) {
@@ -159,11 +162,11 @@ class DumpLoader extends FileLoader
                     }
                 }
                 String sql = str.toString();
-                count += executeSQL (conn, stmt, sql);
+                executeSQL (conn, stmt, sql, status);
             }
-            if (pending > 0) {
+            if (status.pending > 0) {
                 conn.commit();
-                count += pending;
+                status.commit();
             }
             success = true;
         }
@@ -171,35 +174,44 @@ class DumpLoader extends FileLoader
             stmt.close();
             returnConnection(conn, success);
         }
-        return count;
+        return status.count;
     }
 
-    private int executeSQL (Connection conn, Statement stmt, String sql ) throws SQLException {
-        int pending = 0;
+    private void executeSQL (Connection conn, Statement stmt, String sql, CommitStatus status ) throws SQLException {
         int count = 0;
         if (sql.startsWith("INSERT INTO ")) {
             if (hasDDL && conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
             }
-            pending += stmt.executeUpdate(sql);
+            status.pending += stmt.executeUpdate(sql);
             if ((client.getCommitFrequency() > 0) &&
-                (pending >= client.getCommitFrequency())) {
+                (status.pending >= client.getCommitFrequency())) {
                 conn.commit();
-                count += pending;
-                pending = 0;
+                status.commit();
             }
         }
         else {
-            if (pending > 0) {
+            if (status.pending > 0) {
                 conn.commit();
-                count += pending;
-                pending = 0;
+                status.commit();
             }
             conn.setAutoCommit(true);
             hasDDL = true; // Just in case.
             stmt.execute(sql);
         }
-        return count;
+    }
+    
+    private class CommitStatus {
+        public int pending;
+        public long count;
+        public CommitStatus() {
+            pending = 0;
+            count = 0;
+        }
+        public void commit() {
+            count += pending;
+            pending = 0;
+        }
     }
     
     public SegmentLoader wholeFile() throws IOException {
