@@ -94,7 +94,7 @@ public class LineReaderQueryBufferTest {
         while (lines.readLine(b)) {
             assertTrue (b.hasQuery());
             String create = b.nextQuery(); 
-            assertEquals ("create table `temp` (id int primary key,  name varchar(20) default 'no name',  value varchar(21) not null);",
+            assertEquals ("create table `temp` (id int primary key,\n name varchar(20) default 'no name',\n value varchar(21) not null);",
                     create);
         }
         istr.close();
@@ -113,7 +113,7 @@ public class LineReaderQueryBufferTest {
         while (lines.readLine(b)) {
             assertTrue (b.hasQuery());
             String create = b.nextQuery(); 
-            assertEquals ("insert into `temp` values ( 'fred''s last stand;');",
+            assertEquals ("insert into `temp` values (\n'fred''s last stand;');",
                     create);
         }
         istr.close();
@@ -156,7 +156,7 @@ public class LineReaderQueryBufferTest {
         assertTrue(lines.readLine(b));
         assertTrue(b.hasQuery());
         String query = b.nextQuery();
-        assertEquals("SELECT 4  ;", query);
+        assertEquals("SELECT 4 \n;", query);
                 
         istr.close();
     }
@@ -177,6 +177,21 @@ public class LineReaderQueryBufferTest {
         istr.close();
     }
     
+    @Test
+    public void splitWithNewlines() throws IOException {
+        File file = tmpFileFrom (
+                "INSERT INTO `temp` values ('fred''s \n last stand;');"
+                );
+        FileInputStream istr = new FileInputStream(file);
+        LineReader lines = new LineReader(istr.getChannel(), encoding, 128); 
+        QueryBuffer b = new QueryBuffer();
+        assertTrue(lines.readLine(b));
+        assertTrue(b.hasQuery());
+        String query = b.nextQuery();
+        assertEquals("INSERT INTO `temp` values ('fred''s \n last stand;');", query);
+                
+        istr.close();
+    }
     
     @Test
     public void splitSimple() throws IOException {
@@ -206,6 +221,78 @@ public class LineReaderQueryBufferTest {
         assertFalse(b.hasQuery());
         b.reset();
         assertFalse(lines.readLine(b));
+    }
+    
+    @Test
+    public void splitLines() throws IOException {
+        File file = tmpFileFrom (
+                "insert into `temp` values ",
+                "('fred''s last stand;');",
+                "insert into `temp` values",
+                "('thom''s over');");
+        FileInputStream istr = new FileInputStream(file);
+        LineReader lines = new LineReader(istr.getChannel(), encoding, 1); 
+        
+        long mid = lines.splitParse(50L);
+        assertEquals(mid, 52);
+        
+        lines = new LineReader (istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, mid);
+        QueryBuffer b = new QueryBuffer();
+        assertTrue (lines.readLine(b));
+        assertTrue (b.hasQuery());
+        String query = b.nextQuery();
+        assertTrue (query.startsWith("insert into"));
+        assertFalse(b.hasQuery());
+        b.reset();
+        assertFalse(lines.readLine(b));
+
+        lines = new LineReader (istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, mid, istr.getChannel().size());
+        b = new QueryBuffer();
+        assertTrue (lines.readLine(b));
+        assertTrue (b.hasQuery());
+        query = b.nextQuery();
+        assertTrue (query.startsWith("insert into"));
+        assertFalse(b.hasQuery());
+        b.reset();
+        assertFalse(lines.readLine(b));
+    }
+    
+    @Test
+    public void splitLong() throws IOException {
+        File file = new File("src/test/resources/"
+                + LoadClientTest.class.getPackage().getName().replace('.', '/') + "/states.sql");
+        FileInputStream istr = new FileInputStream(file);
+        LineReader lines = new LineReader(istr.getChannel(), encoding, 1); 
+
+        long start = 0;
+        long end = istr.getChannel().size();
+                
+        long mid = start + (end - start) / 2;
+
+        mid = lines.splitParse(mid);
+        assertEquals(mid, 1034);
+
+        lines = new LineReader (istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, mid);
+        QueryBuffer b = new QueryBuffer();
+        assertTrue (lines.readLine(b));
+        assertTrue (b.hasQuery());
+        String query = b.nextQuery();
+        assertTrue (query.startsWith("INSERT INTO states VALUES"));
+        assertFalse(b.hasQuery());
+        b.reset();
+        assertFalse(lines.readLine(b));
+
+        lines = new LineReader (istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, mid, istr.getChannel().size());
+        b = new QueryBuffer();
+        assertTrue (lines.readLine(b));
+        assertTrue (b.hasQuery());
+        query = b.nextQuery();
+        assertTrue (query.startsWith("INSERT INTO states VALUES"));
+        assertFalse(b.hasQuery());
+        b.reset();
+        assertTrue(lines.readLine(b));
+
+    
     }
     
     private static File tmpFileFrom(String... lines) throws IOException {

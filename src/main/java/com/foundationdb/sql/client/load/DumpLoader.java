@@ -28,9 +28,11 @@ import com.foundationdb.sql.client.cli.QueryBuffer;
 class DumpLoader extends FileLoader
 {
     boolean hasDDL;
+    boolean queryParser = false;
 
-    public DumpLoader(LoadClient client, FileChannel channel) {
+    public DumpLoader(LoadClient client, FileChannel channel, boolean queryparser) {
         super(client, channel);
+        this.queryParser = queryparser;
     }
 
     @Override
@@ -68,7 +70,11 @@ class DumpLoader extends FileLoader
         @Override
         public void run() {
             try {
-                count += executeSegmentQuery (start, end);
+                if (queryParser) {
+                    count += executeSegmentQuery (start, end);
+                } else {
+                    count += executeSegment(start, end);
+                }
             } catch (Exception ex) {
                 //TODO: Handle this better?
                 ex.printStackTrace();
@@ -119,6 +125,7 @@ class DumpLoader extends FileLoader
                         String sql = buffer.nextQuery();
                         executeSQL (conn, stmt, sql, status);
                     }
+                    buffer.reset();
                 } else {
                     break;
                 }
@@ -217,10 +224,24 @@ class DumpLoader extends FileLoader
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
-        return new DumpSegmentLoader(start, end);
+        
+        if (queryParser) {
+            return new DumpSegmentQueryLoader(start, end);
+        } else {
+            return new DumpSegmentLoader(start, end);
+        }
     }
 
-    public List<? extends SegmentLoader> splitParse (int nsegments) throws IOException {
+    
+    public List<? extends SegmentLoader> split (int nsegments) throws IOException {
+        if (queryParser) {
+            return splitParse (nsegments);
+        } else {
+            return splitLine (nsegments);
+        }
+    }
+    
+    protected List<? extends SegmentLoader> splitParse (int nsegments) throws IOException {
         List<DumpSegmentQueryLoader> segments = new ArrayList<>(nsegments);
         long start = 0;
         long end = channel.size();
@@ -239,7 +260,7 @@ class DumpLoader extends FileLoader
         return segments;
     }
     
-    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
+    protected List<? extends SegmentLoader> splitLine(int nsegments) throws IOException {
         List<DumpSegmentLoader> segments = new ArrayList<>(nsegments);
         long start = 0;
         long end = channel.size();

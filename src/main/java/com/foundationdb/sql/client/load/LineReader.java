@@ -99,7 +99,7 @@ public class LineReader
             
             if (eol) {
                 if(!into.isEmpty()) {
-                    into.append(' '); // Collapsing multiple lines into one, add space
+                    into.append('\n'); // replace the \n
                     into.appendLine(line.toString());
                 } else {
                     into.appendLine(line.toString());
@@ -165,6 +165,7 @@ public class LineReader
         while (position < point) {
             before = position;
             readLine(b);
+            b.reset();
             after = position;
         }
         
