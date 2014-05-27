@@ -113,7 +113,7 @@ public class LoadClient
                 loader = new MySQLLoader(this, channel, target);
                 break;
             case FDB_SQL:
-                loader = new DumpLoader(this, channel, true);
+                loader = new DumpLoader(this, channel);
                 break;
             default:
                 assert false : format;

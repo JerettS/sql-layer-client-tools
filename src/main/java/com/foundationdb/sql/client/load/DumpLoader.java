@@ -15,6 +15,8 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
@@ -28,11 +30,9 @@ import com.foundationdb.sql.client.cli.QueryBuffer;
 class DumpLoader extends FileLoader
 {
     boolean hasDDL;
-    boolean queryParser = false;
 
-    public DumpLoader(LoadClient client, FileChannel channel, boolean queryparser) {
+    public DumpLoader(LoadClient client, FileChannel channel) {
         super(client, channel);
-        this.queryParser = queryparser;
     }
 
     @Override
@@ -70,37 +70,11 @@ class DumpLoader extends FileLoader
         @Override
         public void run() {
             try {
-                if (queryParser) {
-                    count += executeSegmentQuery (start, end);
-                } else {
-                    count += executeSegment(start, end);
-                }
+                count += executeSegmentQuery (start, end);
             } catch (Exception ex) {
                 //TODO: Handle this better?
                 ex.printStackTrace();
                 
-            }
-        }
-    }
-    protected class DumpSegmentLoader extends SegmentLoader {
-        public DumpSegmentLoader(long start, long end) {
-            super(DumpLoader.this.client, DumpLoader.this.channel,
-                  start, end);
-        }
-
-        @Override
-        public void prepare() throws IOException {
-            // TODO: Here we load an initial subsegment synchronously using
-            // executeSegment, so that other segments can use its tables.
-        }
-
-        @Override
-        public void run() {
-            try {
-                count += executeSegment(start, end);
-            }
-            catch (Exception ex) {
-                ex.printStackTrace();
             }
         }
     }
@@ -112,7 +86,7 @@ class DumpLoader extends FileLoader
                 start, end);
         QueryBuffer buffer = new QueryBuffer (); 
         Connection conn = getConnection(hasDDL);
-        Statement stmt = conn.createStatement();
+        StatementHelper stmt = new StatementHelper(conn);
         CommitStatus status = new CommitStatus();
         boolean success = false;
         try {
@@ -141,56 +115,12 @@ class DumpLoader extends FileLoader
         return status.count;
     }
     
-    protected long executeSegment(long start, long end) 
-            throws SQLException, IOException {
-        LineReader lines = new LineReader(channel, client.getEncoding(), 
-                                          BUFFER_SIZE, BUFFER_SIZE, 
-                                          start, end);
-        StringBuilder str = new StringBuilder();
-        Connection conn = getConnection(hasDDL);
-        Statement stmt = conn.createStatement();
-        CommitStatus status = new CommitStatus();
-        boolean success = false;
-        try {
-            top: while (true) {
-                str.setLength(0);
-                while (true) {
-                    if (!lines.readLine(str)) {
-                        if (str.length() == 0) break top;
-                        else break;
-                    }
-                    if (str.length() > 0) {
-                        if (str.charAt(0) == '-') {
-                            continue top;
-                        }
-                        if (str.charAt(str.length() - 1) == ';')
-                            break;
-                        str.append('\n');
-                    }
-                }
-                String sql = str.toString();
-                executeSQL (conn, stmt, sql, status);
-            }
-            if (status.pending > 0) {
-                conn.commit();
-                status.commit();
-            }
-            success = true;
-        }
-        finally {
-            stmt.close();
-            returnConnection(conn, success);
-        }
-        return status.count;
-    }
-
-    private void executeSQL (Connection conn, Statement stmt, String sql, CommitStatus status ) throws SQLException {
-        int count = 0;
+    private void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
         if (sql.startsWith("INSERT INTO ")) {
             if (hasDDL && conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
             }
-            status.pending += stmt.executeUpdate(sql);
+            status.pending += helper.executeUpdate(sql);
             if ((client.getCommitFrequency() > 0) &&
                 (status.pending >= client.getCommitFrequency())) {
                 conn.commit();
@@ -204,7 +134,7 @@ class DumpLoader extends FileLoader
             }
             conn.setAutoCommit(true);
             hasDDL = true; // Just in case.
-            stmt.execute(sql);
+            helper.execute(sql);
         }
     }
     
@@ -225,20 +155,12 @@ class DumpLoader extends FileLoader
         long start = 0;
         long end = channel.size();
         
-        if (queryParser) {
-            return new DumpSegmentQueryLoader(start, end);
-        } else {
-            return new DumpSegmentLoader(start, end);
-        }
+        return new DumpSegmentQueryLoader(start, end);
     }
 
     
     public List<? extends SegmentLoader> split (int nsegments) throws IOException {
-        if (queryParser) {
-            return splitParse (nsegments);
-        } else {
-            return splitLine (nsegments);
-        }
+        return splitParse (nsegments);
     }
     
     protected List<? extends SegmentLoader> splitParse (int nsegments) throws IOException {
@@ -260,23 +182,4 @@ class DumpLoader extends FileLoader
         return segments;
     }
     
-    protected List<? extends SegmentLoader> splitLine(int nsegments) throws IOException {
-        List<DumpSegmentLoader> segments = new ArrayList<>(nsegments);
-        long start = 0;
-        long end = channel.size();
-        LineReader lines = new LineReader(channel, client.getEncoding(),
-                                          FileLoader.SMALL_BUFFER_SIZE, 1,
-                                          start, end);
-        while (nsegments > 1) {
-            long mid = start + (end - start) / nsegments;
-            mid = lines.newLineNear(mid, ';');
-            if ((mid <= start) || (mid >= end)) break; // Not enough lines.
-            segments.add(new DumpSegmentLoader(start, mid));
-            start = mid;
-            lines.position(mid);
-            nsegments--;
-        }
-        segments.add(new DumpSegmentLoader(start, end));
-        return segments;
-    }
 }
