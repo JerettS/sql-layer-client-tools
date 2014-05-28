@@ -145,9 +145,7 @@ public class LineReader
         // This case occurs when, due to a bug, the limit 
         // is beyond the end of the channel. This becomes an infinite 
         // loop.
-        if (position == startPosition) {
-            return false;
-        }
+        assert position != startPosition : "End position beyond the the end of the channel.";
         bytes.compact();
         chars.flip();
         return true;
