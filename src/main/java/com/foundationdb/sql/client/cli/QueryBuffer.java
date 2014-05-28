@@ -25,12 +25,13 @@ public class QueryBuffer
 {
     private static final int UNSET = -1;
     private static final Quote DASH_QUOTE = new Quote("--", "\n");
+    private static final Quote BLOCK_QUOTE = new Quote("/*", "*/");
     private static final Quote[] QUOTES = {
         new Quote('\''),
         new Quote('"'),
         new Quote('`'),
         new Quote("$$"),
-        new Quote("/*", "*/"),
+        BLOCK_QUOTE,
         DASH_QUOTE
     };
 
@@ -41,6 +42,8 @@ public class QueryBuffer
     private Quote curQuote;
     private boolean isOnlySpace;
     private boolean isBackslash;
+
+    public int blockQuoteCount = 0;
 
     public QueryBuffer() {
         reset();
@@ -99,17 +102,21 @@ public class QueryBuffer
                 } else if(curQuote == DASH_QUOTE) {
                     // Ignored until we can handle buffer containing newlines
                     curQuote = null;
+                } else if(curQuote == BLOCK_QUOTE) {
+                    blockQuoteCount = 1;
+                    curIndex++;
                 } else {
                     curIndex += curQuote.beginSkipLength();
+                    blockQuoteCount = 0;
                 }
             } else {
-                if( curQuote.isBlockQuote && isBlockQuote(buffer, curQuote, curIndex)){
-                    curQuote.blockQuoteCount++;
+                if( curQuote == BLOCK_QUOTE && isBlockQuote(buffer, curQuote, curIndex)){
+                    blockQuoteCount++;
                 }
                 else if(quoteEndsAt(buffer, curQuote, curIndex)) {
-                    curQuote.blockQuoteCount--;
-                    if(curQuote.blockQuoteCount <= 0) {
-                        curQuote.isBlockQuote = false;
+                    blockQuoteCount--;
+                    if(blockQuoteCount <= 0) {
+
                         curQuote = null;
                     }
                 }
@@ -189,13 +196,8 @@ public class QueryBuffer
             for(int i = 0; (i < q.begin.length()) && (index + i < sb.length()); ++i) {
                 match &= (sb.charAt(index +i) == q.begin.charAt(i));
             }
-            if(match) {
-                if(q == QUOTES[4]){
-                    q.isBlockQuote = true;
-                    q.blockQuoteCount = 1;
-                }
+            if(match)
                 return q;
-            }
         }
         return null;
     }
@@ -223,8 +225,8 @@ public class QueryBuffer
         public final String begin;
         public final String end;
 
-        public int blockQuoteCount = 0;
-        public boolean isBlockQuote = false;
+
+
 
         private Quote(char quote) {
             this(String.valueOf(quote));
