@@ -212,6 +212,18 @@ public class QueryBufferTest
     }
 
     @Test
+    public void doubleBlockComment() {
+        String q = "SELECT /* 'hello\" /*--*/ there $$ */";
+        qb.append(q);
+        assertEquals(false, qb.hasQuery());
+        qb.append(';');
+        assertEquals(true, qb.hasQuery());
+        assertEquals(q + ';', qb.nextQuery());
+        assertEquals(q + ';', qb.trimCompleted());
+        assertEquals(0, qb.length());
+    }
+
+    @Test
     public void hasNonSpace() {
         qb.append(' ');
         assertEquals(false, qb.hasNonSpace());

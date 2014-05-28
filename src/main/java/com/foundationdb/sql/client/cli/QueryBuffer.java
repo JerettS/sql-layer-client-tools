@@ -102,8 +102,17 @@ public class QueryBuffer
                 } else {
                     curIndex += curQuote.beginSkipLength();
                 }
-            } else if(quoteEndsAt(buffer, curQuote, curIndex)) {
-                curQuote = null;
+            } else {
+                if( curQuote.isBlockQuote && isBlockQuote(buffer, curQuote, curIndex)){
+                    curQuote.blockQuoteCount++;
+                }
+                else if(quoteEndsAt(buffer, curQuote, curIndex)) {
+                    curQuote.blockQuoteCount--;
+                    if(curQuote.blockQuoteCount <= 0) {
+                        curQuote.isBlockQuote = false;
+                        curQuote = null;
+                    }
+                }
             }
             // Backslash may only be preceded by whitespace
             isOnlySpace &= Character.isWhitespace(c);
@@ -181,11 +190,25 @@ public class QueryBuffer
                 match &= (sb.charAt(index +i) == q.begin.charAt(i));
             }
             if(match) {
+                if(q == QUOTES[4]){
+                    q.isBlockQuote = true;
+                    q.blockQuoteCount = 1;
+                }
                 return q;
             }
         }
         return null;
     }
+
+    private static boolean isBlockQuote(StringBuilder sb, Quote q, int index) {
+        for (int i = q.begin.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
+            if (q.begin.charAt(i) != sb.charAt(j)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 
     private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
         for(int i = q.end.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
@@ -199,6 +222,9 @@ public class QueryBuffer
     private static class Quote {
         public final String begin;
         public final String end;
+
+        public int blockQuoteCount = 0;
+        public boolean isBlockQuote = false;
 
         private Quote(char quote) {
             this(String.valueOf(quote));
