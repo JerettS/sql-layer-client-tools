@@ -15,13 +15,10 @@
 
 package com.foundationdb.sql.client.load;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.io.*;
-import java.util.*;
 
 public class LineReaderTest
 {
@@ -99,6 +96,7 @@ public class LineReaderTest
         istr.close();
     }
 
+    
     protected File writeLines(int nlines, int lineWidth, String nl) throws IOException {
         File file = File.createTempFile("lines", ".txt");
         file.deleteOnExit();
