@@ -25,12 +25,13 @@ public class QueryBuffer
 {
     private static final int UNSET = -1;
     private static final Quote DASH_QUOTE = new Quote("--", "\n");
+    private static final Quote BLOCK_QUOTE = new Quote("/*", "*/");
     private static final Quote[] QUOTES = {
         new Quote('\''),
         new Quote('"'),
         new Quote('`'),
         new Quote("$$"),
-        new Quote("/*", "*/"),
+        BLOCK_QUOTE,
         DASH_QUOTE
     };
 
@@ -41,6 +42,8 @@ public class QueryBuffer
     private Quote curQuote;
     private boolean isOnlySpace;
     private boolean isBackslash;
+
+    public int blockQuoteCount = 0;
 
     public QueryBuffer() {
         reset();
@@ -99,11 +102,24 @@ public class QueryBuffer
                 } else if(curQuote == DASH_QUOTE) {
                     // Ignored until we can handle buffer containing newlines
                     curQuote = null;
+                } else if(curQuote == BLOCK_QUOTE) {
+                    blockQuoteCount = 1;
+                    curIndex++;
                 } else {
                     curIndex += curQuote.beginSkipLength();
                 }
-            } else if(quoteEndsAt(buffer, curQuote, curIndex)) {
-                curQuote = null;
+            } else {
+                if( curQuote == BLOCK_QUOTE && isBlockQuote(buffer, curQuote, curIndex)){
+                    blockQuoteCount++;
+                }
+                else if(quoteEndsAt(buffer, curQuote, curIndex)) {
+                    if(curQuote == BLOCK_QUOTE){
+                        blockQuoteCount--;
+                    }
+                    if(blockQuoteCount == 0) {
+                        curQuote = null;
+                    }
+                }
             }
             // Backslash may only be preceded by whitespace
             isOnlySpace &= Character.isWhitespace(c);
@@ -185,6 +201,12 @@ public class QueryBuffer
             }
         }
         return null;
+    }
+
+    private static boolean isBlockQuote(StringBuilder sb, Quote q, int index) {
+        return (index >= 1 &&
+                q.begin.charAt(1) == sb.charAt(index) &&
+                q.begin.charAt(0) == sb.charAt(index - 1));
     }
 
     private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
