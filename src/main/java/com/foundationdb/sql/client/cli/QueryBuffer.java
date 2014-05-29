@@ -107,16 +107,16 @@ public class QueryBuffer
                     curIndex++;
                 } else {
                     curIndex += curQuote.beginSkipLength();
-                    blockQuoteCount = 0;
                 }
             } else {
                 if( curQuote == BLOCK_QUOTE && isBlockQuote(buffer, curQuote, curIndex)){
                     blockQuoteCount++;
                 }
                 else if(quoteEndsAt(buffer, curQuote, curIndex)) {
-                    blockQuoteCount--;
-                    if(blockQuoteCount <= 0) {
-
+                    if(curQuote == BLOCK_QUOTE){
+                        blockQuoteCount--;
+                    }
+                    if(blockQuoteCount == 0) {
                         curQuote = null;
                     }
                 }
@@ -196,21 +196,18 @@ public class QueryBuffer
             for(int i = 0; (i < q.begin.length()) && (index + i < sb.length()); ++i) {
                 match &= (sb.charAt(index +i) == q.begin.charAt(i));
             }
-            if(match)
+            if(match) {
                 return q;
+            }
         }
         return null;
     }
 
     private static boolean isBlockQuote(StringBuilder sb, Quote q, int index) {
-        for (int i = q.begin.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
-            if (q.begin.charAt(i) != sb.charAt(j)) {
-                return false;
-            }
-        }
-        return true;
+        return (index >= 1 &&
+                q.begin.charAt(1) == sb.charAt(index) &&
+                q.begin.charAt(0) == sb.charAt(index - 1));
     }
-
 
     private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
         for(int i = q.end.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
@@ -224,9 +221,6 @@ public class QueryBuffer
     private static class Quote {
         public final String begin;
         public final String end;
-
-
-
 
         private Quote(char quote) {
             this(String.valueOf(quote));
