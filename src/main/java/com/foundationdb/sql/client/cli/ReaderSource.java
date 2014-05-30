@@ -15,17 +15,17 @@
 
 package com.foundationdb.sql.client.cli;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 
 public class ReaderSource implements InputSource
 {
-    private final BufferedReader input;
+    private final Reader input;
+    private final char[] buf = new char[4096];
 
     public ReaderSource(Reader reader) {
-        this.input = new BufferedReader(reader);
+        this.input = reader;
     }
 
     @Override
@@ -44,13 +44,14 @@ public class ReaderSource implements InputSource
     }
 
     @Override
-    public void addHistory(String line) {
+    public void addHistory(String input) {
         // Ignore
     }
 
     @Override
-    public String readLine() throws IOException {
-        return input.readLine();
+    public String readSome() throws IOException {
+        int len = input.read(buf);
+        return (len == -1) ? null : new String(buf, 0, len);
     }
 
     @Override

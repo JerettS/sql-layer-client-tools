@@ -72,16 +72,17 @@ public class TerminalSource implements InputSource
     }
 
     @Override
-    public void addHistory(String line) {
+    public void addHistory(String input) {
         if(fileHistory != null) {
-            fileHistory.add(line);
+            fileHistory.add(input);
         }
     }
 
     @Override
-    public String readLine() throws IOException {
+    public String readSome() throws IOException {
         try {
-            return console.readLine();
+            String line = console.readLine();
+            return (line == null) ? null : line + '\n';
         } catch(UserInterruptException e) {
             throw new PartialLineException(e.getPartialLine());
         }

@@ -31,10 +31,10 @@ public interface InputSource extends Closeable
     void openHistory(File file) throws IOException;
 
     /** Add to history, if present. */
-    void addHistory(String line);
+    void addHistory(String input);
 
     /** Returns next string or {@code null} on EOF. Throw PartialLineException on user-abort (e.g. ctrl-c). */
-    String readLine() throws IOException, PartialLineException;
+    String readSome() throws IOException, PartialLineException;
 
     /** Close any open resources. */
     void close();
