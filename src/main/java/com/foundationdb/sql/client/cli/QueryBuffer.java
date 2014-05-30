@@ -229,12 +229,12 @@ public class QueryBuffer
         public final String begin;
         public final String end;
 
-        private Quote(char q) {
-            this(String.valueOf(q));
+        private Quote(char quote) {
+            this(String.valueOf(quote));
         }
 
-        private Quote(String q) {
-            this(q, q);
+        private Quote(String quote) {
+            this(quote, quote);
         }
 
         private Quote(String begin, String end) {
