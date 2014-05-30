@@ -30,8 +30,8 @@ public interface InputSource extends Closeable
     /** File to store history in. */
     void openHistory(File file) throws IOException;
 
-    /** Add to history, if present. */
-    void addHistory(String input);
+    /** Add to history, if present. Return a message to give to the user or null if none. */
+    String addHistory(String input);
 
     /** Returns next string or {@code null} on EOF. Throw PartialLineException on user-abort (e.g. ctrl-c). */
     String readSome() throws IOException, PartialLineException;

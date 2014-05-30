@@ -45,8 +45,9 @@ public class StringSource implements InputSource
     }
 
     @Override
-    public void addHistory(String input) {
+    public String addHistory(String input) {
         // Ignored
+        return null;
     }
 
     @Override

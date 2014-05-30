@@ -317,9 +317,13 @@ public class CLIClient implements Closeable
                 }
                 sink.flush();
             }
-            String completed = qb.trimCompleted();
+            String completed = qb.trimCompleted().trim();
             if(!completed.isEmpty()) {
-                localSource.addHistory(completed);
+                String msg = localSource.addHistory(completed);
+                if(msg != null) {
+                    resultPrinter.printError(msg);
+                    sink.flush();
+                }
             }
         }
         return lastError;

@@ -44,8 +44,9 @@ public class ReaderSource implements InputSource
     }
 
     @Override
-    public void addHistory(String input) {
+    public String addHistory(String input) {
         // Ignore
+        return null;
     }
 
     @Override
