@@ -24,13 +24,17 @@ package com.foundationdb.sql.client.cli;
 public class QueryBuffer
 {
     private static final int UNSET = -1;
+    private static final Quote DASH_QUOTE = new Quote("--", "\n");
+    private static final Quote ESTRING_QUOTE = new Quote("E'", "'");
     private static final Quote BLOCK_QUOTE = new Quote("/*", "*/");
     private static final Quote[] QUOTES = {
+        // Note: Ordering sensitive
+        ESTRING_QUOTE,
         new Quote('\''),
         new Quote('"'),
         new Quote('`'),
         new Quote("$$"),
-        new Quote("--", "\n"),
+        DASH_QUOTE,
         BLOCK_QUOTE,
     };
 
@@ -39,12 +43,18 @@ public class QueryBuffer
     private int startIndex;
     private int endIndex;
     private Quote curQuote;
+    private int curQuoteStart;
     private boolean isOnlySpace;
     private boolean isBackslash;
-    public int blockQuoteCount = 0;
+    private boolean stripDashQuote;
+    private int blockQuoteCount = 0;
 
     public QueryBuffer() {
         reset();
+    }
+
+    public void setStripDashQuote() {
+        stripDashQuote = true;
     }
 
     public String quoteString() {
@@ -80,19 +90,23 @@ public class QueryBuffer
                     } else if(c == '\n' && isOnlySpace) {
                         ++startIndex;
                     }
-                } else if(curQuote == BLOCK_QUOTE) {
-                    blockQuoteCount = 1;
-                    curIndex++;
                 } else {
+                    if(curQuote == BLOCK_QUOTE) {
+                        blockQuoteCount = 1;
+                    }
+                    curQuoteStart = curIndex;
                     curIndex += curQuote.beginSkipLength();
                 }
             } else {
-                if(curQuote == BLOCK_QUOTE && isBlockQuote(buffer, curIndex)) {
+                if((curQuote == BLOCK_QUOTE) && matchesBehind(buffer, curIndex, BLOCK_QUOTE.begin)) {
                     blockQuoteCount++;
-                }
-                else if(quoteEndsAt(buffer, curQuote, curIndex)) {
-                    if(curQuote == BLOCK_QUOTE){
+                } else if(quoteEndsAt(buffer, curQuote, curIndex)) {
+                    if(curQuote == BLOCK_QUOTE) {
                         blockQuoteCount--;
+                    }
+                    if((curQuote == DASH_QUOTE) && stripDashQuote) {
+                        buffer.delete(curQuoteStart, curIndex + 1);
+                        curIndex = curQuoteStart - 1;
                     }
                     if(blockQuoteCount == 0) {
                         curQuote = null;
@@ -163,6 +177,7 @@ public class QueryBuffer
         startIndex = start;
         endIndex = end;
         curQuote = null;
+        curQuoteStart = UNSET;
         isOnlySpace = true;
         isBackslash = false;
         buffer.setLength(length);
@@ -170,26 +185,40 @@ public class QueryBuffer
 
     private static Quote quoteStartAt(StringBuilder sb, int index) {
         for(Quote q : QUOTES) {
-            boolean match = true;
-            for(int i = 0; (i < q.begin.length()) && (index + i < sb.length()); ++i) {
-                match &= (sb.charAt(index +i) == q.begin.charAt(i));
-            }
-            if(match) {
+            if(matchesAhead(sb, index, q.begin)) {
                 return q;
             }
         }
         return null;
     }
 
-    private static boolean isBlockQuote(StringBuilder sb, int index) {
-        return (index >= 1 &&
-                BLOCK_QUOTE.begin.charAt(1) == sb.charAt(index) &&
-                BLOCK_QUOTE.begin.charAt(0) == sb.charAt(index - 1));
+    // Note: A quote quote is handled as quote end and quote start. OK as we don't return tokens.
+    private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
+        if(!matchesBehind(sb, index, q.end)) {
+            return false;
+        }
+        // Delicate: E strings can contain backslash-quote, which shouldn't end the quote.
+        if((ESTRING_QUOTE == q) && (index > 0) && (sb.charAt(index - 1) == '\\')) {
+            // And neither should backslash-backslash quote-quote
+            if((index < 2) || (sb.charAt(index - 2) != '\\')) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
-        for(int i = q.end.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
-            if(q.end.charAt(i) != sb.charAt(j)) {
+    private static boolean matchesAhead(StringBuilder sb, int index, String m) {
+        for(int i = 0, j = index; (i < m.length()) && (j < sb.length()); ++i, ++j) {
+            if(sb.charAt(j) != m.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean matchesBehind(StringBuilder sb, int index, String m) {
+        for(int i = m.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
+            if(sb.charAt(j) != m.charAt(i)) {
                 return false;
             }
         }
@@ -200,12 +229,12 @@ public class QueryBuffer
         public final String begin;
         public final String end;
 
-        private Quote(char quote) {
-            this(String.valueOf(quote));
+        private Quote(char q) {
+            this(String.valueOf(q));
         }
 
-        private Quote(String quote) {
-            this(quote, quote);
+        private Quote(String q) {
+            this(q, q);
         }
 
         private Quote(String begin, String end) {

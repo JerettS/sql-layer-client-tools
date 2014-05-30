@@ -84,7 +84,7 @@ class DumpLoader extends FileLoader
         LineReader lines = new LineReader(channel, client.getEncoding(), 
                 BUFFER_SIZE, BUFFER_SIZE, 
                 start, end);
-        QueryBuffer buffer = new QueryBuffer (); 
+        QueryBuffer buffer = new QueryBuffer ();
         Connection conn = getConnection(hasDDL);
         StatementHelper stmt = new StatementHelper(conn);
         CommitStatus status = new CommitStatus();

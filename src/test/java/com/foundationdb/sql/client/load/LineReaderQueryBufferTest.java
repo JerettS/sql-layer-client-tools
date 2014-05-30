@@ -156,7 +156,7 @@ public class LineReaderQueryBufferTest {
         assertTrue(lines.readLine(b));
         assertTrue(b.hasQuery());
         String query = b.nextQuery();
-        assertEquals("SELECT 4 \n;", query);
+        assertEquals("SELECT 4 ;", query);
                 
         istr.close();
     }

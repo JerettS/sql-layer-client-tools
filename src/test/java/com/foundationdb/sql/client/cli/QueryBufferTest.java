@@ -380,4 +380,43 @@ public class QueryBufferTest
         assertFalse(qb.hasQuery());
         assertEquals(q+';', qb.trimCompleted());
     }
+
+    @Test
+    public void miscStringQuotes() {
+        String[] queries = {
+            "SELECT 'foobar';",
+            "SELECT 'foo''bar';",
+            "SELECT \"foobar\";",
+            "SELECT \"foo\"\"bar\";",
+            "SELECT E'foobar';",
+            "SELECT E'foo''bar';",
+            "SELECT E'foo\\'bar';",
+            "SELECT E'foo\\\\''bar';",
+        };
+        for(String q : queries) {
+            qb.append(q);
+            assertTrue(qb.hasQuery());
+            assertEquals(q, qb.nextQuery());
+            qb.trimCompleted();
+        }
+        assertFalse(qb.hasQuery());
+    }
+
+    @Test
+    public void stripDashQuote() {
+        String q1 = "--- Some data\nSELECT 5, -- here\n6, -- two\n7;";
+        String q2 = "SELECT 4 -- zap\n;";
+        String q1Stripped = "SELECT 5, 6, 7;";
+        String q2Stripped = "SELECT 4 ;";
+        qb.setStripDashQuote();
+        qb.append(q1);
+        qb.append(q2);
+        assertTrue(qb.hasQuery());
+        assertEquals(q1Stripped, qb.nextQuery());
+        assertEquals(q1Stripped, qb.trimCompleted());
+        assertTrue(qb.hasQuery());
+        assertEquals(q2Stripped, qb.nextQuery());
+        assertEquals(q2Stripped, qb.trimCompleted());
+        assertFalse(qb.hasQuery());
+    }
 }

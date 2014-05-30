@@ -84,6 +84,7 @@ public class LineReader
 
     
     public boolean readLine (QueryBuffer into) throws IOException {
+        into.setStripDashQuote();
         StringBuilder line = new StringBuilder (SHORT_LINE);
         boolean eol = false;
         while (true) {
