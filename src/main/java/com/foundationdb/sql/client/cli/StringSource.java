@@ -45,12 +45,13 @@ public class StringSource implements InputSource
     }
 
     @Override
-    public void addHistory(String line) {
+    public String addHistory(String input) {
         // Ignored
+        return null;
     }
 
     @Override
-    public String readLine() {
+    public String readSome() {
         return (index < input.length) ? input[index++] : null;
     }
 

@@ -84,6 +84,7 @@ public class LineReader
 
     
     public boolean readLine (QueryBuffer into) throws IOException {
+        into.setStripDashQuote();
         StringBuilder line = new StringBuilder (SHORT_LINE);
         boolean eol = false;
         while (true) {
@@ -100,9 +101,9 @@ public class LineReader
             if (eol) {
                 if(!into.isEmpty()) {
                     into.append('\n'); // replace the \n
-                    into.appendLine(line.toString());
+                    into.append(line.toString());
                 } else {
-                    into.appendLine(line.toString());
+                    into.append(line.toString());
                 }
                 line.setLength(0);
                 eol = false;

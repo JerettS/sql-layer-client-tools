@@ -18,6 +18,7 @@ package com.foundationdb.sql.client.cli;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 
@@ -136,55 +137,6 @@ public class QueryBufferTest
         assertEquals("SELECT 5;", qb.nextQuery());
         qb.trimCompleted();
         assertEquals(3, qb.length());
-    }
-
-    @Test
-    public void appendLineJustDashComment() {
-        qb.appendLine("--");
-        assertEquals(false, qb.hasQuery());
-        assertEquals(0, qb.length());
-        qb.appendLine("   --");
-        assertEquals(false, qb.hasQuery());
-        assertEquals(3, qb.length());
-    }
-
-    @Test
-    public void appendLineDashCommentAfterQuery() {
-        qb.appendLine("SELECT 5;-- something");
-        assertEquals(true, qb.hasQuery());
-        assertEquals("SELECT 5;", qb.nextQuery());
-        assertEquals("SELECT 5;", qb.trimCompleted());
-        assertEquals(false, qb.hasQuery());
-        assertEquals(0, qb.length());
-    }
-
-    @Test
-    public void appendLineDashInQuote() {
-        String q = "SELECT 'foo -- bar';";
-        qb.appendLine(q + " -- After");
-        assertEquals(true, qb.hasQuery());
-        assertEquals(q, qb.nextQuery());
-        assertEquals(q, qb.trimCompleted());
-        assertEquals(1, qb.length());
-    }
-
-    @Test
-    public void appendLineDoubleDollar() {
-        String q1 = "SELECT $$";
-        String q2 = "  s = \"\";";
-        String q3 = "  while(n-- > 0) s += '!';";
-        String q4 = "$$;";
-        qb.appendLine(q1);
-        qb.append(' ');
-        qb.appendLine(q2);
-        qb.append(' ');
-        qb.appendLine(q3);
-        qb.append(' ');
-        qb.appendLine(q4 + " -- My Proc");
-        assertEquals(true, qb.hasQuery());
-        assertEquals(q1 + " " + q2 + " " + q3 + " " + q4, qb.nextQuery());
-        qb.trimCompleted();
-        assertEquals(1, qb.length());
     }
 
     @Test
@@ -381,6 +333,90 @@ public class QueryBufferTest
         // Call trimCompleted to disable
         qb.trimCompleted();
         assertTrue (qb.isEmpty());
+        assertFalse(qb.hasQuery());
+    }
+
+    @Test
+    public void interstitialNewlinesIgnored() {
+        String q1 = "SELECT 1;";
+        String q2 = "SELECT 2;";
+        String q3 = "SELECT 3;";
+        String all = q1 + '\n' + q2 + '\n' + q3;
+        qb.append(all);
+        assertTrue(qb.hasQuery());
+        assertEquals(q1, qb.nextQuery());
+        assertTrue(qb.hasQuery());
+        assertEquals(q2, qb.nextQuery());
+        assertTrue(qb.hasQuery());
+        assertEquals(q3, qb.nextQuery());
+        assertEquals(all, qb.trimCompleted());
+        assertFalse(qb.hasQuery());
+    }
+
+    @Test
+    public void backslashNewlineStatement() {
+        String q1 = "\\l foo";
+        String q2 = "SELECT 5;";
+        qb.append(q1);
+        qb.append('\n');
+        qb.append(q2);
+        assertTrue(qb.hasQuery());
+        assertEquals(q1, qb.nextQuery());
+        assertEquals(q1, qb.trimCompleted());
+        assertTrue(qb.hasQuery());
+        assertEquals(q2, qb.nextQuery());
+        assertEquals('\n'+q2, qb.trimCompleted());
+        assertFalse(qb.hasQuery());
+    }
+
+    @Test
+    public void dashDashQuote() {
+        String q = "SELECT 5 --;\n,6";
+        qb.append(q);
+        assertFalse(qb.hasQuery());
+        qb.append(';');
+        assertTrue(qb.hasQuery());
+        assertEquals(q+';', qb.nextQuery());
+        assertFalse(qb.hasQuery());
+        assertEquals(q+';', qb.trimCompleted());
+    }
+
+    @Test
+    public void miscStringQuotes() {
+        String[] queries = {
+            "SELECT 'foobar';",
+            "SELECT 'foo''bar';",
+            "SELECT \"foobar\";",
+            "SELECT \"foo\"\"bar\";",
+            "SELECT E'foobar';",
+            "SELECT E'foo''bar';",
+            "SELECT E'foo\\'bar';",
+            "SELECT E'foo\\\\''bar';",
+        };
+        for(String q : queries) {
+            qb.append(q);
+            assertTrue(qb.hasQuery());
+            assertEquals(q, qb.nextQuery());
+            qb.trimCompleted();
+        }
+        assertFalse(qb.hasQuery());
+    }
+
+    @Test
+    public void stripDashQuote() {
+        String q1 = "--- Some data\nSELECT 5, -- here\n6, -- two\n7;";
+        String q2 = "SELECT 4 -- zap\n;";
+        String q1Stripped = "SELECT 5, 6, 7;";
+        String q2Stripped = "SELECT 4 ;";
+        qb.setStripDashQuote();
+        qb.append(q1);
+        qb.append(q2);
+        assertTrue(qb.hasQuery());
+        assertEquals(q1Stripped, qb.nextQuery());
+        assertEquals(q1Stripped, qb.trimCompleted());
+        assertTrue(qb.hasQuery());
+        assertEquals(q2Stripped, qb.nextQuery());
+        assertEquals(q2Stripped, qb.trimCompleted());
         assertFalse(qb.hasQuery());
     }
 }

@@ -18,21 +18,24 @@ package com.foundationdb.sql.client.cli;
 /**
  * Input accumulator and simple parser for two query types, backslash and semi-colon delimited.
  *
- * <p>Backslash queries consume the entire buffer and are found with optional whitespace preceding a backslash.</p>
+ * <p>Backslash queries consume up to a newline, or end of buffer, and are found with optional whitespace preceding a backslash.</p>
  * <p>Semi-colon delimited splits on un-quoted (', " or `) semi-colons with any trailing remaining in buffer.</p>
  */
 public class QueryBuffer
 {
     private static final int UNSET = -1;
     private static final Quote DASH_QUOTE = new Quote("--", "\n");
+    private static final Quote ESTRING_QUOTE = new Quote("E'", "'");
     private static final Quote BLOCK_QUOTE = new Quote("/*", "*/");
     private static final Quote[] QUOTES = {
+        // Note: Ordering sensitive
+        ESTRING_QUOTE,
         new Quote('\''),
         new Quote('"'),
         new Quote('`'),
         new Quote("$$"),
+        DASH_QUOTE,
         BLOCK_QUOTE,
-        DASH_QUOTE
     };
 
     private final StringBuilder buffer = new StringBuilder();
@@ -40,13 +43,18 @@ public class QueryBuffer
     private int startIndex;
     private int endIndex;
     private Quote curQuote;
+    private int curQuoteStart;
     private boolean isOnlySpace;
     private boolean isBackslash;
-
-    public int blockQuoteCount = 0;
+    private boolean stripDashQuote;
+    private int blockQuoteCount = 0;
 
     public QueryBuffer() {
         reset();
+    }
+
+    public void setStripDashQuote() {
+        stripDashQuote = true;
     }
 
     public String quoteString() {
@@ -61,30 +69,6 @@ public class QueryBuffer
         buffer.append(cs);
     }
 
-    /** As append() with automatic '--' stripping. */
-    public void appendLine(CharSequence cs) {
-        append(cs);
-
-        // As this is called when lines are collapsed, need to strip any -- comments out completely
-        int localIndex = curIndex;
-        Quote localQuote = curQuote;
-        while(localIndex < buffer.length()) {
-            if(localQuote == null) {
-                localQuote = quoteStartAt(buffer, localIndex);
-                if(localQuote != null) {
-                    localIndex += localQuote.beginSkipLength();
-                }
-            } else if(quoteEndsAt(buffer, localQuote, localIndex)) {
-                localQuote = null;
-            }
-            if(localQuote == DASH_QUOTE) {
-                // Found comment, remove to end
-                buffer.delete(localIndex - 1, buffer.length());
-            }
-            ++localIndex;
-        }
-    }
-
     public boolean hasQuery() {
         while(curIndex < buffer.length()) {
             char c = buffer.charAt(curIndex);
@@ -97,24 +81,32 @@ public class QueryBuffer
                     } else if(c == '\\' && isOnlySpace) {
                         isBackslash = true;
                         startIndex = curIndex;
-                        endIndex = buffer.length() - 1;
+                        endIndex = buffer.indexOf("\n", curIndex) - 1;
+                        if(endIndex < 0) {
+                            endIndex = buffer.length() - 1;
+                        }
+                        curIndex = endIndex;
+                        break;
+                    } else if(c == '\n' && isOnlySpace) {
+                        ++startIndex;
                     }
-                } else if(curQuote == DASH_QUOTE) {
-                    // Ignored until we can handle buffer containing newlines
-                    curQuote = null;
-                } else if(curQuote == BLOCK_QUOTE) {
-                    blockQuoteCount = 1;
-                    curIndex++;
                 } else {
+                    if(curQuote == BLOCK_QUOTE) {
+                        blockQuoteCount = 1;
+                    }
+                    curQuoteStart = curIndex;
                     curIndex += curQuote.beginSkipLength();
                 }
             } else {
-                if( curQuote == BLOCK_QUOTE && isBlockQuote(buffer, curQuote, curIndex)){
+                if((curQuote == BLOCK_QUOTE) && matchesBehind(buffer, curIndex, BLOCK_QUOTE.begin)) {
                     blockQuoteCount++;
-                }
-                else if(quoteEndsAt(buffer, curQuote, curIndex)) {
-                    if(curQuote == BLOCK_QUOTE){
+                } else if(quoteEndsAt(buffer, curQuote, curIndex)) {
+                    if(curQuote == BLOCK_QUOTE) {
                         blockQuoteCount--;
+                    }
+                    if((curQuote == DASH_QUOTE) && stripDashQuote) {
+                        buffer.delete(curQuoteStart, curIndex + 1);
+                        curIndex = curQuoteStart - 1;
                     }
                     if(blockQuoteCount == 0) {
                         curQuote = null;
@@ -185,6 +177,7 @@ public class QueryBuffer
         startIndex = start;
         endIndex = end;
         curQuote = null;
+        curQuoteStart = UNSET;
         isOnlySpace = true;
         isBackslash = false;
         buffer.setLength(length);
@@ -192,26 +185,40 @@ public class QueryBuffer
 
     private static Quote quoteStartAt(StringBuilder sb, int index) {
         for(Quote q : QUOTES) {
-            boolean match = true;
-            for(int i = 0; (i < q.begin.length()) && (index + i < sb.length()); ++i) {
-                match &= (sb.charAt(index +i) == q.begin.charAt(i));
-            }
-            if(match) {
+            if(matchesAhead(sb, index, q.begin)) {
                 return q;
             }
         }
         return null;
     }
 
-    private static boolean isBlockQuote(StringBuilder sb, Quote q, int index) {
-        return (index >= 1 &&
-                q.begin.charAt(1) == sb.charAt(index) &&
-                q.begin.charAt(0) == sb.charAt(index - 1));
+    // Note: A quote quote is handled as quote end and quote start. OK as we don't return tokens.
+    private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
+        if(!matchesBehind(sb, index, q.end)) {
+            return false;
+        }
+        // Delicate: E strings can contain backslash-quote, which shouldn't end the quote.
+        if((ESTRING_QUOTE == q) && (index > 0) && (sb.charAt(index - 1) == '\\')) {
+            // And neither should backslash-backslash quote-quote
+            if((index < 2) || (sb.charAt(index - 2) != '\\')) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    private static boolean quoteEndsAt(StringBuilder sb, Quote q, int index) {
-        for(int i = q.end.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
-            if(q.end.charAt(i) != sb.charAt(j)) {
+    private static boolean matchesAhead(StringBuilder sb, int index, String m) {
+        for(int i = 0, j = index; (i < m.length()) && (j < sb.length()); ++i, ++j) {
+            if(sb.charAt(j) != m.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean matchesBehind(StringBuilder sb, int index, String m) {
+        for(int i = m.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
+            if(sb.charAt(j) != m.charAt(i)) {
                 return false;
             }
         }

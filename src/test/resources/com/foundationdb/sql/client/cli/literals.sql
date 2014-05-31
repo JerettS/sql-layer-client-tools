@@ -10,3 +10,7 @@ SELECT 'Hello, world!';
 SELECT 'Extra semis ignored';;
 ;
     ;
+SELECT E'Escaped\nnewline\tand tab';
+SELECT 'Embedded
+newline
+	and tab';

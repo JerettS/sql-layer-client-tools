@@ -223,7 +223,7 @@ public class CLIClient implements Closeable
                     String prompt = qb.isEmpty() ? (connection.getCatalog() + "=> ") : (qb.quoteString() + "> ");
                     localSource.setPrompt(prompt);
                 }
-                String str = localSource.readLine();
+                String str = localSource.readSome();
                 // ctrl-d if interactive, exhausted source otherwise
                 if(str == null) {
                     if(doPrompt) {
@@ -236,12 +236,7 @@ public class CLIClient implements Closeable
                         isConsuming = false;
                     }
                 } else {
-                    if(!qb.isEmpty()) {
-                        qb.append(' '); // Collapsing multiple lines into one, add space
-                        qb.appendLine(str);
-                    } else {
-                        qb.appendLine(str);
-                    }
+                    qb.append(str);
                 }
             } catch(PartialLineException e) {
                 // ctrl-c, abort current query
@@ -322,9 +317,13 @@ public class CLIClient implements Closeable
                 }
                 sink.flush();
             }
-            String completed = qb.trimCompleted();
+            String completed = qb.trimCompleted().trim();
             if(!completed.isEmpty()) {
-                localSource.addHistory(completed);
+                String msg = localSource.addHistory(completed);
+                if(msg != null) {
+                    resultPrinter.printError(msg);
+                    sink.flush();
+                }
             }
         }
         return lastError;

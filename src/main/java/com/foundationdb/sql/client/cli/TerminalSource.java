@@ -72,16 +72,23 @@ public class TerminalSource implements InputSource
     }
 
     @Override
-    public void addHistory(String line) {
+    public String addHistory(String input) {
+        String msg = null;
         if(fileHistory != null) {
-            fileHistory.add(line);
+            String stripped = input.replace("\n", "");
+            if(stripped.length() != input.length()) {
+                msg = "WARN: Newlines removed from history";
+            }
+            fileHistory.add(stripped);
         }
+        return msg;
     }
 
     @Override
-    public String readLine() throws IOException {
+    public String readSome() throws IOException {
         try {
-            return console.readLine();
+            String line = console.readLine();
+            return (line == null) ? null : line + '\n';
         } catch(UserInterruptException e) {
             throw new PartialLineException(e.getPartialLine());
         }

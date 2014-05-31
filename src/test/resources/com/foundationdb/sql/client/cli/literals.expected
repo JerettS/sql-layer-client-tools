@@ -48,3 +48,15 @@
  Extra semis ignored 
 (1 row)
 
+       _SQL_COL_1        
+-------------------------
+ Escaped
+newline	and tab 
+(1 row)
+
+        _SQL_COL_1         
+---------------------------
+ Embedded
+newline
+	and tab 
+(1 row)
