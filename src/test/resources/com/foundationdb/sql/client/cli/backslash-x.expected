@@ -1,14 +1,17 @@
+Expanded display is on
 -[ RECORD 1 ]
 _SQL_COL_1 | 1
 _SQL_COL_2 | 2
 _SQL_COL_3 | 3
 _SQL_COL_4 | 4
 
+Expanded display is off
  _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 | _SQL_COL_4 
 ------------+------------+------------+------------
           1 |          2 |          3 |          4 
 (1 row)
 
+Expanded display is on
 -[ RECORD 1 ]
 foo | 1
 a   | 2
@@ -29,3 +32,9 @@ a          | 6
 label      | 7
 long_label | 8
 a          | 9
+
+Expanded display is on
+Expanded display is on
+Expanded display is off
+Expanded display is off
+Wrong argument type: expected [on|off]

@@ -39,7 +39,7 @@ public enum BackslashCommand
     ON_ERROR("onerror", false, false, "[CONTINUE|EXIT [N|SQLCODE|FAILURE|SUCCESS]]", "Handling errors when running multiple statements"),
     HELP    ("?", false, false, "", "display this help"),
     QUIT    ("q", false, false, "[EXIT CODE]", "quit"),
-    X_OUTPUT    ("x", false, false, "",                          "Toggles between regular and expanded output")
+    X_OUTPUT    ("x", false, false,  "[ON|OFF]",                 "Toggles between regular and expanded output")
     ;
 
     public final String cmd;

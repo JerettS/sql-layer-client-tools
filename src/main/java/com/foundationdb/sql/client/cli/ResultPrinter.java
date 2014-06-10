@@ -46,6 +46,14 @@ public class ResultPrinter
         expandedOutput = !expandedOutput;
     }
 
+    public void changeExpandedOutput(boolean truth){
+        expandedOutput = truth;
+    }
+
+    public boolean getExpandedOutput() {
+        return expandedOutput;
+    }
+
     public void printResultSet(ResultSet rs) throws SQLException, IOException {
         printResultSet(null, rs);
     }
