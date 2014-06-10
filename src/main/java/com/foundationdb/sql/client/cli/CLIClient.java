@@ -475,6 +475,9 @@ public class CLIClient implements Closeable
             case ON_ERROR:
                 toggleOnError(parsed);
                 break;
+            case X_OUTPUT:
+                resultPrinter.changeExpandedOutput();
+                break;
             case QUIT:
                 if (parsed.args.size() == 1) {
                     try {
