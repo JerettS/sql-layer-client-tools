@@ -20,6 +20,8 @@ import java.io.OutputStream;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.ArrayList;
 
 public class ResultPrinter
 {
@@ -29,6 +31,7 @@ public class ResultPrinter
     private int columnCount;
     private int[] cellWidths;
     private boolean[] isNumber;
+    private boolean expandedOutput = false;
 
     public ResultPrinter(OutputSink sink) {
         this.sink = sink;
@@ -37,6 +40,18 @@ public class ResultPrinter
     public void setSink(OutputSink sink) {
         assert sink != null;
         this.sink = sink;
+    }
+
+    public void changeExpandedOutput(){
+        expandedOutput = !expandedOutput;
+    }
+
+    public void changeExpandedOutput(boolean truth){
+        expandedOutput = truth;
+    }
+
+    public boolean getExpandedOutput() {
+        return expandedOutput;
     }
 
     public void printResultSet(ResultSet rs) throws SQLException, IOException {
@@ -52,26 +67,48 @@ public class ResultPrinter
         this.columnCount = md.getColumnCount();
         this.cellWidths = computeCellWidths(rs, getNullString());
         this.isNumber = computeIsNumber(rs);
-
-        metaStart();
-        for(int i = 0; i < md.getColumnCount(); ++i) {
-            metaColumn(i, md.isSigned(i + 1), md.getColumnLabel(i + 1));
-        }
-        metaFinish();
-
-        rs.beforeFirst();
         int rowCount = 0;
-        rowsStart();
-        while(rs.next()) {
-            rowsRowStart();
-            for(int i = 0; i < columnCount; ++i) {
-                String s = rs.getString(i + 1);
-                rowsColumn(i, (s == null) ? getNullString() : s);
+        if (expandedOutput) {
+            List<String> columnNames = new ArrayList<>(1);
+            int maxLength = 0;
+            for (int i = 0; i < md.getColumnCount(); ++i) {
+                String s = md.getColumnLabel(i + 1);
+                if(s.length() > maxLength)
+                    maxLength = s.length();
+                columnNames.add(s);
+
             }
-            rowsRowFinish();
-            ++rowCount;
+            rs.beforeFirst();
+            while (rs.next()) {
+                sink.print("-[ RECORD " + (rowCount + 1) + " ]\n");
+                for (int i = 0; i < columnCount; ++i) {
+                    String s = rs.getString(i + 1);
+                    if (s == null) {
+                        s = "";
+                    }
+                    String c = columnNames.get(i);
+                    sink.print(c);
+                    spaceFill(sink, maxLength - c.length());
+                    sink.print(" | " + s + "\n");
+                }
+                ++rowCount;
+            }
+        } else {
+            for (int i = 0; i < md.getColumnCount(); ++i) {
+                metaColumn(i, md.isSigned(i + 1), md.getColumnLabel(i + 1));
+            }
+            metaFinish();
+            rs.beforeFirst();
+            while (rs.next()) {
+                for (int i = 0; i < columnCount; ++i) {
+                    String s = rs.getString(i + 1);
+                    rowsColumn(i, (s == null) ? getNullString() : s);
+                }
+                rowsRowFinish();
+                ++rowCount;
+            }
+            rowsFinish(rowCount);
         }
-        rowsFinish(rowCount);
         sink.println();
     }
 
@@ -103,9 +140,6 @@ public class ResultPrinter
         return "";
     }
 
-    private void metaStart() {
-    }
-
     private void metaColumn(int column, boolean isNumeric, String label) throws IOException {
         appendCell(sink, column == 0, cellWidths[column], ALIGN.CENTER, label);
     }
@@ -121,12 +155,6 @@ public class ResultPrinter
             }
         }
         sink.println();
-    }
-
-    private void rowsStart() {
-    }
-
-    private void rowsRowStart() {
     }
 
     private void rowsColumn(int column, String value) throws IOException {

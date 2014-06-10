@@ -475,6 +475,30 @@ public class CLIClient implements Closeable
             case ON_ERROR:
                 toggleOnError(parsed);
                 break;
+            case X_OUTPUT:
+                if(!parsed.args.isEmpty()){
+                    switch(parsed.args.get(0).toLowerCase()) {
+                        case "on": {
+                            resultPrinter.changeExpandedOutput(true);
+                            sink.print("Expanded display is on\n");
+                            break;
+                        }
+                        case "off": {
+                            resultPrinter.changeExpandedOutput(false);
+                            sink.print("Expanded display is off\n");
+                            break;
+                        }
+                        default: {
+                            sink.printlnError("Wrong argument type: expected [on|off]");
+                        }
+                    }
+
+                } else{
+                    resultPrinter.changeExpandedOutput();
+                    String truth = (resultPrinter.getExpandedOutput())? "on": "off";
+                    sink.print("Expanded display is " + truth + "\n");
+                }
+                break;
             case QUIT:
                 if (parsed.args.size() == 1) {
                     try {
