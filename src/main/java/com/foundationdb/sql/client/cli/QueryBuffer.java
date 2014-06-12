@@ -25,11 +25,13 @@ public class QueryBuffer
 {
     private static final int UNSET = -1;
     private static final Quote DASH_QUOTE = new Quote("--", "\n");
-    private static final Quote ESTRING_QUOTE = new Quote("E'", "'");
+    private static final Quote ESTRING1_QUOTE = new Quote("E'", "'");
+    private static final Quote ESTRING2_QUOTE = new Quote("e'", "'");
     private static final Quote BLOCK_QUOTE = new Quote("/*", "*/");
     private static final Quote[] QUOTES = {
         // Note: Ordering sensitive
-        ESTRING_QUOTE,
+        ESTRING1_QUOTE,
+        ESTRING2_QUOTE,
         new Quote('\''),
         new Quote('"'),
         new Quote('`'),
@@ -51,6 +53,14 @@ public class QueryBuffer
 
     public QueryBuffer() {
         reset();
+    }
+
+    boolean inQuote() {
+        return curQuote != null;
+    }
+
+    String getQuote() {
+        return curQuote.begin;
     }
 
     public void setStripDashQuote() {
@@ -94,7 +104,7 @@ public class QueryBuffer
                     if(curQuote == BLOCK_QUOTE) {
                         blockQuoteCount = 1;
                     }
-                    curQuoteStart = curIndex;
+                    curQuoteStart = curIndex - curQuote.begin.length() + 1;
                     curIndex += curQuote.beginSkipLength();
                 }
             } else {
@@ -185,7 +195,7 @@ public class QueryBuffer
 
     private static Quote quoteStartAt(StringBuilder sb, int index) {
         for(Quote q : QUOTES) {
-            if(matchesAhead(sb, index, q.begin)) {
+            if(matchesBehind(sb, index, q.begin)) {
                 return q;
             }
         }
@@ -198,7 +208,7 @@ public class QueryBuffer
             return false;
         }
         // Delicate: E strings can contain backslash-quote, which shouldn't end the quote.
-        if((ESTRING_QUOTE == q) && (index > 0) && (sb.charAt(index - 1) == '\\')) {
+        if((ESTRING1_QUOTE == q || ESTRING2_QUOTE == q) && (index > 0) && (sb.charAt(index - 1) == '\\')) {
             // And neither should backslash-backslash quote-quote
             if((index < 2) || (sb.charAt(index - 2) != '\\')) {
                 return false;
@@ -207,18 +217,13 @@ public class QueryBuffer
         return true;
     }
 
-    private static boolean matchesAhead(StringBuilder sb, int index, String m) {
-        for(int i = 0, j = index; (i < m.length()) && (j < sb.length()); ++i, ++j) {
-            if(sb.charAt(j) != m.charAt(i)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private static boolean matchesBehind(StringBuilder sb, int index, String m) {
-        for(int i = m.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
-            if(sb.charAt(j) != m.charAt(i)) {
+        int j = index - m.length() + 1;
+        if(j < 0) {
+            return false;
+        }
+        for(int i = 0; i < m.length(); ++i, ++j) {
+            if(m.charAt(i) != sb.charAt(j)) {
                 return false;
             }
         }

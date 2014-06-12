@@ -392,6 +392,10 @@ public class QueryBufferTest
             "SELECT E'foo''bar';",
             "SELECT E'foo\\'bar';",
             "SELECT E'foo\\\\''bar';",
+            "SELECT e'foobar';",
+            "SELECT e'foo''bar';",
+            "SELECT e'foo\\'bar';",
+            "SELECT e'foo\\\\''bar';",
         };
         for(String q : queries) {
             qb.append(q);
@@ -418,5 +422,41 @@ public class QueryBufferTest
         assertEquals(q2Stripped, qb.nextQuery());
         assertEquals(q2Stripped, qb.trimCompleted());
         assertFalse(qb.hasQuery());
+    }
+
+    @Test
+    public void multiCharQuoteEndOfBuffer() {
+        String q1 = "SELECT 1,  DATE";
+        String q2 = " '2014-06-11';";
+        qb.append(q1);
+        assertFalse(qb.hasQuery());
+        assertFalse(qb.inQuote());
+        qb.append(q2);
+        assertTrue(qb.hasQuery());
+        assertFalse(qb.inQuote());
+        assertEquals(q1+q2, qb.nextQuery());
+        String q3 = "SELECT 2, E";
+        String q4 = "'foo";
+        String q5 = "';";
+        qb.append(q3);
+        assertFalse(qb.hasQuery());
+        assertFalse(qb.inQuote());
+        qb.append(q4);
+        assertFalse(qb.hasQuery());
+        assertTrue(qb.inQuote());
+        assertEquals("E'", qb.getQuote());
+        qb.append(q5);
+        assertTrue(qb.hasQuery());
+        assertFalse(qb.inQuote());
+        assertEquals(q3+q4+q5, qb.nextQuery());
+        String q6 = "SELECT 3, E'";
+        String q7 = "foo';";
+        qb.append(q6);
+        assertFalse(qb.hasQuery());
+        assertTrue(qb.inQuote());
+        qb.append(q7);
+        assertTrue(qb.hasQuery());
+        assertFalse(qb.inQuote());
+        assertEquals(q6+q7, qb.nextQuery());
     }
 }
