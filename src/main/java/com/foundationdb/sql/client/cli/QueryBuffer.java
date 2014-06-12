@@ -25,11 +25,13 @@ public class QueryBuffer
 {
     private static final int UNSET = -1;
     private static final Quote DASH_QUOTE = new Quote("--", "\n");
-    private static final Quote ESTRING_QUOTE = new Quote("E'", "'");
+    private static final Quote ESTRING1_QUOTE = new Quote("E'", "'");
+    private static final Quote ESTRING2_QUOTE = new Quote("e'", "'");
     private static final Quote BLOCK_QUOTE = new Quote("/*", "*/");
     private static final Quote[] QUOTES = {
         // Note: Ordering sensitive
-        ESTRING_QUOTE,
+        ESTRING1_QUOTE,
+        ESTRING2_QUOTE,
         new Quote('\''),
         new Quote('"'),
         new Quote('`'),
@@ -206,7 +208,7 @@ public class QueryBuffer
             return false;
         }
         // Delicate: E strings can contain backslash-quote, which shouldn't end the quote.
-        if((ESTRING_QUOTE == q) && (index > 0) && (sb.charAt(index - 1) == '\\')) {
+        if((ESTRING1_QUOTE == q || ESTRING2_QUOTE == q) && (index > 0) && (sb.charAt(index - 1) == '\\')) {
             // And neither should backslash-backslash quote-quote
             if((index < 2) || (sb.charAt(index - 2) != '\\')) {
                 return false;

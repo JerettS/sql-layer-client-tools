@@ -392,6 +392,10 @@ public class QueryBufferTest
             "SELECT E'foo''bar';",
             "SELECT E'foo\\'bar';",
             "SELECT E'foo\\\\''bar';",
+            "SELECT e'foobar';",
+            "SELECT e'foo''bar';",
+            "SELECT e'foo\\'bar';",
+            "SELECT e'foo\\\\''bar';",
         };
         for(String q : queries) {
             qb.append(q);
