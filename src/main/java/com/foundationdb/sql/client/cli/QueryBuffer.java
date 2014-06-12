@@ -53,6 +53,14 @@ public class QueryBuffer
         reset();
     }
 
+    boolean inQuote() {
+        return curQuote != null;
+    }
+
+    String getQuote() {
+        return curQuote.begin;
+    }
+
     public void setStripDashQuote() {
         stripDashQuote = true;
     }
@@ -94,7 +102,7 @@ public class QueryBuffer
                     if(curQuote == BLOCK_QUOTE) {
                         blockQuoteCount = 1;
                     }
-                    curQuoteStart = curIndex;
+                    curQuoteStart = curIndex - curQuote.begin.length() + 1;
                     curIndex += curQuote.beginSkipLength();
                 }
             } else {
@@ -185,7 +193,7 @@ public class QueryBuffer
 
     private static Quote quoteStartAt(StringBuilder sb, int index) {
         for(Quote q : QUOTES) {
-            if(matchesAhead(sb, index, q.begin)) {
+            if(matchesBehind(sb, index, q.begin)) {
                 return q;
             }
         }
@@ -207,18 +215,13 @@ public class QueryBuffer
         return true;
     }
 
-    private static boolean matchesAhead(StringBuilder sb, int index, String m) {
-        for(int i = 0, j = index; (i < m.length()) && (j < sb.length()); ++i, ++j) {
-            if(sb.charAt(j) != m.charAt(i)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private static boolean matchesBehind(StringBuilder sb, int index, String m) {
-        for(int i = m.length() - 1, j = index; i >= 0 && j >= 0; --i, --j) {
-            if(sb.charAt(j) != m.charAt(i)) {
+        int j = index - m.length() + 1;
+        if(j < 0) {
+            return false;
+        }
+        for(int i = 0; i < m.length(); ++i, ++j) {
+            if(m.charAt(i) != sb.charAt(j)) {
                 return false;
             }
         }
