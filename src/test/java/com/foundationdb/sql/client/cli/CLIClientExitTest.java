@@ -312,7 +312,16 @@ public class CLIClientExitTest {
 
                 "--skip-rc", "-q", "-f", tmpFile.getAbsolutePath()
             );
-        
+    }
+    
+    @Test 
+    public void testExitString() throws Exception {
+        File tmpFile = tmpFileFrom("exit");
+        runAndCheck(false,
+                0,
+                "\\q\n",
+                "--skip-rc", "-q", "-f", tmpFile.getAbsolutePath()
+       );
     }
     
     private static File tmpFileFrom(String... lines) throws IOException {
