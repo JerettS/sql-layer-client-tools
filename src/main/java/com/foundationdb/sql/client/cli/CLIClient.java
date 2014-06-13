@@ -50,6 +50,11 @@ public class CLIClient implements Closeable
 
     private final static int MAX_PREPARED_RETRY = 5;
     private final static String STALE_STATEMENT_CODE = "0A50A";
+    
+    private static final String HELP_STRING = "help";
+    private static final String EXIT_STRING = "exit";
+    private static final String QUIT_STRING = "quit";
+            
 
     private static final Map<BackslashCommand,BackslashQuery> LIST_QUERY;
     private static final Map<BackslashCommand,BackslashQuery> DESC_QUERY;
@@ -236,7 +241,15 @@ public class CLIClient implements Closeable
                         isConsuming = false;
                     }
                 } else {
-                    qb.append(str);
+                    if (qb.isEmpty() && HELP_STRING.equalsIgnoreCase(str.trim())) {
+                        qb.append("\\?\n");
+                    } else if (qb.isEmpty() && 
+                            (EXIT_STRING.equalsIgnoreCase(str.trim()) ||
+                             QUIT_STRING.equalsIgnoreCase(str.trim()))) {
+                        qb.append("\\q\n");
+                    } else {
+                        qb.append(str);
+                    }
                 }
             } catch(PartialLineException e) {
                 // ctrl-c, abort current query
