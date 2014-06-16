@@ -27,6 +27,29 @@ CREATE TABLE `max`(
 
 INSERT INTO `max` VALUES(2);
 
+--- t1_fk
+
+DROP TABLE IF EXISTS t1_fk;
+
+CREATE TABLE t1_fk(
+  id INT NOT NULL PRIMARY KEY,
+  `user` INT
+);
+
+
+
+
+--- t2_fk
+
+DROP TABLE IF EXISTS t2_fk;
+
+CREATE TABLE t2_fk(
+  `user` INT NOT NULL PRIMARY KEY
+);
+
+
+
+
 --- table
 ---  table_child
 
@@ -67,3 +90,4 @@ CREATE TABLE `values`(
 
 INSERT INTO `values` VALUES(1);
 
+ALTER TABLE t1_fk ADD CONSTRAINT `user` FOREIGN KEY(`user`) REFERENCES t2_fk(`user`);
