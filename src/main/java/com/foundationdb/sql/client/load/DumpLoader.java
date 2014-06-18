@@ -54,7 +54,7 @@ class DumpLoader extends FileLoader
             }
             if (line.isEmpty() || line.startsWith("--- "))
                 continue;
-            throw new UnsupportedOperationException("File contains " + line + " and cannot be fast loaded. Try psql -f instead.");
+            throw new UnsupportedOperationException("File contains " + line + " and cannot be fast loaded. Try fdbsqlcli -f instead.");
         }
     }
 
