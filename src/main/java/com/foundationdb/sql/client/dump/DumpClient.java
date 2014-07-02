@@ -636,6 +636,11 @@ public class DumpClient
         "WHERE table_schema = ? AND table_name = ? "+
         "ORDER BY ordinal_position";
 
+    private static final String LOAD_PRIMARY_KEY_CONSTRAINT_NAME =
+            "SELECT QUOTE_IDENT(c.constraint_name, '`') "+
+                    "FROM information_schema.table_constraints c "+
+                    "WHERE c.constraint_type = 'PRIMARY KEY' AND c.table_schema = ? AND c.table_name = ?";
+    
     protected void outputCreateTable(Table table) throws SQLException, IOException {
         Set<String> pkey = null, gkey = null;
         if (!table.primaryKeys.isEmpty())
@@ -693,17 +698,15 @@ public class DumpClient
             }
             
             if (pkey != null) {
+                ResultSet rsPk = stmtHelper.executeQueryPrepared(LOAD_PRIMARY_KEY_CONSTRAINT_NAME, table.schema, table.name);
+                rsPk.next();
                 pkey.remove(quotedColumn);
                 if (pkey.isEmpty()) {
-                    if (table.primaryKeys.size() == 1) {
-                        sql.append(" PRIMARY KEY");
-                    }
-                    else {
-                        sql.append(',').append(NL).append("  PRIMARY KEY");
-                        keys(table.primaryKeys, sql);
-                    }
+                    sql.append(',').append(NL).append("  CONSTRAINT ").append(rsPk.getString(1)).append(" PRIMARY KEY ");
+                    keys(table.primaryKeys, sql);
                     pkey = null;
                 }
+                rsPk.close();
             }
             if (gkey != null) {
                 gkey.remove(quotedColumn);

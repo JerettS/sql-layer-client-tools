@@ -38,7 +38,7 @@ DROP TABLE IF EXISTS `table`;
 CREATE TABLE `table`(
   `select` INT NOT NULL,
   `into` INT NOT NULL,
-  PRIMARY KEY(`select`, `into`)
+  CONSTRAINT table_pkey PRIMARY KEY (`select`, `into`)
 );
 
 CREATE TABLE table_child(
@@ -60,7 +60,8 @@ INSERT INTO `table` VALUES(1, 2);
 DROP TABLE IF EXISTS `values`;
 
 CREATE TABLE `values`(
-  `min` INT NOT NULL PRIMARY KEY
+  `min` INT NOT NULL,
+  CONSTRAINT values_pkey PRIMARY KEY (`min`)
 );
 
 

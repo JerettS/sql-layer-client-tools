@@ -5,7 +5,8 @@ ALTER TABLE emp DROP FOREIGN KEY `__fk_1`;
 DROP TABLE IF EXISTS dept;
 
 CREATE TABLE dept(
-  deptno INT NOT NULL PRIMARY KEY,
+  deptno INT NOT NULL,
+  CONSTRAINT dept_pkey PRIMARY KEY (deptno),
   name VARCHAR(16) CHARACTER SET utf8 COLLATE ucs_binary NOT NULL,
   dept_head INT
 );
@@ -22,7 +23,8 @@ DROP TABLE IF EXISTS memo;
 DROP TABLE IF EXISTS emp;
 
 CREATE TABLE emp(
-  empno INT NOT NULL PRIMARY KEY,
+  empno INT NOT NULL,
+  CONSTRAINT emp_pkey PRIMARY KEY (empno),
   name VARCHAR(128) CHARACTER SET utf8 COLLATE ucs_binary NOT NULL,
   mgr INT,
   deptno INT
@@ -41,7 +43,8 @@ INSERT INTO emp VALUES(1, 'Smith', NULL, 1),
 
 
 CREATE TABLE memo(
-  id INT NOT NULL PRIMARY KEY,
+  id INT NOT NULL,
+  CONSTRAINT memo_pkey PRIMARY KEY (id),
   body TEXT CHARACTER SET utf8 COLLATE ucs_binary,
   author INT
 );
