@@ -44,7 +44,7 @@ CREATE TABLE `table`(
 CREATE TABLE table_child(
   `select` INT NOT NULL,
   `into` INT NOT NULL,
-  GROUPING FOREIGN KEY(`select`, `into`) REFERENCES `table`(`select`, `into`)
+  CONSTRAINT `dump_test/table/select_into/dump_test/dump_test.table_child/se$1` GROUPING FOREIGN KEY(`select`, `into`) REFERENCES `table`(`select`, `into`)
 );
 
 

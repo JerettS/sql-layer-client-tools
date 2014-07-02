@@ -21,7 +21,7 @@ CREATE TABLE addresses(
   aid INT NOT NULL,
   CONSTRAINT addresses_pkey PRIMARY KEY (aid),
   cid INT NOT NULL,
-  GROUPING FOREIGN KEY(cid) REFERENCES customers(cid),
+  CONSTRAINT `dump_test/customers/cid/dump_test/dump_test.addresses/cid` GROUPING FOREIGN KEY(cid) REFERENCES customers(cid),
   state CHAR(2) CHARACTER SET latin1 COLLATE latin1_swedish_ci,
   city VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci
 );
@@ -30,7 +30,7 @@ CREATE TABLE orders(
   oid INT NOT NULL,
   CONSTRAINT orders_pkey PRIMARY KEY (oid),
   cid INT NOT NULL,
-  GROUPING FOREIGN KEY(cid) REFERENCES customers(cid),
+  CONSTRAINT `dump_test/customers/cid/dump_test/dump_test.orders/cid` GROUPING FOREIGN KEY(cid) REFERENCES customers(cid),
   order_date DATE NOT NULL
 );
 
@@ -38,7 +38,7 @@ CREATE TABLE items(
   iid INT NOT NULL,
   CONSTRAINT items_pkey PRIMARY KEY (iid),
   oid INT NOT NULL,
-  GROUPING FOREIGN KEY(oid) REFERENCES orders(oid),
+  CONSTRAINT `dump_test/orders/oid/dump_test/dump_test.items/oid` GROUPING FOREIGN KEY(oid) REFERENCES orders(oid),
   sku VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
   quan INT NOT NULL
 );
@@ -47,7 +47,7 @@ CREATE TABLE shipments(
   sid INT NOT NULL,
   CONSTRAINT shipments_pkey PRIMARY KEY (sid),
   oid INT NOT NULL,
-  GROUPING FOREIGN KEY(oid) REFERENCES orders(oid),
+  CONSTRAINT `dump_test/orders/oid/dump_test/dump_test.shipments/oid` GROUPING FOREIGN KEY(oid) REFERENCES orders(oid),
   ship_date DATE NOT NULL
 );
 
@@ -101,7 +101,7 @@ CREATE TABLE child(
   id INT NOT NULL,
   CONSTRAINT child_pkey PRIMARY KEY (id),
   pid INT,
-  GROUPING FOREIGN KEY(pid) REFERENCES parent(id),
+  CONSTRAINT `dump_test/parent/id/dump_test/dump_test.child/pid` GROUPING FOREIGN KEY(pid) REFERENCES parent(id),
   name VARCHAR(128) CHARACTER SET utf8 COLLATE ucs_binary NOT NULL
 );
 

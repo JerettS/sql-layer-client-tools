@@ -641,6 +641,12 @@ public class DumpClient
                     "FROM information_schema.table_constraints c "+
                     "WHERE c.constraint_type = 'PRIMARY KEY' AND c.table_schema = ? AND c.table_name = ?";
     
+    private static final String LOAD_GROUPING_CONSTRAINT_NAME =
+            "SELECT QUOTE_IDENT(c.constraint_name, '`') "+
+                    "FROM information_schema.table_constraints c "+
+                    "WHERE c.constraint_type = 'GROUPING' AND c.table_schema = ? AND c.table_name = ?";
+    
+    
     protected void outputCreateTable(Table table) throws SQLException, IOException {
         Set<String> pkey = null, gkey = null;
         if (!table.primaryKeys.isEmpty())
@@ -698,25 +704,29 @@ public class DumpClient
             }
             
             if (pkey != null) {
-                ResultSet rsPk = stmtHelper.executeQueryPrepared(LOAD_PRIMARY_KEY_CONSTRAINT_NAME, table.schema, table.name);
-                rsPk.next();
                 pkey.remove(quotedColumn);
                 if (pkey.isEmpty()) {
+                    ResultSet rsPk = stmtHelper.executeQueryPrepared(LOAD_PRIMARY_KEY_CONSTRAINT_NAME, table.schema, table.name);
+                    rsPk.next();
                     sql.append(',').append(NL).append("  CONSTRAINT ").append(rsPk.getString(1)).append(" PRIMARY KEY ");
                     keys(table.primaryKeys, sql);
                     pkey = null;
+                    rsPk.close();
                 }
-                rsPk.close();
+
             }
             if (gkey != null) {
                 gkey.remove(quotedColumn);
                 if (gkey.isEmpty()) {
-                    sql.append(',').append(NL).append("  GROUPING FOREIGN KEY");
+                    ResultSet rsGk = stmtHelper.executeQueryPrepared(LOAD_GROUPING_CONSTRAINT_NAME, table.schema, table.name);
+                    rsGk.next();
+                    sql.append(',').append(NL).append("  CONSTRAINT ").append(rsGk.getString(1)).append(" GROUPING FOREIGN KEY");
                     keys(table.childKeys, sql);
                     sql.append(" REFERENCES ");
                     qualifiedName(table.parent, sql);
                     keys(table.parentKeys, sql);
                     gkey = null;
+                    rsGk.close();
                 }
             }
         }
