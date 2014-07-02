@@ -325,12 +325,12 @@ public class DumpClient
         "       QUOTE_IDENT(kcu1.table_schema, '`'), "+
         "       kcu1.table_name, "+
         "       QUOTE_IDENT(kcu1.table_name, '`'), "+
-        "       kcu1.column_name, "+
+        "       QUOTE_IDENT(kcu1.column_name, '`'), "+
         "       kcu2.table_schema, "+
         "       QUOTE_IDENT(kcu2.table_schema, '`'), "+
         "       kcu2.table_name, "+
         "       QUOTE_IDENT(kcu2.table_schema, '`'), "+
-        "       kcu2.column_name "+
+        "       QUOTE_IDENT(kcu2.column_name, '`') "+
         "FROM information_schema.referential_constraints rc "+
         "INNER JOIN information_schema.key_column_usage kcu1 USING (constraint_schema, constraint_name) "+
         "INNER JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_schema = kcu2.constraint_schema "+
@@ -815,18 +815,6 @@ public class DumpClient
         }
     }
 
-    private static final String OUTPUT_CREATE_INDEX_QUERY =
-            "SELECT column_schema, "+
-                    "       QUOTE_IDENT(column_schema, '`'), "+
-                    "       column_table, "+
-                    "       QUOTE_IDENT(column_table, '`'), "+
-                    "       column_name, "+
-                    "       QUOTE_IDENT(column_name, '`'), "+
-                    "       is_ascending "+
-                    "FROM information_schema.index_columns " +
-                    "WHERE index_table_schema = ? AND index_table_name = ? AND index_name = ? " +
-                    "ORDER BY ordinal_position";
-
     protected void outputCreateUniqueIndex(Table table, String index, String quotedIndex, String joinType, String indexMethod, String quotedConstraintName) throws SQLException, IOException{
         StringBuilder sql = new StringBuilder("ALTER TABLE ");
         qualifiedName(table, sql);
@@ -846,6 +834,17 @@ public class DumpClient
         appendColumns(sql, joinType, indexMethod, table, index);
 
     }
+    
+    private static final String OUTPUT_CREATE_INDEX_QUERY =
+            "SELECT column_schema, "+
+                    "       QUOTE_IDENT(column_schema, '`'), "+
+                    "       column_table, "+
+                    "       QUOTE_IDENT(column_table, '`'), "+
+                    "       QUOTE_IDENT(column_name, '`'), "+
+                    "       is_ascending "+
+                    "FROM information_schema.index_columns " +
+                    "WHERE index_table_schema = ? AND index_table_name = ? AND index_name = ? " +
+                    "ORDER BY ordinal_position";
     
     private void appendColumns(StringBuilder sql, String joinType, String indexMethod, Table table, String index ) throws SQLException, IOException {
         sql.append("(");
@@ -880,8 +879,8 @@ public class DumpClient
                     }
                 }
             }
-            sql.append(rs.getString(6));
-            if ("NO".equals(rs.getString(7))) {
+            sql.append(rs.getString(5));
+            if ("NO".equals(rs.getString(6))) {
                 sql.append(" DESC");
             }
         }

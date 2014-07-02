@@ -99,7 +99,8 @@ case "${1}" in
             -e "s/RELEASE/${RELEASE}/g" \
             "${PACKAGING_DIR}/deb/fdb-sql-layer-client-tools.control.in" > \
             DEBIAN/control
-        
+        echo "Installed-Size:" $(du -sx --exclude DEBIAN . | awk '{print $1}') >> DEBIAN/control
+
         cd "usr/share/foundationdb/sql"
         ln -s "${CLIENT_JAR_NAME}" fdb-sql-layer-client-tools.jar
 
