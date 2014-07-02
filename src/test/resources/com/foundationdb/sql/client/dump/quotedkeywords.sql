@@ -50,6 +50,9 @@ CREATE TABLE table_child(
 
 CREATE INDEX `and` ON `table`(`select`);
 CREATE INDEX `or` ON `table`(`select`, `into`);
+CREATE UNIQUE INDEX `add` ON table_child(`into`);
+ALTER TABLE table_child ADD CONSTRAINT `constraint` UNIQUE (`select`);
+ALTER TABLE table_child ADD CONSTRAINT `unique` UNIQUE (`into`);
 
 CREATE VIEW `to` AS SELECT `select` AS `is` FROM `table`;
 

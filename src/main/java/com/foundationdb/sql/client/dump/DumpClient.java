@@ -773,7 +773,8 @@ public class DumpClient
         "       QUOTE_IDENT(index_name, '`'), "+
         "       is_unique, "+
         "       join_type, "+
-        "       index_method "+
+        "       index_method, "+
+        "       QUOTE_IDENT(constraint_name, '`') "+
         "FROM information_schema.indexes "+
         "WHERE table_schema = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') "+
         "ORDER BY index_id";
@@ -781,30 +782,50 @@ public class DumpClient
     protected void outputCreateIndexesForTable(Table table) throws SQLException, IOException {
         ResultSet rs = stmtHelper.executeQueryPrepared(OUTPUT_CREATE_INDEXES_FOR_TABLE_QUERY, table.schema, table.name);
         while (rs.next()) {
-            outputCreateIndex(table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5));
+            
+            outputCreateIndex(table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6));
         }
         rs.close();
     }    
 
-    private static final String OUTPUT_CREATE_INDEX_QUERY =
-        "SELECT column_schema, "+
-        "       QUOTE_IDENT(column_schema, '`'), "+
-        "       column_table, "+
-        "       QUOTE_IDENT(column_table, '`'), "+
-        "       column_name, "+
-        "       QUOTE_IDENT(column_name, '`'), "+
-        "       is_ascending "+
-        "FROM information_schema.index_columns " +
-        "WHERE index_table_schema = ? AND index_table_name = ? AND index_name = ? " +
-        "ORDER BY ordinal_position";
-
-    protected void outputCreateIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod) throws SQLException, IOException {
+    protected void outputCreateIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod, String quotedConstraintName) throws SQLException, IOException {
         for (ForeignKey fkey : table.foreignKeys) {
             if ((fkey.referencingTable == table) &&
-                index.equals(fkey.name)) {
+                    index.equals(fkey.name)) {
                 return;         // Implicit in FOREIGN KEY definition.
             }
         }
+        if ("YES".equals(unique) && quotedConstraintName.equalsIgnoreCase(quotedIndex)) {
+            // constraint name is defined for unique constraints and thus equals the index name
+            outputCreateUniqueIndex(table, index, quotedIndex, joinType, indexMethod, quotedConstraintName);
+        }
+        else {
+            // constraint name is generated for unique constraints
+            outputCreateStandardIndex(table, index, quotedIndex, unique, joinType, indexMethod);
+        }
+    }
+
+    private static final String OUTPUT_CREATE_INDEX_QUERY =
+            "SELECT column_schema, "+
+                    "       QUOTE_IDENT(column_schema, '`'), "+
+                    "       column_table, "+
+                    "       QUOTE_IDENT(column_table, '`'), "+
+                    "       column_name, "+
+                    "       QUOTE_IDENT(column_name, '`'), "+
+                    "       is_ascending "+
+                    "FROM information_schema.index_columns " +
+                    "WHERE index_table_schema = ? AND index_table_name = ? AND index_name = ? " +
+                    "ORDER BY ordinal_position";
+
+    protected void outputCreateUniqueIndex(Table table, String index, String quotedIndex, String joinType, String indexMethod, String quotedConstraintName) throws SQLException, IOException{
+        StringBuilder sql = new StringBuilder("ALTER TABLE ");
+        qualifiedName(table, sql);
+        sql.append(" ADD CONSTRAINT ").append(quotedConstraintName);
+        sql.append(" UNIQUE ");
+        appendColumns(sql, joinType, indexMethod, table, index);
+    }
+    
+    protected void outputCreateStandardIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod) throws SQLException, IOException {
         StringBuilder sql = new StringBuilder("CREATE ");
         if ("YES".equals(unique))
             sql.append("UNIQUE ");
@@ -812,7 +833,12 @@ public class DumpClient
         sql.append(quotedIndex);
         sql.append(" ON ");
         qualifiedName(table, sql);
-        sql.append('(');
+        appendColumns(sql, joinType, indexMethod, table, index);
+
+    }
+    
+    private void appendColumns(StringBuilder sql, String joinType, String indexMethod, Table table, String index ) throws SQLException, IOException {
+        sql.append("(");
         if (indexMethod != null)
             sql.append(indexMethod).append("(");
         ResultSet rs = stmtHelper.executeQueryPrepared(OUTPUT_CREATE_INDEX_QUERY, table.schema, table.name, index);
