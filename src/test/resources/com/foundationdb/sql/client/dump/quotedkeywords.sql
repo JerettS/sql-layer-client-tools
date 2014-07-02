@@ -32,7 +32,8 @@ INSERT INTO `max` VALUES(2);
 DROP TABLE IF EXISTS t1_fk;
 
 CREATE TABLE t1_fk(
-  id INT NOT NULL PRIMARY KEY,
+  id INT NOT NULL,
+  CONSTRAINT t1_fk_pkey PRIMARY KEY (id),
   `user` INT
 );
 
@@ -44,7 +45,8 @@ CREATE TABLE t1_fk(
 DROP TABLE IF EXISTS t2_fk;
 
 CREATE TABLE t2_fk(
-  `user` INT NOT NULL PRIMARY KEY
+  `user` INT NOT NULL,
+  CONSTRAINT t2_fk_pkey PRIMARY KEY (`user`)
 );
 
 
