@@ -201,6 +201,14 @@ public class DumpClient
         "  AND c.unique_constraint_name = p.constraint_name "+
         "WHERE p.table_name IS NOT NULL AND (c.constraint_schema = ? OR c.unique_schema = ?)";
 
+    private static final String LOAD_PRIMARY_KEYS =
+            "SELECT c.constraint_schema, "+
+                    "c.constraint_name, "+
+                    "c.table_schema, "+
+                    "c.table_name "+
+                    "FROM information_schema.table_constraints c "+
+                    "WHERE c.constraint_type = 'PRIMARY KEY'";
+    
     protected void loadGroups(String schema, Deque<String> pending) throws SQLException {
         ResultSet rs = stmtHelper.executeQueryPrepared(LOAD_GROUPS_QUERY, schema, schema);
         while (rs.next()) {
@@ -220,9 +228,19 @@ public class DumpClient
                 parent.primaryKeys = keys;
         }
         rs.close();
+        ResultSet rsPk = stmtHelper.executeQuery(LOAD_PRIMARY_KEYS);
+        HashMap<String, String> tableCol = new HashMap<>();
+        String tableID;
+        String constraintName;
+        while (rsPk.next()) {
+            tableID = rsPk.getString(3)+rsPk.getString(4);
+            constraintName = rsPk.getString(2);
+            tableCol.put(tableID, constraintName);
+        }
+        rsPk.close();
         for (Table table : schemas.get(schema).values()) {
             if (table.primaryKeys == null) {
-                table.primaryKeys = loadKeys(table.schema, table.name, table.name+".PRIMARY");
+                table.primaryKeys = loadKeys(table.schema, table.name, tableCol.get(table.schema+table.name));
             }
         }
     }
@@ -345,17 +363,6 @@ public class DumpClient
                 if (!schema.equals(referencingSchema) &&
                     schemas.contains(referencedSchema))
                     continue; // Will get to it then.
-                assert name.startsWith(referencingTable + ".");
-                // TODO: Broken, remove when constraint names are accurate from the sql-layer
-                name = name.substring(referencingTable.length() + 1);
-
-                if (quotedName.startsWith("`") ) {
-                    quotedName = "`" + quotedName.substring(referencingTable.length() + 2);
-                }
-                else {
-                    quotedName = quotedName.substring(referencingTable.length() + 1);
-                }
-
                 if (pos == 0) {
                     fkey = new ForeignKey(findOrCreateTable(referencingSchema, quotedReferencingSchema, referencingTable, quotedReferencingTable,  null),
                                           findOrCreateTable(referencedSchema, quotedReferencedSchema, referencedTable, quotedReferencedTable, null),
