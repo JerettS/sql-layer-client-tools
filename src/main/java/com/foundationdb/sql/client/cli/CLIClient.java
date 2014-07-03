@@ -512,6 +512,14 @@ public class CLIClient implements Closeable
                     sink.print("Expanded display is " + truth + "\n");
                 }
                 break;
+            case NULL:
+                if(parsed.args.isEmpty()) {
+                    resultPrinter.changeNullOutput();
+                }else{
+                    resultPrinter.changeNullOutput(parsed.args.get(0));
+                }
+                sink.print("Format NULL as \"" + resultPrinter.getNullString() + "\"\n");
+                break;
             case QUIT:
                 if (parsed.args.size() == 1) {
                     try {
@@ -525,7 +533,7 @@ public class CLIClient implements Closeable
                 }
                 
                 isRunning = false;
-            break;
+                break;
             default:
                 // If fully qualified, include system even without S
                 parsed.isSystem = parsed.isSystem || (parsed.args.size() > 1);

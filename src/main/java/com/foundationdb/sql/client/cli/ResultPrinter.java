@@ -32,6 +32,7 @@ public class ResultPrinter
     private int[] cellWidths;
     private boolean[] isNumber;
     private boolean expandedOutput = false;
+    private String nullString = "";
 
     public ResultPrinter(OutputSink sink) {
         this.sink = sink;
@@ -54,6 +55,13 @@ public class ResultPrinter
         return expandedOutput;
     }
 
+    public void changeNullOutput(String output) {
+        nullString = output;
+    }
+
+    public void changeNullOutput(){
+        nullString = "";
+    }
     public void printResultSet(ResultSet rs) throws SQLException, IOException {
         printResultSet(null, rs);
     }
@@ -137,7 +145,7 @@ public class ResultPrinter
     //
 
     public String getNullString() {
-        return "";
+        return nullString;
     }
 
     private void metaColumn(int column, boolean isNumeric, String label) throws IOException {
