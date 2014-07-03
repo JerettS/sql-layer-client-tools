@@ -25,7 +25,7 @@ import java.util.ArrayList;
 
 public class ResultPrinter
 {
-    private static enum ALIGN { LEFT, CENTER, RIGHT }
+    private static enum ALIGN { LEFT, CENTER, RIGHT, OFF }
 
     private OutputSink sink;
     private int columnCount;
@@ -34,7 +34,8 @@ public class ResultPrinter
     private boolean expandedOutput = false;
     private String nullString = "";
     private boolean tupleOutput = false;
-    private String fieldSeperator = "|";
+    private String fieldSeparator = "|";
+    private boolean aligned = true;
 
     public ResultPrinter(OutputSink sink) {
         this.sink = sink;
@@ -77,12 +78,24 @@ public class ResultPrinter
         return tupleOutput;
     }
 
-    public String getFieldSeperator(){
-        return fieldSeperator;
+    public String getFieldSeparator(){
+        return fieldSeparator;
     }
 
-    public void setFieldSeperator(String fieldSeperator){
-        this.fieldSeperator = fieldSeperator;
+    public void setFieldSeparator(String fieldSeparator){
+        this.fieldSeparator = fieldSeparator;
+    }
+
+    public void changeAlignment(){
+        aligned = !aligned;
+    }
+
+    public void changeAlignment(boolean truth){
+         aligned = truth;
+    }
+
+    public boolean getAlignment(){
+        return aligned;
     }
 
     public void printResultSet(ResultSet rs) throws SQLException, IOException {
@@ -115,10 +128,10 @@ public class ResultPrinter
                     sink.print("-[ RECORD " + (rowCount + 1) + " ]\n");
                 }
                 else {
-                    if(getFieldSeperator() == "|")
+                    if(getFieldSeparator() == "|")
                         sink.print("-\n");
                     else
-                        sink.print(getFieldSeperator() + "\n");
+                        sink.print(getFieldSeparator() + "\n");
                 }
                 for (int i = 0; i < columnCount; ++i) {
                     String s = rs.getString(i + 1);
@@ -128,8 +141,12 @@ public class ResultPrinter
                     if(!tupleOutput) {
                         String c = columnNames.get(i);
                         sink.print(c);
-                        spaceFill(sink, maxLength - c.length());
-                        sink.print(" " + getFieldSeperator()+ " " + s + "\n");
+                        if(aligned) {
+                            spaceFill(sink, maxLength - c.length());
+                            sink.print(" " + getFieldSeparator() + " " + s + "\n");
+                        } else {
+                            sink.print(getFieldSeparator() + s + "\n");
+                        }
                     } else {
                         sink.print(s + "\n");
                     }
@@ -141,7 +158,9 @@ public class ResultPrinter
                 for (int i = 0; i < md.getColumnCount(); ++i) {
                     metaColumn(i, md.isSigned(i + 1), md.getColumnLabel(i + 1));
                 }
-                metaFinish();
+                if(aligned) {
+                    metaFinish();
+                }
             }
             rs.beforeFirst();
             while (rs.next()) {
@@ -186,7 +205,11 @@ public class ResultPrinter
     }
 
     private void metaColumn(int column, boolean isNumeric, String label) throws IOException {
-        appendCell(sink, column == 0, cellWidths[column], ALIGN.CENTER, label, getFieldSeperator());
+        if(!aligned){
+            appendCell(sink, column == 0, cellWidths[column], ALIGN.OFF, label, getFieldSeparator());
+        } else {
+            appendCell(sink, column == 0, cellWidths[column], ALIGN.CENTER, label, getFieldSeparator());
+        }
     }
 
     private void metaFinish() throws IOException {
@@ -195,7 +218,7 @@ public class ResultPrinter
             if(i > 0) {
                 sink.print('+');
             }
-            for(int j = 0; j < (cellWidths[i] + 1) + getFieldSeperator().length(); ++j) {
+            for(int j = 0; j < (cellWidths[i] + 1) + getFieldSeparator().length(); ++j) {
                 sink.print('-');
             }
         }
@@ -203,7 +226,11 @@ public class ResultPrinter
     }
 
     private void rowsColumn(int column, String value) throws IOException {
-        appendCell(sink, column == 0, cellWidths[column], isNumber[column] ? ALIGN.RIGHT : ALIGN.LEFT, value, getFieldSeperator());
+        if(!aligned){
+            appendCell(sink, column == 0, cellWidths[column], ALIGN.OFF, value, getFieldSeparator());
+        } else {
+            appendCell(sink, column == 0, cellWidths[column], isNumber[column] ? ALIGN.RIGHT : ALIGN.LEFT, value, getFieldSeparator());
+        }
     }
 
     private void rowsRowFinish() throws IOException {
@@ -228,32 +255,40 @@ public class ResultPrinter
         sink.printlnError(msg);
     }
 
-    private static void appendCell(OutputSink sink, boolean isFirst, int width, ALIGN align, String value, String fieldSeperator) throws IOException {
+    private static void appendCell(OutputSink sink, boolean isFirst, int width, ALIGN align, String value, String fieldSeparator) throws IOException {
         if(!isFirst) {
-            sink.print(fieldSeperator);
+            sink.print(fieldSeparator);
         }
-        sink.print(' ');
+
         int alignDiff = width - value.length();
         switch(align) {
             case LEFT:
+                sink.print(' ');
                 sink.print(value);
                 spaceFill(sink, alignDiff);
+                sink.print(' ');
             break;
             case CENTER:
+                sink.print(' ');
                 int halfDiff = alignDiff / 2;
                 int slop = alignDiff & 1;
                 spaceFill(sink, halfDiff);
                 sink.print(value);
                 spaceFill(sink, halfDiff + slop);
+                sink.print(' ');
             break;
             case RIGHT:
+                sink.print(' ');
                 spaceFill(sink, alignDiff);
+                sink.print(value);
+                sink.print(' ');
+            break;
+            case OFF:
                 sink.print(value);
             break;
             default:
                 assert false;
         }
-        sink.print(' ');
     }
 
 

@@ -42,7 +42,8 @@ public enum BackslashCommand
     X_OUTPUT    ("x", false, false,  "[ON|OFF]",                 "Toggles between regular and expanded output"),
     NULL        ("null", false, false, "[STRING]",               "Set null representation"),
     TUPLE       ("t", false, false, "[ON|OFF]",                  "Set tuple only output"),
-    SEPERATOR   ("f", false, false, "[STRING]",                  "Set field seperator")
+    SEPARATOR   ("f", false, false, "[STRING]",                  "Set field separator"),
+    ALIGNMENT   ("a", false, false, "[ON|OFF]",                  "Toggle on and off alignment")
     ;
 
     public final String cmd;

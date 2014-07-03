@@ -545,13 +545,37 @@ public class CLIClient implements Closeable
                     sink.print("Tuple only is " + truth + "\n");
                 }
                 break;
-            case SEPERATOR:
+            case SEPARATOR:
                 if(parsed.args.isEmpty()) {
-                    resultPrinter.setFieldSeperator("|");
+                    resultPrinter.setFieldSeparator("|");
                 }else{
-                    resultPrinter.setFieldSeperator(parsed.args.get(0));
+                    resultPrinter.setFieldSeparator(parsed.args.get(0));
                 }
-                sink.print("Field separator is now \"" + resultPrinter.getFieldSeperator() + "\"\n");
+                sink.print("Field separator is now \"" + resultPrinter.getFieldSeparator() + "\"\n");
+                break;
+            case ALIGNMENT:
+                if(!parsed.args.isEmpty()){
+                    switch(parsed.args.get(0).toLowerCase()) {
+                        case "on": {
+                            resultPrinter.changeAlignment(true);
+                            sink.print("Output is aligned\n");
+                            break;
+                        }
+                        case "off": {
+                            resultPrinter.changeAlignment(false);
+                            sink.print("Output is unaligned\n");
+                            break;
+                        }
+                        default: {
+                            sink.printlnError("Wrong argument type: expected [on|off]\n");
+                            break;
+                        }
+                    }
+                } else {
+                    resultPrinter.changeAlignment();
+                    String truth = (resultPrinter.getAlignment()) ? "aligned" : "unaligned";
+                    sink.print("Output is  " + truth + "\n");
+                }
                 break;
             case QUIT:
                 if (parsed.args.size() == 1) {
