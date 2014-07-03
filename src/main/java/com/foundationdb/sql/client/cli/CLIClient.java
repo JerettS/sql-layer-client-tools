@@ -520,6 +520,31 @@ public class CLIClient implements Closeable
                 }
                 sink.print("Format NULL as \"" + resultPrinter.getNullString() + "\"\n");
                 break;
+            case TUPLE:
+                if(!parsed.args.isEmpty()){
+                    switch(parsed.args.get(0).toLowerCase()) {
+                        case "on": {
+                            resultPrinter.changeTupleOutput(true);
+                            sink.print("Tuples only is on\n");
+                            break;
+                        }
+                        case "off": {
+                            resultPrinter.changeTupleOutput(false);
+                            sink.print("Tuples only is off\n");
+                            break;
+                        }
+                        default: {
+                            sink.printlnError("Wrong argument type: expected [on|off]\n");
+                            break;
+                        }
+                    }
+
+                } else {
+                    resultPrinter.changeTupleOutput();
+                    String truth = (resultPrinter.getTupleOutput()) ? "on" : "off";
+                    sink.print("Tuple only is " + truth + "\n");
+                }
+                break;
             case QUIT:
                 if (parsed.args.size() == 1) {
                     try {
@@ -528,10 +553,9 @@ public class CLIClient implements Closeable
                             lastError = value;
                         }
                     } catch (NumberFormatException e) {
-                        // Explicitly do nothing. 
+                        // Explicitly do nothing.
                     }
                 }
-                
                 isRunning = false;
                 break;
             default:

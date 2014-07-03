@@ -33,6 +33,7 @@ public class ResultPrinter
     private boolean[] isNumber;
     private boolean expandedOutput = false;
     private String nullString = "";
+    private boolean tupleOutput = false;
 
     public ResultPrinter(OutputSink sink) {
         this.sink = sink;
@@ -62,6 +63,19 @@ public class ResultPrinter
     public void changeNullOutput(){
         nullString = "";
     }
+
+    public void changeTupleOutput(){
+        tupleOutput = !tupleOutput;
+    }
+
+    public void changeTupleOutput(boolean truth){
+        tupleOutput = truth;
+    }
+
+    public boolean getTupleOutput() {
+        return tupleOutput;
+    }
+
     public void printResultSet(ResultSet rs) throws SQLException, IOException {
         printResultSet(null, rs);
     }
@@ -88,24 +102,35 @@ public class ResultPrinter
             }
             rs.beforeFirst();
             while (rs.next()) {
-                sink.print("-[ RECORD " + (rowCount + 1) + " ]\n");
+                if(!tupleOutput) {
+                    sink.print("-[ RECORD " + (rowCount + 1) + " ]\n");
+                }
+                else {
+                    sink.print("-\n");
+                }
                 for (int i = 0; i < columnCount; ++i) {
                     String s = rs.getString(i + 1);
                     if (s == null) {
                         s = "";
                     }
-                    String c = columnNames.get(i);
-                    sink.print(c);
-                    spaceFill(sink, maxLength - c.length());
-                    sink.print(" | " + s + "\n");
+                    if(!tupleOutput) {
+                        String c = columnNames.get(i);
+                        sink.print(c);
+                        spaceFill(sink, maxLength - c.length());
+                        sink.print(" | " + s + "\n");
+                    } else {
+                        sink.print(s + "\n");
+                    }
                 }
                 ++rowCount;
             }
         } else {
-            for (int i = 0; i < md.getColumnCount(); ++i) {
-                metaColumn(i, md.isSigned(i + 1), md.getColumnLabel(i + 1));
+            if(!tupleOutput) {
+                for (int i = 0; i < md.getColumnCount(); ++i) {
+                    metaColumn(i, md.isSigned(i + 1), md.getColumnLabel(i + 1));
+                }
+                metaFinish();
             }
-            metaFinish();
             rs.beforeFirst();
             while (rs.next()) {
                 for (int i = 0; i < columnCount; ++i) {
@@ -218,6 +243,7 @@ public class ResultPrinter
         }
         sink.print(' ');
     }
+
 
     private static void spaceFill(OutputSink sink, int count) throws IOException {
         for(int i = 0; i < count; ++i) {
