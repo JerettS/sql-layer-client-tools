@@ -41,7 +41,8 @@ public enum BackslashCommand
     QUIT    ("q", false, false, "[EXIT CODE]", "quit"),
     X_OUTPUT    ("x", false, false,  "[ON|OFF]",                 "Toggles between regular and expanded output"),
     NULL        ("null", false, false, "[STRING]",               "Set null representation"),
-    TUPLE       ("t", false, false, "[ON|OFF]",                  "Set tuple only output")
+    TUPLE       ("t", false, false, "[ON|OFF]",                  "Set tuple only output"),
+    SEPERATOR   ("f", false, false, "[STRING]",                  "Set field seperator")
     ;
 
     public final String cmd;

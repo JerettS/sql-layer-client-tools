@@ -545,6 +545,14 @@ public class CLIClient implements Closeable
                     sink.print("Tuple only is " + truth + "\n");
                 }
                 break;
+            case SEPERATOR:
+                if(parsed.args.isEmpty()) {
+                    resultPrinter.setFieldSeperator("|");
+                }else{
+                    resultPrinter.setFieldSeperator(parsed.args.get(0));
+                }
+                sink.print("Field separator is now \"" + resultPrinter.getFieldSeperator() + "\"\n");
+                break;
             case QUIT:
                 if (parsed.args.size() == 1) {
                     try {

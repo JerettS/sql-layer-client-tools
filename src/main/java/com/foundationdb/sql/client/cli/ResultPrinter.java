@@ -34,6 +34,7 @@ public class ResultPrinter
     private boolean expandedOutput = false;
     private String nullString = "";
     private boolean tupleOutput = false;
+    private String fieldSeperator = "|";
 
     public ResultPrinter(OutputSink sink) {
         this.sink = sink;
@@ -76,6 +77,14 @@ public class ResultPrinter
         return tupleOutput;
     }
 
+    public String getFieldSeperator(){
+        return fieldSeperator;
+    }
+
+    public void setFieldSeperator(String fieldSeperator){
+        this.fieldSeperator = fieldSeperator;
+    }
+
     public void printResultSet(ResultSet rs) throws SQLException, IOException {
         printResultSet(null, rs);
     }
@@ -106,7 +115,10 @@ public class ResultPrinter
                     sink.print("-[ RECORD " + (rowCount + 1) + " ]\n");
                 }
                 else {
-                    sink.print("-\n");
+                    if(getFieldSeperator() == "|")
+                        sink.print("-\n");
+                    else
+                        sink.print(getFieldSeperator() + "\n");
                 }
                 for (int i = 0; i < columnCount; ++i) {
                     String s = rs.getString(i + 1);
@@ -117,7 +129,7 @@ public class ResultPrinter
                         String c = columnNames.get(i);
                         sink.print(c);
                         spaceFill(sink, maxLength - c.length());
-                        sink.print(" | " + s + "\n");
+                        sink.print(" " + getFieldSeperator()+ " " + s + "\n");
                     } else {
                         sink.print(s + "\n");
                     }
@@ -174,7 +186,7 @@ public class ResultPrinter
     }
 
     private void metaColumn(int column, boolean isNumeric, String label) throws IOException {
-        appendCell(sink, column == 0, cellWidths[column], ALIGN.CENTER, label);
+        appendCell(sink, column == 0, cellWidths[column], ALIGN.CENTER, label, getFieldSeperator());
     }
 
     private void metaFinish() throws IOException {
@@ -183,7 +195,7 @@ public class ResultPrinter
             if(i > 0) {
                 sink.print('+');
             }
-            for(int j = 0; j < (cellWidths[i] + 2); ++j) {
+            for(int j = 0; j < (cellWidths[i] + 1) + getFieldSeperator().length(); ++j) {
                 sink.print('-');
             }
         }
@@ -191,7 +203,7 @@ public class ResultPrinter
     }
 
     private void rowsColumn(int column, String value) throws IOException {
-        appendCell(sink, column == 0, cellWidths[column], isNumber[column] ? ALIGN.RIGHT : ALIGN.LEFT, value);
+        appendCell(sink, column == 0, cellWidths[column], isNumber[column] ? ALIGN.RIGHT : ALIGN.LEFT, value, getFieldSeperator());
     }
 
     private void rowsRowFinish() throws IOException {
@@ -216,9 +228,9 @@ public class ResultPrinter
         sink.printlnError(msg);
     }
 
-    private static void appendCell(OutputSink sink, boolean isFirst, int width, ALIGN align, String value) throws IOException {
+    private static void appendCell(OutputSink sink, boolean isFirst, int width, ALIGN align, String value, String fieldSeperator) throws IOException {
         if(!isFirst) {
-            sink.print("|");
+            sink.print(fieldSeperator);
         }
         sink.print(' ');
         int alignDiff = width - value.length();
