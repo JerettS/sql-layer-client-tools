@@ -62,10 +62,6 @@ public class ResultPrinter
         nullString = output;
     }
 
-    public void changeNullOutput(){
-        nullString = "";
-    }
-
     public void changeTupleOutput(){
         tupleOutput = !tupleOutput;
     }
