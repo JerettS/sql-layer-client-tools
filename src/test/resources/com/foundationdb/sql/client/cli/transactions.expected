@@ -6,17 +6,17 @@ ROWS: 0
 
 ROWS: 1
 
- id 
+ id
 ----
-  1 
-  2 
+  1
+  2
 (2 rows)
 
 ROWS: 0
 
- id 
+ id
 ----
-  1 
+  1
 (1 row)
 
 ROWS: 0
@@ -25,8 +25,8 @@ ROWS: 1
 
 ROWS: 0
 
- id 
+ id
 ----
-  2 
+  2
 (1 row)
 

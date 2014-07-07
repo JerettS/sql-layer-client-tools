@@ -6,9 +6,9 @@ _SQL_COL_3 | 3
 _SQL_COL_4 | 4
 
 Expanded display is off
- _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 | _SQL_COL_4 
+ _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 | _SQL_COL_4
 ------------+------------+------------+------------
-          1 |          2 |          3 |          4 
+          1 |          2 |          3 |          4
 (1 row)
 
 Expanded display is on

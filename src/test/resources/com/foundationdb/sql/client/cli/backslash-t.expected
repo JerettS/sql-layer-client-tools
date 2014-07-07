@@ -1,24 +1,24 @@
 Tuple only is on
-          1 |          2 |          3 |          4 
+          1 |          2 |          3 |          4
 (1 row)
 
 Tuple only is off
- _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 | _SQL_COL_4 
+ _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 | _SQL_COL_4
 ------------+------------+------------+------------
-          1 |          2 |          3 |          4 
+          1 |          2 |          3 |          4
 (1 row)
 
 Tuple only is on
-   1 | 2 
+   1 | 2
 (1 row)
 
 ROWS: 0
 
 ROWS: 3
 
-     1 |          2 | 3 
-     4 |          5 | 6 
-     7 |          8 | 9 
+     1 |          2 | 3
+     4 |          5 | 6
+     7 |          8 | 9
 (3 rows)
 
 Expanded display is on
