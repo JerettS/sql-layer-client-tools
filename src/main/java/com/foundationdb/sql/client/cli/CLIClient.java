@@ -487,7 +487,7 @@ public class CLIClient implements Closeable
             break;
             case ON_ERROR:
                 toggleOnError(parsed);
-                break;
+            break;
             case X_OUTPUT:
                 if(!parsed.args.isEmpty()){
                     switch(parsed.args.get(0).toLowerCase()) {
@@ -511,15 +511,13 @@ public class CLIClient implements Closeable
                     String truth = (resultPrinter.getExpandedOutput())? "on": "off";
                     sink.print("Expanded display is " + truth + "\n");
                 }
-                break;
+            break;
             case NULL:
-                if(parsed.args.isEmpty()) {
-                    resultPrinter.changeNullOutput();
-                }else{
-                    resultPrinter.changeNullOutput(parsed.args.get(0));
+                if(!parsed.args.isEmpty()){
+                   resultPrinter.changeNullOutput(parsed.args.get(0));
                 }
                 sink.print("Format NULL as \"" + resultPrinter.getNullString() + "\"\n");
-                break;
+            break;
             case TUPLE:
                 if(!parsed.args.isEmpty()){
                     switch(parsed.args.get(0).toLowerCase()) {
@@ -544,15 +542,13 @@ public class CLIClient implements Closeable
                     String truth = (resultPrinter.getTupleOutput()) ? "on" : "off";
                     sink.print("Tuple only is " + truth + "\n");
                 }
-                break;
+            break;
             case SEPARATOR:
-                if(parsed.args.isEmpty()) {
-                    resultPrinter.setFieldSeparator("|");
-                }else{
+                if(!(parsed.args.isEmpty())) {
                     resultPrinter.setFieldSeparator(parsed.args.get(0));
                 }
-                sink.print("Field separator is now \"" + resultPrinter.getFieldSeparator() + "\"\n");
-                break;
+                sink.print("Format separator as \"" + resultPrinter.getFieldSeparator() + "\"\n");
+            break;
             case ALIGNMENT:
                 if(!parsed.args.isEmpty()){
                     switch(parsed.args.get(0).toLowerCase()) {
@@ -576,7 +572,7 @@ public class CLIClient implements Closeable
                     String truth = (resultPrinter.getAlignment()) ? "aligned" : "unaligned";
                     sink.print("Output is  " + truth + "\n");
                 }
-                break;
+            break;
             case QUIT:
                 if (parsed.args.size() == 1) {
                     try {
@@ -589,7 +585,7 @@ public class CLIClient implements Closeable
                     }
                 }
                 isRunning = false;
-                break;
+            break;
             default:
                 // If fully qualified, include system even without S
                 parsed.isSystem = parsed.isSystem || (parsed.args.size() > 1);

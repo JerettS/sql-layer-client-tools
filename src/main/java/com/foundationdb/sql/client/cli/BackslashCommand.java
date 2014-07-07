@@ -40,9 +40,9 @@ public enum BackslashCommand
     HELP    ("?", false, false, "", "display this help"),
     QUIT    ("q", false, false, "[EXIT CODE]", "quit"),
     X_OUTPUT    ("x", false, false,  "[ON|OFF]",                 "Toggles between regular and expanded output"),
-    NULL        ("null", false, false, "[STRING]",               "Set null representation"),
+    NULL        ("null", false, false, "[STRING]",               "Show or set NULL representation"),
     TUPLE       ("t", false, false, "[ON|OFF]",                  "Set tuple only output"),
-    SEPARATOR   ("f", false, false, "[STRING]",                  "Set field separator"),
+    SEPARATOR   ("f", false, false, "[STRING]",                  "Show or set field separator"),
     ALIGNMENT   ("a", false, false, "[ON|OFF]",                  "Toggle on and off alignment")
     ;
 

@@ -9,7 +9,7 @@ ROWS: 3
      7 |          8 |
 (3 rows)
 
-Field separator is now "LONGFIELDS"
+Format separator as "LONGFIELDS"
  label LONGFIELDS long_label LONGFIELDS a
 ----------------+---------------------+------------
      1 LONGFIELDS            LONGFIELDS 3
@@ -17,7 +17,7 @@ Field separator is now "LONGFIELDS"
      7 LONGFIELDS          8 LONGFIELDS
 (3 rows)
 
-Field separator is now ","
+Format separator as ","
  label , long_label , a
 -------+------------+---
      1 ,            , 3
@@ -39,7 +39,8 @@ label      , 7
 long_label , 8
 a          ,
 
-Field separator is now "|"
+Format separator as ","
+Format separator as "|"
 -[ RECORD 1 ]
 label      | 1
 long_label |

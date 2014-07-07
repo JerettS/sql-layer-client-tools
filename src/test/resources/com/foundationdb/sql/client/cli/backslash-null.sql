@@ -7,6 +7,7 @@ SELECT * FROM t;
 SELECT * FROM t;
 
 \null
+\null ""
 
 SELECT * FROM t;
 

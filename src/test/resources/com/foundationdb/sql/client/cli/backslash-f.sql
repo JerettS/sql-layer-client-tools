@@ -13,7 +13,10 @@ SELECT * FROM t;
 \x
 
 SELECT * FROM t;
+
 \f
+\f "|"
+
 SELECT * FROM t;
 
 \x
