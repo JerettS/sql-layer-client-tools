@@ -160,6 +160,7 @@ public class LineReader
         QueryBuffer b  = new QueryBuffer();
         long before = -1;
         long after = -1;
+        decoder.reset();
         
         while (position < point) {
             before = position;
@@ -168,13 +169,10 @@ public class LineReader
             after = position;
         }
         
-        if (before <= 0) {
+        if (before < after) {
             return after;
-        }
-        if ((point - before) < (after - point)) {
-            return before;
         } else {
-            return after;
+            return before;
         }
     }
     
