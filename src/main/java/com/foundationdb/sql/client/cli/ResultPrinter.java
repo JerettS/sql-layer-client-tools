@@ -46,11 +46,11 @@ public class ResultPrinter
         this.sink = sink;
     }
 
-    public void changeExpandedOutput(){
+    public void toggleExpandedOutput(){
         expandedOutput = !expandedOutput;
     }
 
-    public void changeExpandedOutput(boolean truth){
+    public void setExpandedOutput(boolean truth){
         expandedOutput = truth;
     }
 
@@ -58,15 +58,15 @@ public class ResultPrinter
         return expandedOutput;
     }
 
-    public void changeNullOutput(String output) {
+    public void setNullOutput(String output) {
         nullString = output;
     }
 
-    public void changeTupleOutput(){
+    public void toggleTupleOutput(){
         tupleOutput = !tupleOutput;
     }
 
-    public void changeTupleOutput(boolean truth){
+    public void setTupleOutput(boolean truth){
         tupleOutput = truth;
     }
 
@@ -82,11 +82,11 @@ public class ResultPrinter
         this.fieldSeparator = fieldSeparator;
     }
 
-    public void changeAlignment(){
+    public void toggleAlignment(){
         aligned = !aligned;
     }
 
-    public void changeAlignment(boolean truth){
+    public void setAlignment(boolean truth){
          aligned = truth;
     }
 
@@ -121,13 +121,13 @@ public class ResultPrinter
             rs.beforeFirst();
             while (rs.next()) {
                 if(!tupleOutput) {
-                    sink.print("-[ RECORD " + (rowCount + 1) + " ]\n");
+                    sink.println("-[ RECORD " + (rowCount + 1) + " ]");
                 }
                 else {
-                    if(getFieldSeparator() == "|")
-                        sink.print("-\n");
+                    if(getFieldSeparator().equals("|"))
+                        sink.println("-");
                     else
-                        sink.print(getFieldSeparator() + "\n");
+                        sink.println(getFieldSeparator());
                 }
                 for (int i = 0; i < columnCount; ++i) {
                     String s = rs.getString(i + 1);
@@ -139,15 +139,15 @@ public class ResultPrinter
                         sink.print(c);
                         if(aligned) {
                             spaceFill(sink, maxLength - c.length());
-                            if(s == "")
-                                sink.print(" " + getFieldSeparator() + "\n");
+                            if(s.isEmpty())
+                                sink.println(" " + getFieldSeparator());
                             else
-                                sink.print(" " + getFieldSeparator() + " " + s + "\n");
+                                sink.println(" " + getFieldSeparator() + " " + s);
                         } else {
-                            sink.print(getFieldSeparator() + s + "\n");
+                            sink.println(getFieldSeparator() + s);
                         }
                     } else {
-                        sink.print(s + "\n");
+                        sink.println(s);
                     }
                 }
                 ++rowCount;
@@ -262,7 +262,7 @@ public class ResultPrinter
         int alignDiff = width - value.length();
         switch(align) {
             case LEFT:
-                if(!finalColumn || value != "") {
+                if(!finalColumn || !value.isEmpty()) {
                     sink.print(' ');
                     sink.print(value);
                 }
@@ -274,7 +274,7 @@ public class ResultPrinter
             case CENTER:
                 int halfDiff = alignDiff / 2;
                 int slop = alignDiff & 1;
-                if(!finalColumn || value != "") {
+                if(!finalColumn || !value.isEmpty()) {
                     sink.print(' ');
                     spaceFill(sink, halfDiff);
                     sink.print(value);
@@ -285,7 +285,7 @@ public class ResultPrinter
                 }
             break;
             case RIGHT:
-                if(!finalColumn || value != "") {
+                if(!finalColumn || !value.isEmpty()) {
                     sink.print(' ');
                     spaceFill(sink, alignDiff);
                     sink.print(value);
