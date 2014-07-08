@@ -34,9 +34,9 @@ public class CLIClientMiscTest
     @Test
     public void dashCNoSemiColon() throws Exception {
         runAndCheck(false,
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          5 \n" +
+            "          5\n" +
             "(1 row)\n"+
             "\n",
 
@@ -47,9 +47,9 @@ public class CLIClientMiscTest
     @Test
     public void dashCSingle() throws Exception {
         runAndCheck(false,
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          5 \n" +
+            "          5\n" +
             "(1 row)\n"+
             "\n",
 
@@ -60,14 +60,14 @@ public class CLIClientMiscTest
     @Test
     public void dashCMulti() throws Exception {
         runAndCheck(false, 
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          5 \n" +
+            "          5\n" +
             "(1 row)\n"+
             "\n"+
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          6 \n" +
+            "          6\n" +
             "(1 row)\n"+
             "\n",
 
@@ -83,15 +83,15 @@ public class CLIClientMiscTest
         );
         runAndCheck(false, 
             "select 5;\n"+
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          5 \n" +
+            "          5\n" +
             "(1 row)\n"+
             "\n"+
             "select 6;\n"+
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          6 \n" +
+            "          6\n" +
             "(1 row)\n"+
             "\n",
 
@@ -117,14 +117,14 @@ public class CLIClientMiscTest
             }
         }
         assertEquals(
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          5 \n" +
+            "          5\n" +
             "(1 row)\n" +
             "\n" +
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          6 \n" +
+            "          6\n" +
             "(1 row)\n" +
             "\n",
             sb.toString()
@@ -154,14 +154,14 @@ public class CLIClientMiscTest
             }
         }
         assertEquals(
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          5 \n" +
+            "          5\n" +
             "(1 row)\n" +
             "\n" +
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          6 \n" +
+            "          6\n" +
             "(1 row)\n" +
             "\n",
             sb.toString()
@@ -177,17 +177,17 @@ public class CLIClientMiscTest
         );
         runAndCheck(false,
             "select 1;\n" +
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          1 \n" +
+            "          1\n" +
             "(1 row)\n" +
             "\n" +
             "\\i not_a_real_file\n" +
             "not_a_real_file (No such file or directory)\n" +
             "select 2;\n" +
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          2 \n" +
+            "          2\n" +
             "(1 row)\n" +
             "\n",
 
@@ -220,14 +220,14 @@ public class CLIClientMiscTest
             }
         }
         assertEquals(
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          2 \n" +
+            "          2\n" +
             "(1 row)\n" +
             "\n" +
-            " _SQL_COL_1 \n" +
+            " _SQL_COL_1\n" +
             "------------\n" +
-            "          3 \n" +
+            "          3\n" +
             "(1 row)\n" +
             "\n",
             sb.toString()
@@ -246,9 +246,9 @@ public class CLIClientMiscTest
                 "\\timing\n" +
                 "Timing is on.\n" +
                 "select 1;\n" +
-                        " _SQL_COL_1 \n" +
+                        " _SQL_COL_1\n" +
                         "------------\n" +
-                        "          1 \n" +
+                        "          1\n" +
                         "(1 row)\n" +
                         "\n"+
                         "Time: ",
@@ -267,9 +267,9 @@ public class CLIClientMiscTest
                 "\\timing\n" +
                 "Timing is on.\n" +
                 "select 1;\n" +
-                        " _SQL_COL_1 \n" +
+                        " _SQL_COL_1\n" +
                         "------------\n" +
-                        "          1 \n" +
+                        "          1\n" +
                         "(1 row)\n" +
                         "\n" +
                         "Time: ",
@@ -287,9 +287,9 @@ public class CLIClientMiscTest
                         "\\timing\n" +
                         "Timing is off.\n" +                        
                         "select 1;\n" +
-                        " _SQL_COL_1 \n" +
+                        " _SQL_COL_1\n" +
                         "------------\n" +
-                        "          1 \n" +
+                        "          1\n" +
                         "(1 row)\n" +
                         "\n" ,
                 "--skip-rc", "-q", "-f", tmpFile2.getAbsolutePath()
