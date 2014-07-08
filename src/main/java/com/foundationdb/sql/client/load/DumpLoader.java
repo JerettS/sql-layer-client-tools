@@ -170,10 +170,19 @@ class DumpLoader extends FileLoader
         LineReader lines = new LineReader(channel, client.getEncoding(),
                                           FileLoader.SMALL_BUFFER_SIZE, 1,
                                           start, end);
+        long mid;
         while (nsegments > 1) {
-            long mid = start + (end - start) / nsegments;
+            if ( ((end - start) < nsegments) && ((end - start) > 0)) {
+                mid = start + 1;
+                nsegments = (int)(end - start);
+            }
+            else {
+                mid = start + (end - start) / nsegments;
+            }
             mid = lines.splitParse (mid);
             segments.add(new DumpSegmentQueryLoader(start, mid));
+            if (mid >= (end - 1))
+                return segments;
             start = mid;
             lines.position(mid);
             nsegments--;

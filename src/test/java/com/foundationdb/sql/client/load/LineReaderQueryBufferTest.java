@@ -270,29 +270,31 @@ public class LineReaderQueryBufferTest {
         long mid = start + (end - start) / 2;
 
         mid = lines.splitParse(mid);
-        assertEquals(mid, 1034);
+        assertEquals(mid, 2052);
 
         lines = new LineReader (istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, mid);
         QueryBuffer b = new QueryBuffer();
         assertTrue (lines.readLine(b));
         assertTrue (b.hasQuery());
         String query = b.nextQuery();
-        assertTrue (query.startsWith("INSERT INTO states VALUES"));
+        assertTrue (query.startsWith("INSERT INTO states VALUES('AL"));
+        assertFalse(b.hasQuery());
+        b.reset();
+        assertTrue(lines.readLine(b));
+        assertTrue(b.hasQuery());
+        query = b.nextQuery();
+        assertTrue (query.startsWith("INSERT INTO states VALUES('NJ"));
         assertFalse(b.hasQuery());
         b.reset();
         assertFalse(lines.readLine(b));
-
+        
         lines = new LineReader (istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, mid, istr.getChannel().size());
         b = new QueryBuffer();
         assertTrue (lines.readLine(b));
         assertTrue (b.hasQuery());
         query = b.nextQuery();
-        assertTrue (query.startsWith("INSERT INTO states VALUES"));
-        assertFalse(b.hasQuery());
-        b.reset();
-        assertTrue(lines.readLine(b));
-
-    
+        assertTrue (query.startsWith("INSERT INTO states VALUES('VA"));
+        assertFalse(b.hasQuery());    
     }
     
     private static File tmpFileFrom(String... lines) throws IOException {
