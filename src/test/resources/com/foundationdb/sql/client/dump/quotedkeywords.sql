@@ -32,7 +32,8 @@ INSERT INTO `max` VALUES(2);
 DROP TABLE IF EXISTS t1_fk;
 
 CREATE TABLE t1_fk(
-  id INT NOT NULL PRIMARY KEY,
+  id INT NOT NULL,
+  CONSTRAINT t1_fk_pkey PRIMARY KEY (id),
   `user` INT
 );
 
@@ -44,7 +45,8 @@ CREATE TABLE t1_fk(
 DROP TABLE IF EXISTS t2_fk;
 
 CREATE TABLE t2_fk(
-  `user` INT NOT NULL PRIMARY KEY
+  `user` INT NOT NULL,
+  CONSTRAINT t2_fk_pkey PRIMARY KEY (`user`)
 );
 
 
@@ -61,18 +63,21 @@ DROP TABLE IF EXISTS `table`;
 CREATE TABLE `table`(
   `select` INT NOT NULL,
   `into` INT NOT NULL,
-  PRIMARY KEY(`select`, `into`)
+  CONSTRAINT table_pkey PRIMARY KEY (`select`, `into`)
 );
 
 CREATE TABLE table_child(
   `select` INT NOT NULL,
   `into` INT NOT NULL,
-  GROUPING FOREIGN KEY(`select`, `into`) REFERENCES `table`(`select`, `into`)
+  CONSTRAINT `dump_test/table/select_into/dump_test/dump_test.table_child/se$1` GROUPING FOREIGN KEY(`select`, `into`) REFERENCES `table`(`select`, `into`)
 );
 
 
 CREATE INDEX `and` ON `table`(`select`);
 CREATE INDEX `or` ON `table`(`select`, `into`);
+CREATE UNIQUE INDEX `add` ON table_child(`into`);
+ALTER TABLE table_child ADD CONSTRAINT `constraint` UNIQUE (`select`);
+ALTER TABLE table_child ADD CONSTRAINT `unique` UNIQUE (`into`);
 
 CREATE VIEW `to` AS SELECT `select` AS `is` FROM `table`;
 
@@ -83,7 +88,8 @@ INSERT INTO `table` VALUES(1, 2);
 DROP TABLE IF EXISTS `values`;
 
 CREATE TABLE `values`(
-  `min` INT NOT NULL PRIMARY KEY
+  `min` INT NOT NULL,
+  CONSTRAINT values_pkey PRIMARY KEY (`min`)
 );
 
 

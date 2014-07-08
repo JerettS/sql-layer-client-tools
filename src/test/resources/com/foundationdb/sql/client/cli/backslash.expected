@@ -152,7 +152,7 @@ References:
 Indexes:
     PRIMARY (cid)
 Referenced By:
-    TABLE o CONSTRAINT o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    TABLE o CONSTRAINT cfk FOREIGN KEY (cid) REFERENCES c (cid)
     TABLE a GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
     TABLE o GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
@@ -167,7 +167,7 @@ Indexes:
     PRIMARY (iid)
     ofk (oid)
 References:
-    i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    ofk FOREIGN KEY (oid) REFERENCES o (oid)
     GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
 
  Table test.o
@@ -183,10 +183,10 @@ Indexes:
     cfk (cid)
     odate_name (o.odate, c.name) USING LEFT JOIN
 References:
-    o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    cfk FOREIGN KEY (cid) REFERENCES c (cid)
     GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 Referenced By:
-    TABLE i CONSTRAINT i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    TABLE i CONSTRAINT ofk FOREIGN KEY (oid) REFERENCES o (oid)
     TABLE i GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
 
  Sequence test.s1
@@ -270,7 +270,7 @@ References:
 Indexes:
     PRIMARY (cid)
 Referenced By:
-    TABLE o CONSTRAINT o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    TABLE o CONSTRAINT cfk FOREIGN KEY (cid) REFERENCES c (cid)
     TABLE a GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
     TABLE o GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 
@@ -285,7 +285,7 @@ Indexes:
     PRIMARY (iid)
     ofk (oid)
 References:
-    i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    ofk FOREIGN KEY (oid) REFERENCES o (oid)
     GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
 
  Table test.o
@@ -301,10 +301,10 @@ Indexes:
     cfk (cid)
     odate_name (o.odate, c.name) USING LEFT JOIN
 References:
-    o.cfk FOREIGN KEY (cid) REFERENCES c (cid)
+    cfk FOREIGN KEY (cid) REFERENCES c (cid)
     GROUPING FOREIGN KEY (cid) REFERENCES c (cid)
 Referenced By:
-    TABLE i CONSTRAINT i.ofk FOREIGN KEY (oid) REFERENCES o (oid)
+    TABLE i CONSTRAINT ofk FOREIGN KEY (oid) REFERENCES o (oid)
     TABLE i GROUPING FOREIGN KEY (oid) REFERENCES o (oid)
 
  Table test.t1
