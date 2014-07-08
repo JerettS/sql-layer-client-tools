@@ -1,40 +1,40 @@
- _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 
+ _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3
 ------------+------------+------------
- a          | b          | c          
+ a          | b          | c
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-          1 
+          1
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-          2 
+          2
 (1 row)
 
- _SQL_COL_1 | _SQL_COL_2 
+ _SQL_COL_1 | _SQL_COL_2
 ------------+------------
-          4 |          5 
+          4 |          5
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-          6 
+          6
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-          7 
+          7
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-          8 
+          8
 (1 row)
 
 ROWS: 0
 
- id 
+ id
 ----
 (0 rows)

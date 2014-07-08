@@ -1,62 +1,62 @@
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-            
+
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-          1 
+          1
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
-       3.14 
+       3.14
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
- asdf       
+ asdf
 (1 row)
 
-  _SQL_COL_1  
+  _SQL_COL_1
 --------------
- \000\001\002 
+ \000\001\002
 (1 row)
 
- _SQL_COL_1 
+ _SQL_COL_1
 ------------
- 2013-12-16 
+ 2013-12-16
 (1 row)
 
- one | two | three 
+ one | two | three
 -----+-----+-------
-   1 |   2 |     3 
+   1 |   2 |     3
 (1 row)
 
- _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3 
+ _SQL_COL_1 | _SQL_COL_2 | _SQL_COL_3
 ------------+------------+------------
-        100 |        200 |        300 
+        100 |        200 |        300
 (1 row)
 
-  _SQL_COL_1   
+  _SQL_COL_1
 ---------------
- Hello, world! 
+ Hello, world!
 (1 row)
 
-     _SQL_COL_1      
+     _SQL_COL_1
 ---------------------
- Extra semis ignored 
+ Extra semis ignored
 (1 row)
 
-       _SQL_COL_1        
+       _SQL_COL_1
 -------------------------
  Escaped
-newline	and tab 
+newline	and tab
 (1 row)
 
-        _SQL_COL_1         
+        _SQL_COL_1
 ---------------------------
  Embedded
 newline
-	and tab 
+	and tab
 (1 row)

@@ -487,31 +487,28 @@ public class CLIClient implements Closeable
             break;
             case ON_ERROR:
                 toggleOnError(parsed);
-                break;
+            break;
             case X_OUTPUT:
+                execExtended(parsed);
+            break;
+            case NULL:
                 if(!parsed.args.isEmpty()){
-                    switch(parsed.args.get(0).toLowerCase()) {
-                        case "on": {
-                            resultPrinter.changeExpandedOutput(true);
-                            sink.print("Expanded display is on\n");
-                            break;
-                        }
-                        case "off": {
-                            resultPrinter.changeExpandedOutput(false);
-                            sink.print("Expanded display is off\n");
-                            break;
-                        }
-                        default: {
-                            sink.printlnError("Wrong argument type: expected [on|off]");
-                        }
-                    }
-
-                } else{
-                    resultPrinter.changeExpandedOutput();
-                    String truth = (resultPrinter.getExpandedOutput())? "on": "off";
-                    sink.print("Expanded display is " + truth + "\n");
+                   resultPrinter.setNullOutput(parsed.args.get(0));
                 }
-                break;
+                sink.print("Format NULL as \"" + resultPrinter.getNullString() + "\"\n");
+            break;
+            case TUPLE:
+                execTuple(parsed);
+            break;
+            case SEPARATOR:
+                if(!(parsed.args.isEmpty())) {
+                    resultPrinter.setFieldSeparator(parsed.args.get(0));
+                }
+                sink.print("Format separator as \"" + resultPrinter.getFieldSeparator() + "\"\n");
+            break;
+            case ALIGNMENT:
+                execAlignment(parsed);
+            break;
             case QUIT:
                 if (parsed.args.size() == 1) {
                     try {
@@ -520,10 +517,9 @@ public class CLIClient implements Closeable
                             lastError = value;
                         }
                     } catch (NumberFormatException e) {
-                        // Explicitly do nothing. 
+                        // Explicitly do nothing.
                     }
                 }
-                
                 isRunning = false;
             break;
             default:
@@ -546,6 +542,81 @@ public class CLIClient implements Closeable
 
     private void toggleShowTiming() {
         showTiming = !showTiming;
+    }
+
+    private void execAlignment(BackslashParser.Parsed parsed) throws IOException {
+        if (!parsed.args.isEmpty()) {
+            switch (parsed.args.get(0).toLowerCase()) {
+                case "on": {
+                    resultPrinter.setAlignment(true);
+                    sink.print("Output is aligned\n");
+                    break;
+                }
+                case "off": {
+                    resultPrinter.setAlignment(false);
+                    sink.print("Output is unaligned\n");
+                    break;
+                }
+                default: {
+                    sink.printlnError("Wrong argument type: expected [on|off]\n");
+                    break;
+                }
+            }
+        } else {
+            resultPrinter.toggleAlignment();
+            String truth = (resultPrinter.getAlignment()) ? "aligned" : "unaligned";
+            sink.print("Output is  " + truth + "\n");
+        }
+    }
+
+    private void execTuple(BackslashParser.Parsed parsed) throws IOException{
+        if(!parsed.args.isEmpty()) {
+            switch (parsed.args.get(0).toLowerCase()) {
+                case "on": {
+                    resultPrinter.setTupleOutput(true);
+                    sink.print("Tuples only is on\n");
+                    break;
+                }
+                case "off": {
+                    resultPrinter.setTupleOutput(false);
+                    sink.print("Tuples only is off\n");
+                    break;
+                }
+                default: {
+                    sink.printlnError("Wrong argument type: expected [on|off]\n");
+                    break;
+                }
+            }
+        } else {
+            resultPrinter.toggleTupleOutput();
+            String truth = (resultPrinter.getTupleOutput()) ? "on" : "off";
+            sink.print("Tuple only is " + truth + "\n");
+        }
+    }
+
+    private void execExtended(BackslashParser.Parsed parsed) throws IOException {
+        if(!parsed.args.isEmpty()){
+            switch(parsed.args.get(0).toLowerCase()) {
+                case "on": {
+                    resultPrinter.setExpandedOutput(true);
+                    sink.print("Expanded display is on\n");
+                    break;
+                }
+                case "off": {
+                    resultPrinter.setExpandedOutput(false);
+                    sink.print("Expanded display is off\n");
+                    break;
+                }
+                default: {
+                    sink.printlnError("Wrong argument type: expected [on|off]");
+                }
+            }
+
+        } else{
+                resultPrinter.toggleExpandedOutput();
+                String truth = (resultPrinter.getExpandedOutput())? "on": "off";
+                sink.print("Expanded display is " + truth + "\n");
+            }
     }
     
     
