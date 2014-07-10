@@ -278,7 +278,7 @@ public class CLIClientMiscTest
                "Format NULL as \"NULL\"\n" +
                "\\f\n" +
                "Format separator as \"(\"\n",
-                
+
                 "--rc", tmpFile2.getAbsolutePath(), "-q", "-f", tmpFile.getAbsolutePath()
         );
     }
