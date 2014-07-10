@@ -385,7 +385,8 @@ public class CLIClient implements Closeable
         if (connection == null) {
             connect();
         }
-        this.resultPrinter = new ResultPrinter(sink);
+        if(this.resultPrinter == null)
+            this.resultPrinter = new ResultPrinter(sink);
     }
 
     private void connect() throws SQLException {

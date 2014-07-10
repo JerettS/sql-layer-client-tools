@@ -258,6 +258,32 @@ public class CLIClientMiscTest
     }
 
     @Test
+    public void configurationFile2() throws Exception {
+        File tmpFile = tmpFileFrom(
+                "\\null",
+                "\\f"
+        );
+
+        File tmpFile2 = tmpFileFrom(
+              "\\null NULL\n" +
+              "\\f \"(\"\n"
+        );
+
+        runAndCheck(true,
+               "\\null NULL\n" +
+               "Format NULL as \"NULL\"\n" +
+               "\\f \"(\"\n" +
+               "Format separator as \"(\"\n" +
+               "\\null\n" +
+               "Format NULL as \"NULL\"\n" +
+               "\\f\n" +
+               "Format separator as \"(\"\n",
+                
+                "--rc", tmpFile2.getAbsolutePath(), "-q", "-f", tmpFile.getAbsolutePath()
+        );
+    }
+
+    @Test
     public void switchTiming() throws Exception {
         File tmpFile = tmpFileFrom(
                 "\\timing",
