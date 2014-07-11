@@ -930,13 +930,10 @@ public class DumpClient
             }
             return;
         }
-        // Unfortunately, this form does not have an IF EXISTS form, so an error
-        // needs to be ignored.
         StringBuilder sql = new StringBuilder();
-        sql.append("-- IGNORE ERRORS").append(NL);
-        sql.append("ALTER TABLE ");
+        sql.append("ALTER TABLE IF EXISTS ");
         qualifiedName(fkey.referencingTable, sql);
-        sql.append(" DROP FOREIGN KEY ");
+        sql.append(" DROP FOREIGN KEY IF EXISTS ");
         sql.append(fkey.quotedName);
         sql.append(';').append(NL);
         output.write(sql.toString());
