@@ -54,6 +54,7 @@ public class LoadClientTest extends ClientTestBase
 
     private String caseName;
     private File propertiesFile;
+    private LoadClient client;
 
     public LoadClientTest(String caseName, File propertiesFile) {
         this.caseName = caseName;
@@ -108,14 +109,15 @@ public class LoadClientTest extends ClientTestBase
                 query = value;
             else if ("expected".equals(key))
                 expectedFile = new File(dir, value);
+            else if ("hosts".equals(key))
+                multiHosts(value, options);
             else
                 throw new Exception("Unknown property: " + key);
         }
-
+        client = new LoadClient(options);
         if (ddlFile != null)
             loadDDL(ddlFile);
 
-        LoadClient client = new LoadClient(options);
         long count = 0;
         try {
             for (File file : files) {
@@ -134,13 +136,25 @@ public class LoadClientTest extends ClientTestBase
 
     protected void loadDDL(File ddlFile) throws Exception {
         String ddl = fileContents(ddlFile);
-        Connection conn = openConnection();
+        Connection conn = openClientConnection();
         Statement stmt = conn.createStatement();
         for (String sql : ddl.split("\\;\\s*")) {
             stmt.execute(sql);
         }
         stmt.close();
         conn.close();
+    }
+
+    protected void multiHosts(String s, LoadClientOptions options){
+        options.hosts = new ArrayList<>();
+        StringTokenizer strTok = new StringTokenizer(s);
+        while(strTok.hasMoreElements()){
+            options.hosts.add(strTok.nextToken());
+        }
+    }
+
+    protected Connection openClientConnection() throws Exception {
+        return client.getConnection(true);
     }
 
     protected void checkQuery(String query, File expectedFile) throws Exception {

@@ -65,6 +65,14 @@ public class LoadClientOptions extends ClientOptionsBase
         }
     }
 
+    public List<String> getAllURLs(){
+        List<String> urls = new ArrayList<>();
+        for(int i = 0; i < hosts.size(); i++){
+            String url = String.format("jdbc:fdbsql://%s:%d/%s", hosts.get(i), port, schema);
+            urls.add(url);
+        }
+        return urls;
+    }
 
     @Parameter(names = { "-s", "--schema" }, description = "destination schema")
     public String schema = DEFAULT_SCHEMA;
@@ -95,4 +103,7 @@ public class LoadClientOptions extends ClientOptionsBase
 
     @Parameter(description = "file(s)", required = true)
     public List<File> files = new ArrayList<>();
+
+    @Parameter(names = {  "--hosts" }, description = "multiple hosts for load")
+    public List<String> hosts = new ArrayList<>();
 }
