@@ -25,3 +25,32 @@ Format NULL as ""
      4 |            | 6
      7 |          8 |
 (3 rows)
+
+Expanded display is on
+Format NULL as "NULL"
+-[ RECORD 1 ]
+label      | 1
+long_label | NULL
+a          | 3
+-[ RECORD 2 ]
+label      | 4
+long_label | NULL
+a          | 6
+-[ RECORD 3 ]
+label      | 7
+long_label | 8
+a          | NULL
+
+Format NULL as ""
+-[ RECORD 1 ]
+label      | 1
+long_label |
+a          | 3
+-[ RECORD 2 ]
+label      | 4
+long_label |
+a          | 6
+-[ RECORD 3 ]
+label      | 7
+long_label | 8
+a          |
