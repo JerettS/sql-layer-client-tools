@@ -24,6 +24,8 @@ import com.foundationdb.sql.client.ClientOptionsBase;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Parameters (separators = "=")
@@ -67,12 +69,26 @@ public class LoadClientOptions extends ClientOptionsBase
 
     public List<String> getAllURLs(){
         List<String> urls = new ArrayList<>();
-        for(int i = 0; i < hosts.size(); i++){
-            String url = String.format("jdbc:fdbsql://%s:%d/%s", hosts.get(i), port, schema);
+        for(String h : hosts) {
+            String url = formatURL(h, port, schema);
             urls.add(url);
         }
         return urls;
     }
+
+    @Override
+    public String getHost() {
+        return hosts.get(0);
+    }
+
+    @Override
+    public void setHost(String host) {
+        this.hosts.clear();
+        this.hosts.add(host);
+    }
+
+    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP")
+    public List<String> hosts = new ArrayList<String>(Collections.singleton(DEFAULT_HOST));
 
     @Parameter(names = { "-s", "--schema" }, description = "destination schema")
     public String schema = DEFAULT_SCHEMA;
@@ -103,7 +119,4 @@ public class LoadClientOptions extends ClientOptionsBase
 
     @Parameter(description = "file(s)", required = true)
     public List<File> files = new ArrayList<>();
-
-    @Parameter(names = {  "--hosts" }, description = "multiple hosts for load")
-    public List<String> hosts = new ArrayList<>();
 }

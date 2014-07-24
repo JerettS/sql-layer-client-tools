@@ -30,14 +30,13 @@ public class LoadClient
     private LoadClientOptions options;
     private String encoding = "UTF-8";
     private Deque<Connection> connections = new ConcurrentLinkedDeque<>();
-    private static List<String> urls = new ArrayList<>();
+    private List<String> urls = new ArrayList<>();
     private int urlsIterator = 0;
 
 
     public static void main(String[] args) throws Exception {
         LoadClientOptions options = new LoadClientOptions();
         options.parseOrDie(PROGRAM_NAME, args);
-        urls = options.getAllURLs();
         LoadClient loadClient = new LoadClient(options);
         try {
             for (File file : options.files) {
@@ -175,13 +174,8 @@ public class LoadClient
     protected Connection getConnection(boolean autoCommit) throws SQLException {
         Connection connection = connections.poll();
         if (connection == null) {
-            String url;
-            if(urls == null || urls.isEmpty()){// null possible from tests
-                url = options.getURL(options.schema);
-            } else {
-                url = urls.get(urlsIterator++);
-                urlsIterator %= urls.size();
-            }
+            String url = urls.get(urlsIterator++);
+            urlsIterator %= urls.size();
             connection = DriverManager.getConnection(url, options.user, options.password);
         }
         connection.setAutoCommit(autoCommit);

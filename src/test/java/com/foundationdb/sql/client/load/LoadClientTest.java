@@ -109,8 +109,10 @@ public class LoadClientTest extends ClientTestBase
                 query = value;
             else if ("expected".equals(key))
                 expectedFile = new File(dir, value);
-            else if ("hosts".equals(key))
-                multiHosts(value, options);
+            else if ("hosts".equals(key)) {
+                options.hosts.clear();
+                options.hosts.addAll(Arrays.asList(value.split(" ")));
+            }
             else
                 throw new Exception("Unknown property: " + key);
         }
@@ -143,14 +145,6 @@ public class LoadClientTest extends ClientTestBase
         }
         stmt.close();
         conn.close();
-    }
-
-    protected void multiHosts(String s, LoadClientOptions options){
-        options.hosts = new ArrayList<>();
-        StringTokenizer strTok = new StringTokenizer(s);
-        while(strTok.hasMoreElements()){
-            options.hosts.add(strTok.nextToken());
-        }
     }
 
     protected Connection openClientConnection() throws Exception {

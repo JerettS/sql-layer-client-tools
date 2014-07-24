@@ -29,7 +29,7 @@ public abstract class ClientTestBase
     public static final String USER_PASSWORD = "test";
 
     protected void fillBaseOptions(ClientOptionsBase options) {
-        options.host = DEFAULT_HOST;
+        options.setHost(DEFAULT_HOST);
         options.port = DEFAULT_PORT;
         options.user = USER_NAME;
         options.password = USER_PASSWORD;
