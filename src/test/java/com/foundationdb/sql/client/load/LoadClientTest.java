@@ -54,7 +54,6 @@ public class LoadClientTest extends ClientTestBase
 
     private String caseName;
     private File propertiesFile;
-    private LoadClient client;
 
     public LoadClientTest(String caseName, File propertiesFile) {
         this.caseName = caseName;
@@ -116,10 +115,11 @@ public class LoadClientTest extends ClientTestBase
             else
                 throw new Exception("Unknown property: " + key);
         }
-        client = new LoadClient(options);
+
         if (ddlFile != null)
             loadDDL(ddlFile);
 
+        LoadClient client = new LoadClient(options);
         long count = 0;
         try {
             for (File file : files) {
@@ -138,17 +138,13 @@ public class LoadClientTest extends ClientTestBase
 
     protected void loadDDL(File ddlFile) throws Exception {
         String ddl = fileContents(ddlFile);
-        Connection conn = openClientConnection();
+        Connection conn = openConnection();
         Statement stmt = conn.createStatement();
         for (String sql : ddl.split("\\;\\s*")) {
             stmt.execute(sql);
         }
         stmt.close();
         conn.close();
-    }
-
-    protected Connection openClientConnection() throws Exception {
-        return client.getConnection(true);
     }
 
     protected void checkQuery(String query, File expectedFile) throws Exception {
