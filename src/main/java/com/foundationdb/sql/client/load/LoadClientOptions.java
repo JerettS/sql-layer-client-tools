@@ -87,7 +87,7 @@ public class LoadClientOptions extends ClientOptionsBase
         this.hosts.add(host);
     }
 
-    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP")
+    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP (multiple allowed)")
     public List<String> hosts = new ArrayList<String>(Collections.singleton(DEFAULT_HOST));
 
     @Parameter(names = { "-s", "--schema" }, description = "destination schema")
