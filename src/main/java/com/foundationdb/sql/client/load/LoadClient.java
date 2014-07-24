@@ -27,10 +27,10 @@ public class LoadClient
 {
     private static final String PROGRAM_NAME = "fdbsqlload";
 
-    private LoadClientOptions options;
-    private String encoding = "UTF-8";
-    private Deque<Connection> connections = new ConcurrentLinkedDeque<>();
-    private List<String> urls = new ArrayList<>();
+    private final LoadClientOptions options;
+    private final String encoding = "UTF-8";
+    private final Deque<Connection> connections = new ConcurrentLinkedDeque<>();
+    private final List<String> urls;
     private int urlsIterator = 0;
 
 
@@ -55,6 +55,7 @@ public class LoadClient
     public LoadClient(LoadClientOptions options) {
         this.options = options;
         urls = options.getAllURLs();
+        assert !urls.isEmpty() : "No connection URLs";
         if(options.commitFrequency == null) {
             options.commitFrequency = 0L;
         }
@@ -174,8 +175,11 @@ public class LoadClient
     protected Connection getConnection(boolean autoCommit) throws SQLException {
         Connection connection = connections.poll();
         if (connection == null) {
-            String url = urls.get(urlsIterator++);
-            urlsIterator %= urls.size();
+            final String url;
+            synchronized(urls) {
+                url = urls.get(urlsIterator++);
+                urlsIterator %= urls.size();
+            }
             connection = DriverManager.getConnection(url, options.user, options.password);
         }
         connection.setAutoCommit(autoCommit);
