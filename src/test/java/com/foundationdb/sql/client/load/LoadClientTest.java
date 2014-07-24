@@ -108,6 +108,10 @@ public class LoadClientTest extends ClientTestBase
                 query = value;
             else if ("expected".equals(key))
                 expectedFile = new File(dir, value);
+            else if ("hosts".equals(key)) {
+                options.hosts.clear();
+                options.hosts.addAll(Arrays.asList(value.split(" ")));
+            }
             else
                 throw new Exception("Unknown property: " + key);
         }

@@ -36,6 +36,18 @@ public class ProtobufClientOptions extends ClientOptionsBase
         }
     }
 
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP")
+    public String host = DEFAULT_HOST;
 
     @Parameter(names = { "-s", "--schema" }, description = "schema name")
     String schema = DEFAULT_SCHEMA;
