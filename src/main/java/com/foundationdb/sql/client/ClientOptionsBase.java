@@ -45,7 +45,7 @@ public abstract class ClientOptionsBase
     }
 
     public String getURL(String schema) {
-        return String.format("jdbc:fdbsql://%s:%d/%s", getHost(), port, schema);
+        return formatURL(getHost(), port, schema);
     }
 
     public static String formatURL(String host, int port, String schema) {
