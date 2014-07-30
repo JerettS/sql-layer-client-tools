@@ -116,6 +116,8 @@ class DumpLoader extends FileLoader
     }
     
     private void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
+        if (client.getMaxRetries() > 1)
+            sql = sql.concat(", RETRY ").concat(Long.toString(client.getMaxRetries()));
         if (sql.startsWith("INSERT INTO ")) {
             if (hasDDL && conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
