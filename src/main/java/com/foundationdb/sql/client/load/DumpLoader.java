@@ -138,6 +138,7 @@ class DumpLoader extends FileLoader
                 if (status.pending > 0) {
                     conn.commit();
                     status.commit();
+                    break;
                 }
             } catch (SQLException e) {
                 if (!StatementHelper.shouldRetry(e, true) || i == client.getMaxRetries() - 1) {
