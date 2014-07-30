@@ -104,7 +104,7 @@ class DumpLoader extends FileLoader
                             executeSQL (conn, stmt, sql, status);
                             if (status.pending == 0) uncommittedStatements.clear();
                         } catch (SQLException e) {
-                            if (StatementHelper.shouldRetry(e, true)) {
+                            if (StatementHelper.shouldRetry(e, true) && client.getMaxRetries() > 0) {
                                 retry(conn, stmt, status, uncommittedStatements);
                             } else {
                                 throw(e);
@@ -135,9 +135,13 @@ class DumpLoader extends FileLoader
                 for (String sql : uncommittedStatements) {
                     executeSQL(conn, stmt, sql, status);
                 }
+                if (status.pending > 0) {
+                    conn.commit();
+                    status.commit();
+                }
             } catch (SQLException e) {
-                if (!StatementHelper.shouldRetry(e, true)) {
-                    throw(e);
+                if (!StatementHelper.shouldRetry(e, true) || i == client.getMaxRetries() - 1) {
+                    throw(new SQLException("Maximum number of retries met", e));
                 }
             }
         }
