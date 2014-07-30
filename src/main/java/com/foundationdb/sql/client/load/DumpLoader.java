@@ -23,6 +23,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import com.foundationdb.sql.client.cli.QueryBuffer;
@@ -62,11 +63,11 @@ class DumpLoader extends FileLoader
         public DumpSegmentQueryLoader(long start, long end) {
             super(DumpLoader.this.client, DumpLoader.this.channel, start, end);
         }
-        
+
         @Override
         public void prepare() throws IOException {
         }
-        
+
         @Override
         public void run() {
             try {
@@ -74,16 +75,17 @@ class DumpLoader extends FileLoader
             } catch (Exception ex) {
                 //TODO: Handle this better?
                 ex.printStackTrace();
-                
+
             }
         }
     }
 
     protected long executeSegmentQuery (long start, long end)
-        throws SQLException, IOException {
+            throws SQLException, IOException {
         LineReader lines = new LineReader(channel, client.getEncoding(), 
                 BUFFER_SIZE, BUFFER_SIZE, 
                 start, end);
+        List<String> uncommittedStatements = new LinkedList<String>();
         QueryBuffer buffer = new QueryBuffer ();
         Connection conn = getConnection(hasDDL);
         StatementHelper stmt = new StatementHelper(conn);
@@ -96,8 +98,18 @@ class DumpLoader extends FileLoader
                 }
                 if (lines.readLine(buffer)) {
                     while (buffer.hasQuery()) {
-                        String sql = buffer.nextQuery();
-                        executeSQL (conn, stmt, sql, status);
+                        try {
+                            String sql = buffer.nextQuery();
+                            uncommittedStatements.add(sql);
+                            executeSQL (conn, stmt, sql, status);
+                            if (status.pending == 0) uncommittedStatements.clear();
+                        } catch (SQLException e) {
+                            if (StatementHelper.shouldRetry(e, true)) {
+                                retry(conn, stmt, status, uncommittedStatements);
+                            } else {
+                                throw(e);
+                            }
+                        }
                     }
                     buffer.reset();
                 } else {
@@ -114,17 +126,31 @@ class DumpLoader extends FileLoader
         }
         return status.count;
     }
-    
+
+    private void retry(Connection conn, StatementHelper stmt,
+            CommitStatus status, List<String> uncommittedStatements) throws SQLException {
+        for (int i = 0; i < client.getMaxRetries(); i++) {
+            status.commit();
+            try {
+                for (String sql : uncommittedStatements) {
+                    executeSQL(conn, stmt, sql, status);
+                }
+            } catch (SQLException e) {
+                if (!StatementHelper.shouldRetry(e, true)) {
+                    throw(e);
+                }
+            }
+        }
+    }
+
     private void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
-        if (client.getMaxRetries() > 1)
-            sql = sql.concat(", RETRY ").concat(Long.toString(client.getMaxRetries()));
         if (sql.startsWith("INSERT INTO ")) {
             if (hasDDL && conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
             }
             status.pending += helper.executeUpdate(sql);
             if ((client.getCommitFrequency() > 0) &&
-                (status.pending >= client.getCommitFrequency())) {
+                    (status.pending >= client.getCommitFrequency())) {
                 conn.commit();
                 status.commit();
             }
@@ -139,7 +165,7 @@ class DumpLoader extends FileLoader
             helper.execute(sql);
         }
     }
-    
+
     private class CommitStatus {
         public int pending;
         public long count;
@@ -152,26 +178,26 @@ class DumpLoader extends FileLoader
             pending = 0;
         }
     }
-    
+
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
-        
+
         return new DumpSegmentQueryLoader(start, end);
     }
 
-    
+
     public List<? extends SegmentLoader> split (int nsegments) throws IOException {
         return splitParse (nsegments);
     }
-    
+
     protected List<? extends SegmentLoader> splitParse (int nsegments) throws IOException {
         List<DumpSegmentQueryLoader> segments = new ArrayList<>(nsegments);
         long start = 0;
         long end = channel.size();
         LineReader lines = new LineReader(channel, client.getEncoding(),
-                                          FileLoader.SMALL_BUFFER_SIZE, 1,
-                                          start, end);
+                FileLoader.SMALL_BUFFER_SIZE, 1,
+                start, end);
         long mid;
         while (nsegments > 1) {
             if ( ((end - start) < nsegments) && ((end - start) > 0)) {
@@ -192,5 +218,5 @@ class DumpLoader extends FileLoader
         segments.add(new DumpSegmentQueryLoader(start, end));
         return segments;
     }
-    
+
 }
