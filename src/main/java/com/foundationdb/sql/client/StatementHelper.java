@@ -121,7 +121,7 @@ public class StatementHelper implements Closeable
         }
     }
 
-    private static boolean shouldRetry(SQLException e, boolean retryRollback) {
+    public static boolean shouldRetry(SQLException e, boolean retryRollback) {
         return STALE_STATEMENT_CODE.equals(e.getSQLState()) ||
                (retryRollback && e.getSQLState().startsWith(ROLLBACK_PREFIX));
     }
