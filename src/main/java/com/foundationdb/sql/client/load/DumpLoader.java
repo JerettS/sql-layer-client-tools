@@ -215,8 +215,8 @@ class DumpLoader extends FileLoader
         long start = 0;
         long end = channel.size();
         LineReader lines = new LineReader(channel, client.getEncoding(),
-                FileLoader.SMALL_BUFFER_SIZE, 1,
-                start, end);
+                                          FileLoader.SMALL_BUFFER_SIZE, 1,
+                                          start, end);
         long mid;
         while (nsegments > 1) {
             if ( ((end - start) < nsegments) && ((end - start) > 0)) {
