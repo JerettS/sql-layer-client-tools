@@ -23,7 +23,6 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 import com.foundationdb.sql.client.cli.QueryBuffer;
@@ -85,7 +84,7 @@ class DumpLoader extends FileLoader
         LineReader lines = new LineReader(channel, client.getEncoding(), 
                 BUFFER_SIZE, BUFFER_SIZE, 
                 start, end);
-        List<String> uncommittedStatements = new LinkedList<String>();
+        List<String> uncommittedStatements = new ArrayList<String>();
         QueryBuffer buffer = new QueryBuffer ();
         Connection conn = getConnection(hasDDL);
         StatementHelper stmt = new StatementHelper(conn);
