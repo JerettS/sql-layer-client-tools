@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS conflicts;
+CREATE TABLE conflicts(id SERIAL PRIMARY KEY, value INTEGER);
