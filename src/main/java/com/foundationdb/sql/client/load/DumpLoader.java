@@ -63,11 +63,11 @@ class DumpLoader extends FileLoader
         public DumpSegmentQueryLoader(long start, long end) {
             super(DumpLoader.this.client, DumpLoader.this.channel, start, end);
         }
-
+        
         @Override
         public void prepare() throws IOException {
         }
-
+        
         @Override
         public void run() {
             try {
@@ -75,7 +75,7 @@ class DumpLoader extends FileLoader
             } catch (Exception ex) {
                 //TODO: Handle this better?
                 ex.printStackTrace();
-
+                
             }
         }
     }
@@ -169,7 +169,7 @@ class DumpLoader extends FileLoader
             }
             status.pending += helper.executeUpdate(sql);
             if ((client.getCommitFrequency() > 0) &&
-                    (status.pending >= client.getCommitFrequency())) {
+                (status.pending >= client.getCommitFrequency())) {
                 conn.commit();
                 status.commit();
             }
@@ -184,7 +184,7 @@ class DumpLoader extends FileLoader
             helper.execute(sql);
         }
     }
-
+    
     private class CommitStatus {
         public int pending;
         public long count;
@@ -197,7 +197,7 @@ class DumpLoader extends FileLoader
             pending = 0;
         }
     }
-
+    
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
@@ -205,7 +205,7 @@ class DumpLoader extends FileLoader
         return new DumpSegmentQueryLoader(start, end);
     }
 
-
+    
     public List<? extends SegmentLoader> split (int nsegments) throws IOException {
         return splitParse (nsegments);
     }
@@ -237,5 +237,5 @@ class DumpLoader extends FileLoader
         segments.add(new DumpSegmentQueryLoader(start, end));
         return segments;
     }
-
+    
 }
