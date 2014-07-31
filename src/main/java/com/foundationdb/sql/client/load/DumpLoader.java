@@ -104,8 +104,9 @@ class DumpLoader extends FileLoader
                             executeSQL (conn, stmt, sql, status);
                             if (status.pending == 0) uncommittedStatements.clear();
                         } catch (SQLException e) {
-                            if (StatementHelper.shouldRetry(e, true) && client.getMaxRetries() > 0) {
-                                retry(conn, stmt, status, uncommittedStatements);
+                            if (!conn.getAutoCommit()) conn.rollback();
+                            if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                                retry(conn, stmt, status, uncommittedStatements, e);
                             } else {
                                 throw(e);
                             }
@@ -117,8 +118,17 @@ class DumpLoader extends FileLoader
                 }
             }
             if (status.pending > 0) {
-                conn.commit();
-                status.commit();
+                try {
+                    conn.commit();
+                    status.commit();
+                } catch (SQLException e) {
+                    if (!conn.getAutoCommit()) conn.rollback();
+                    if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                        retry(conn, stmt, status, uncommittedStatements, e);
+                    } else {
+                        throw(e);
+                    }
+                }
             }
         } finally {
             stmt.close();
@@ -128,9 +138,9 @@ class DumpLoader extends FileLoader
     }
 
     private void retry(Connection conn, StatementHelper stmt,
-            CommitStatus status, List<String> uncommittedStatements) throws SQLException {
-        for (int i = 0; i < client.getMaxRetries(); i++) {
-            status.commit();
+            CommitStatus status, List<String> uncommittedStatements, SQLException e) throws SQLException {
+        for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
+            status.pending = 0;
             try {
                 for (String sql : uncommittedStatements) {
                     executeSQL(conn, stmt, sql, status);
@@ -138,14 +148,18 @@ class DumpLoader extends FileLoader
                 if (status.pending > 0) {
                     conn.commit();
                     status.commit();
-                    break;
                 }
-            } catch (SQLException e) {
-                if (!StatementHelper.shouldRetry(e, true) || i == client.getMaxRetries() - 1) {
-                    throw(new SQLException("Maximum number of retries met", e));
+                uncommittedStatements.clear();
+                return;
+            } catch (SQLException newE) {
+                if (!conn.getAutoCommit()) conn.rollback();
+                if (!StatementHelper.shouldRetry(newE, true)) {
+                    throw(newE);
                 }
+                e = newE;
             }
         }
+        throw(new SQLException("Maximum number of retries met", e));
     }
 
     private void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
