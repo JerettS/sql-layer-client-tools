@@ -201,7 +201,7 @@ class DumpLoader extends FileLoader
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
-
+        
         return new DumpSegmentQueryLoader(start, end);
     }
 
@@ -209,7 +209,7 @@ class DumpLoader extends FileLoader
     public List<? extends SegmentLoader> split (int nsegments) throws IOException {
         return splitParse (nsegments);
     }
-
+    
     protected List<? extends SegmentLoader> splitParse (int nsegments) throws IOException {
         List<DumpSegmentQueryLoader> segments = new ArrayList<>(nsegments);
         long start = 0;
