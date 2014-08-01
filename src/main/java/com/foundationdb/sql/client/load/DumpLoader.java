@@ -26,9 +26,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.foundationdb.sql.client.cli.QueryBuffer;
+import org.postgresql.util.PSQLException;
 
 class DumpLoader extends FileLoader
 {
+    public static final String FDB_PAST_VERSION = "40004";
+    public static final String FDB_NOT_COMMITTED = "40002";
     boolean hasDDL;
 
     public DumpLoader(LoadClient client, FileChannel channel) {
@@ -59,8 +62,11 @@ class DumpLoader extends FileLoader
     }
 
     protected class DumpSegmentQueryLoader extends SegmentLoader {
-        public DumpSegmentQueryLoader(long start, long end) {
+        private long startLineNo;
+        
+        public DumpSegmentQueryLoader(long start, long end, long startLineNo) {            
             super(DumpLoader.this.client, DumpLoader.this.channel, start, end);
+            this.startLineNo = startLineNo;
         }
         
         @Override
@@ -70,21 +76,32 @@ class DumpLoader extends FileLoader
         @Override
         public void run() {
             try {
-                count += executeSegmentQuery (start, end);
+                count += executeSegmentQuery (start, end, startLineNo);
             } catch (Exception ex) {
-                //TODO: Handle this better?
-                ex.printStackTrace();
-                
+                if (ex instanceof FDBSQLDumpLoaderException) {
+                    System.err.println("ERROR: During query that ends on line " + ((FDBSQLDumpLoaderException) ex).getLineNo());
+                    System.err.println("       " + ((FDBSQLDumpLoaderException) ex).getQuery());
+                    ex = ((FDBSQLDumpLoaderException) ex).getEx();
+                }
+                System.err.println(ex.getMessage());
+                if (ex instanceof PSQLException) {
+                    if (((PSQLException) ex).getSQLState().equals(FDB_NOT_COMMITTED) 
+                            || ((PSQLException) ex).getSQLState().equals(FDB_PAST_VERSION)) {
+                        System.err.println("NOTE: In case of past version exception or crash try flags: --commit=auto --retry=3");
+                    }
+                    System.err.println("NOTE: You can drop the partially loaded schema by doing: fdbsqlcli -c “DROP SCHEMA [schema_name] CASCADE\"");
+                }
             }
         }
     }
 
-    protected long executeSegmentQuery (long start, long end)
+    protected long executeSegmentQuery (long start, long end, long startLineNo)
         throws SQLException, IOException {
-        LineReader lines = new LineReader(channel, client.getEncoding(), 
-                BUFFER_SIZE, BUFFER_SIZE, 
+        String sql = null;
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                BUFFER_SIZE, BUFFER_SIZE,
                 start, end);
-        QueryBuffer buffer = new QueryBuffer ();
+        QueryBuffer buffer = new QueryBuffer();
         Connection conn = getConnection(hasDDL);
         StatementHelper stmt = new StatementHelper(conn);
         CommitStatus status = new CommitStatus();
@@ -96,8 +113,8 @@ class DumpLoader extends FileLoader
                 }
                 if (lines.readLine(buffer)) {
                     while (buffer.hasQuery()) {
-                        String sql = buffer.nextQuery();
-                        executeSQL (conn, stmt, sql, status);
+                        sql = buffer.nextQuery();
+                        executeSQL(conn, stmt, sql, status);
                     }
                     buffer.reset();
                 } else {
@@ -108,6 +125,8 @@ class DumpLoader extends FileLoader
                 conn.commit();
                 status.commit();
             }
+        } catch (Exception ex) {
+            throw new FDBSQLDumpLoaderException(lines.getLineCounter() + startLineNo, sql, ex);
         } finally {
             stmt.close();
             returnConnection(conn, success);
@@ -155,7 +174,7 @@ class DumpLoader extends FileLoader
         long start = 0;
         long end = channel.size();
         
-        return new DumpSegmentQueryLoader(start, end);
+        return new DumpSegmentQueryLoader(start, end, 0);
     }
 
     
@@ -171,6 +190,7 @@ class DumpLoader extends FileLoader
                                           FileLoader.SMALL_BUFFER_SIZE, 1,
                                           start, end);
         long mid;
+        long lineNo = 0;
         while (nsegments > 1) {
             if ( ((end - start) < nsegments) && ((end - start) > 0)) {
                 mid = start + 1;
@@ -180,14 +200,16 @@ class DumpLoader extends FileLoader
                 mid = start + (end - start) / nsegments;
             }
             mid = lines.splitParse (mid);
-            segments.add(new DumpSegmentQueryLoader(start, mid));
+            segments.add(new DumpSegmentQueryLoader(start, mid, lineNo));
             if (mid >= (end - 1))
                 return segments;
             start = mid;
+            lineNo += lines.getLineCounter();
+            lines.resetLineCounter();
             lines.position(mid);
             nsegments--;
         }
-        segments.add(new DumpSegmentQueryLoader(start, end));
+        segments.add(new DumpSegmentQueryLoader(start, end, lineNo));
         return segments;
     }
     
