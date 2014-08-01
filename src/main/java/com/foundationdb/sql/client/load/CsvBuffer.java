@@ -45,8 +45,8 @@ public class CsvBuffer
         this.escape = quote;
         this.nl = getSingleByte("\n");
         this.cr = getSingleByte("\r");
-        reset(0);
         this.rowBuffer = new StringBuilder();
+        reset();
     }
 
     private byte[] getBytes(String str) {
@@ -67,13 +67,14 @@ public class CsvBuffer
         return bytes[0] & 0xFF;
     }
 
-    private void reset(int startIndex) {
-        this.startIndex = startIndex;
+    private void reset() {
+        this.startIndex = 0;
         this.endIndex = UNSET;
         this.values = new ArrayList();
-        this.currentIndex = startIndex;
+        this.currentIndex = 0;
         this.state = State.ROW_START;
         this.currentField = new StringBuilder();
+        rowBuffer.setLength(0);
     }
 
     public boolean isEmpty() {
@@ -93,8 +94,7 @@ public class CsvBuffer
             throw new IllegalArgumentException("No Row Present");
         }
         List<String> values = this.values;
-        endIndex++;
-        reset(endIndex);
+        reset();
         return values;
     }
 

@@ -36,6 +36,11 @@ public class LineReaderCsvBufferTest {
         assertReadLines(list(list("field1", "field2")), "field1,field2");
     }
 
+    @Test
+    public void simpleReadTwoRows () throws IOException {
+        assertReadLines(list(list("field1", "field2"),list("field3", "field4")), "field1,field2","field3,field4");
+    }
+
     private static <T> List<T> list(T... values) {
         List<T> result = new ArrayList<>();
         for (T value : values) {
@@ -51,10 +56,8 @@ public class LineReaderCsvBufferTest {
             istr = new FileInputStream(file);
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
             CsvBuffer b = new CsvBuffer(encoding);
-            boolean readLine = lines.readLine(b);
-            assertEquals(expected.size() > 0, readLine);
             List<List<String>> actual = new ArrayList<>();
-            while (b.hasRow()) {
+            while (lines.readLine(b)) {
                 actual.add(b.nextRow());
             }
             assertArrayEquals(expected.toArray(), actual.toArray());
