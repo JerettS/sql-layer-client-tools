@@ -46,6 +46,7 @@ public class CsvBuffer
         this.nl = getSingleByte("\n");
         this.cr = getSingleByte("\r");
         reset(0);
+        this.rowBuffer = new StringBuilder();
     }
 
     private byte[] getBytes(String str) {
@@ -120,7 +121,8 @@ public class CsvBuffer
             case FIELD_START:
                 if ((b == cr) || (b == nl)) {
                     values.add(currentField.toString());
-                    return true;
+                    endIndex = currentIndex;
+                    break;
                 }
                 else if (b == delim) {
                     values.add(currentField.toString());
@@ -137,7 +139,8 @@ public class CsvBuffer
             case IN_FIELD:
                 if ((b == cr) || (b == nl)) {
                     values.add(currentField.toString());
-                    return true;
+                    endIndex = currentIndex;
+                    break;
                 }
                 else if (b == delim) {
                     values.add(currentField.toString());
@@ -162,7 +165,9 @@ public class CsvBuffer
             case AFTER_QUOTE:
                 if ((b == cr) || (b == nl)) {
                     values.add(currentField.toString());
-                    return true;
+                    currentField.setLength(0);
+                    endIndex = currentIndex;
+                    break;
                 }
                 else if (b == delim) {
                     values.add(currentField.toString());
@@ -180,10 +185,12 @@ public class CsvBuffer
             }
         }
         if (state == State.FIELD_START || state == State.AFTER_QUOTE || state == State.IN_FIELD) {
+            endIndex = currentIndex;
             values.add(currentField.toString());
-            return true;
+            currentField.setLength(0);
+            state = State.ROW_START;
         }
-        return false;
+        return endIndex != UNSET;
     }
 
 }

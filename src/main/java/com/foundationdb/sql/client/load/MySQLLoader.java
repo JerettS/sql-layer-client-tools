@@ -15,9 +15,13 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 
 class MySQLLoader extends FileLoader
@@ -56,6 +60,11 @@ class MySQLLoader extends FileLoader
         LineReader lines = new LineReader(channel, client.getEncoding());
         String header = lines.readLine();
         return ((header != null) && header.startsWith("-- MySQL dump "));
+    }
+
+    @Override
+    void executeSQL(Connection conn, StatementHelper helper, String sql, CommitStatus status) throws SQLException {
+        throw new UnsupportedOperationException("NOT IMPLEMENTED");
     }
 
     @Override
