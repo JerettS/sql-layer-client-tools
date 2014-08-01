@@ -25,6 +25,19 @@ import java.util.List;
 @Parameters (separators = "=")
 public class CLIClientOptions extends ClientOptionsBase
 {
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP")
+    public String host = DEFAULT_HOST;
+
     @Parameter(names = { "-s", "--schema" }, description = "schema name")
     public String schema = DEFAULT_SCHEMA;
 
@@ -63,7 +76,7 @@ public class CLIClientOptions extends ClientOptionsBase
     OnErrorType onErrorType = OnErrorType.CONTINUE;
     OnErrorStatus onErrorStatus = OnErrorStatus.SUCCESS;
     Integer statusCode = 0;
-    
+
     protected enum OnErrorType {
         CONTINUE, 
         EXIT;

@@ -132,7 +132,7 @@ public class ResultPrinter
                 for (int i = 0; i < columnCount; ++i) {
                     String s = rs.getString(i + 1);
                     if (s == null) {
-                        s = "";
+                        s = getNullString();
                     }
                     if(!tupleOutput) {
                         String c = columnNames.get(i);

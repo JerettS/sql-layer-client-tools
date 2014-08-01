@@ -101,6 +101,7 @@ class DumpLoader extends FileLoader
         LineReader lines = new LineReader(channel, client.getEncoding(),
                 BUFFER_SIZE, BUFFER_SIZE,
                 start, end);
+        List<String> uncommittedStatements = new ArrayList<String>();
         QueryBuffer buffer = new QueryBuffer();
         Connection conn = getConnection(hasDDL);
         StatementHelper stmt = new StatementHelper(conn);
@@ -113,8 +114,19 @@ class DumpLoader extends FileLoader
                 }
                 if (lines.readLine(buffer)) {
                     while (buffer.hasQuery()) {
-                        sql = buffer.nextQuery();
-                        executeSQL(conn, stmt, sql, status);
+                        try {
+                            sql = buffer.nextQuery();
+                            uncommittedStatements.add(sql);
+                            executeSQL (conn, stmt, sql, status);
+                            if (status.pending == 0) uncommittedStatements.clear();
+                        } catch (SQLException e) {
+                            if (!conn.getAutoCommit()) conn.rollback();
+                            if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                                retry(conn, stmt, status, uncommittedStatements, e);
+                            } else {
+                                throw(e);
+                            }
+                        }
                     }
                     buffer.reset();
                 } else {
@@ -122,8 +134,17 @@ class DumpLoader extends FileLoader
                 }
             }
             if (status.pending > 0) {
-                conn.commit();
-                status.commit();
+                try {
+                    conn.commit();
+                    status.commit();
+                } catch (SQLException e) {
+                    if (!conn.getAutoCommit()) conn.rollback();
+                    if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                        retry(conn, stmt, status, uncommittedStatements, e);
+                    } else {
+                        throw(e);
+                    }
+                }
             }
         } catch (Exception ex) {
             throw new FDBSQLDumpLoaderException(lines.getLineCounter() + startLineNo, sql, ex);
@@ -133,7 +154,32 @@ class DumpLoader extends FileLoader
         }
         return status.count;
     }
-    
+
+    private void retry(Connection conn, StatementHelper stmt,
+            CommitStatus status, List<String> uncommittedStatements, SQLException e) throws SQLException {
+        for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
+            status.pending = 0;
+            try {
+                for (String sql : uncommittedStatements) {
+                    executeSQL(conn, stmt, sql, status);
+                }
+                if (status.pending > 0) {
+                    conn.commit();
+                    status.commit();
+                }
+                uncommittedStatements.clear();
+                return;
+            } catch (SQLException newE) {
+                if (!conn.getAutoCommit()) conn.rollback();
+                if (!StatementHelper.shouldRetry(newE, true)) {
+                    throw(newE);
+                }
+                e = newE;
+            }
+        }
+        throw(new SQLException("Maximum number of retries met", e));
+    }
+
     private void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
         if (sql.startsWith("INSERT INTO ")) {
             if (hasDDL && conn.getAutoCommit()) {

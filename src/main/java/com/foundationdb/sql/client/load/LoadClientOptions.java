@@ -24,6 +24,8 @@ import com.foundationdb.sql.client.ClientOptionsBase;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Parameters (separators = "=")
@@ -65,6 +67,28 @@ public class LoadClientOptions extends ClientOptionsBase
         }
     }
 
+    public List<String> getAllURLs(){
+        List<String> urls = new ArrayList<>();
+        for(String h : hosts) {
+            String url = formatURL(h, port, schema);
+            urls.add(url);
+        }
+        return urls;
+    }
+
+    @Override
+    public String getHost() {
+        return hosts.get(0);
+    }
+
+    @Override
+    public void setHost(String host) {
+        this.hosts.clear();
+        this.hosts.add(host);
+    }
+
+    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP (multiple allowed)")
+    public List<String> hosts = new ArrayList<String>(Collections.singleton(DEFAULT_HOST));
 
     @Parameter(names = { "-s", "--schema" }, description = "destination schema")
     public String schema = DEFAULT_SCHEMA;

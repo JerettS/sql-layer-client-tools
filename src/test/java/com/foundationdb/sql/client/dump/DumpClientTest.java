@@ -76,15 +76,7 @@ public class DumpClientTest extends ClientTestBase
         Connection conn = openConnection();
         StatementHelper helper = new StatementHelper(conn);
         for (String sql : loaded.split("\\;\\s*")) {
-            try {
-                helper.execute(sql, true);
-            }
-            catch (SQLException ex) {
-                if (sql.indexOf("IGNORE ERRORS") < 0)
-                    throw ex;
-                else
-                    System.out.println("IGNORED: " + ex);
-            }
+            helper.execute(sql, true);
         }
         helper.close();
         conn.close();

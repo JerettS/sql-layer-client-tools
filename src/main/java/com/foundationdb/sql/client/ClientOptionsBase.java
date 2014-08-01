@@ -45,6 +45,10 @@ public abstract class ClientOptionsBase
     }
 
     public String getURL(String schema) {
+        return formatURL(getHost(), port, schema);
+    }
+
+    public static String formatURL(String host, int port, String schema) {
         return String.format("jdbc:fdbsql://%s:%d/%s", host, port, schema);
     }
 
@@ -71,12 +75,12 @@ public abstract class ClientOptionsBase
         }
     }
 
+    public abstract String getHost();
+    public abstract void setHost(String host);
+
 
     @Parameter(names = "--help", description = "show this help", help = true)
     public Boolean help; // Object so there is no default in the help output
-
-    @Parameter(names = { "-h", "--host" }, description = "server host, name or IP")
-    public String host = DEFAULT_HOST;
 
     @Parameter(names = { "-p", "--port" }, description = "server port")
     public int port = DEFAULT_PORT;
