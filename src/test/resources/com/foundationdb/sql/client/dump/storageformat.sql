@@ -26,7 +26,6 @@ CREATE TABLE t2format(
 CREATE UNIQUE INDEX foo21 ON t2format(id) STORAGE_FORMAT tuple;
 
 
-
 --- t3format
 
 DROP TABLE IF EXISTS t3format;
@@ -39,4 +38,5 @@ CREATE TABLE t3format(
 
 
 CREATE UNIQUE INDEX foo31 ON t3format(id) STORAGE_FORMAT tuple;
+
 
