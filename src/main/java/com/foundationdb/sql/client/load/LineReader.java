@@ -115,7 +115,39 @@ public class LineReader
             }
         }
     }
-    
+
+    public boolean readLine (CsvBuffer into) throws IOException {
+        StringBuilder line = new StringBuilder (SHORT_LINE);
+        boolean eol = false;
+        while (true) {
+            while (chars.hasRemaining()) {
+                char ch = chars.get();
+                if (ch == '\n') {
+                    eol = true;
+                    break;
+                }
+                else if (ch != '\r')
+                    line.append(ch);
+            }
+
+            if (eol) {
+                if(!into.isEmpty()) {
+                    into.append('\n'); // replace the \n
+                    into.append(line.toString());
+                } else {
+                    into.append(line.toString());
+                }
+                line.setLength(0);
+                eol = false;
+                if (into.hasRow()) return true;
+            } else {
+                if (!refillCharsBuffer()) {
+                    return false;
+                }
+            }
+        }
+    }
+
     public boolean readLine(StringBuilder into) throws IOException {
         while (true) {
             while (chars.hasRemaining()) {

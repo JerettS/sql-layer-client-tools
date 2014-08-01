@@ -41,10 +41,14 @@ class CsvLoader extends FileLoader
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
-        String headerLine = null;
+        List<String> columns = null;
         if (header) {
             LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
-            headerLine = lines.readLine();
+            CsvBuffer buffer = new CsvBuffer(client.getEncoding());
+            if (lines.readLine(buffer) && buffer.hasRow()) {
+                columns = buffer.nextRow();
+            }
+            // since CsvBuffer will always end a row at the end of a line, the position must be the end of a line.
             start = lines.position();
         }
         return new CsvSegmentLoader(start,end);
