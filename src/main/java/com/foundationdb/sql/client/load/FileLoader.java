@@ -15,6 +15,8 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
@@ -41,6 +43,8 @@ abstract class FileLoader
 
     abstract List<? extends SegmentLoader> split(int nsegments) throws IOException;
 
+    abstract void executeSQL(Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException;
+
     protected Connection getConnection(boolean autoCommit) throws SQLException {
         return client.getConnection(autoCommit);
     }
@@ -51,5 +55,43 @@ abstract class FileLoader
             client.returnConnection(connection);
         else
             connection.close();
+    }
+
+    protected void retry(Connection conn, StatementHelper stmt,
+            CommitStatus status, List<String> uncommittedStatements, SQLException e) throws SQLException {
+        for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
+            status.pending = 0;
+            try {
+                for (String sql : uncommittedStatements) {
+                    executeSQL(conn, stmt, sql, status);
+                }
+                if (status.pending > 0) {
+                    conn.commit();
+                    status.commit();
+                }
+                uncommittedStatements.clear();
+                return;
+            } catch (SQLException newE) {
+                if (!conn.getAutoCommit()) conn.rollback();
+                if (!StatementHelper.shouldRetry(newE, true)) {
+                    throw(newE);
+                }
+                e = newE;
+            }
+        }
+        throw(new SQLException("Maximum number of retries met", e));
+    }
+
+    protected class CommitStatus {
+        public int pending;
+        public long count;
+        public CommitStatus() {
+            pending = 0;
+            count = 0;
+        }
+        public void commit() {
+            count += pending;
+            pending = 0;
+        }
     }
 }
