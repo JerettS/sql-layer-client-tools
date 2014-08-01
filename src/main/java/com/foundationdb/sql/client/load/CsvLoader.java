@@ -22,13 +22,13 @@ import java.util.List;
 
 class CsvLoader extends FileLoader
 {
-    private final String target;
+    private final String targetTable;
     private final boolean header;
 
     public CsvLoader(LoadClient client, FileChannel channel, 
-                     String target, boolean header) {
+                     String targetTable, boolean header) {
         super(client, channel);
-        this.target = target;
+        this.targetTable = targetTable;
         this.header = header;
     }
 
@@ -50,8 +50,8 @@ class CsvLoader extends FileLoader
             start = lines.position();
         }
         StringBuilder sql = new StringBuilder();
-        sql.append("COPY ").append(target);
-        if ((headerLine != null) && (target.indexOf('(') < 0))
+        sql.append("COPY ").append(targetTable);
+        if ((headerLine != null) && (targetTable.indexOf('(') < 0))
             sql.append("(").append(headerLine).append(")");
         sql.append(" FROM STDIN WITH (ENCODING '") .append(client.getEncoding())
            .append("', FORMAT CSV");
