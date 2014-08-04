@@ -170,6 +170,7 @@ public class CsvBuffer
                     values.add(currentField.toString());
                     currentField.setLength(0);
                     endIndex = currentIndex;
+                    state = State.ROW_START;
                     break;
                 }
                 else if (b == delim) {

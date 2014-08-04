@@ -71,6 +71,11 @@ public class LineReaderCsvBufferTest {
         assertReadLines(list(list("a\rfield", "field2")), "\"a\rfield\",field2");
     }
 
+    @Test
+    public void quotedQuote() throws IOException {
+        assertReadLines(list(list("a field", "the \"second\" field")), "a field,\"the \"\"second\"\" field\"");
+    }
+
     private static <T> List<T> list(T... values) {
         List<T> result = new ArrayList<>();
         for (T value : values) {
