@@ -32,13 +32,43 @@ public class LineReaderCsvBufferTest {
     FileInputStream inputStream;
 
     @Test
-    public void simpleRead () throws IOException {
+    public void simpleRead() throws IOException {
         assertReadLines(list(list("field1", "field2")), "field1,field2");
     }
 
     @Test
-    public void simpleReadTwoRows () throws IOException {
+    public void simpleReadMissingTrailingNewline() throws IOException {
+        assertReadLines(false, list(list("field1", "field2")), "field1,field2");
+    }
+
+    @Test
+    public void simpleReadTwoRows() throws IOException {
         assertReadLines(list(list("field1", "field2"),list("field3", "field4")), "field1,field2","field3,field4");
+    }
+
+    @Test
+    public void simpleMissingTrailingNewlineReadTwoRows() throws IOException {
+        assertReadLines(false, list(list("field1", "field2"),list("field3", "field4")), "field1,field2\n","field3,field4");
+    }
+
+    @Test
+    public void simpleQuoted() throws IOException {
+        assertReadLines(list(list("a field", "field2")), "\"a field\",field2");
+    }
+
+    @Test
+    public void simpleQuotedDelimiter() throws IOException {
+        assertReadLines(list(list("a,field", "field2")), "\"a,field\",field2");
+    }
+
+    @Test
+    public void quotedNewline() throws IOException {
+        assertReadLines(list(list("a\nfield", "field2")), "\"a\nfield\",field2");
+    }
+
+    @Test
+    public void quotedCarriageReturn() throws IOException {
+        assertReadLines(list(list("a\rfield", "field2")), "\"a\rfield\",field2");
     }
 
     private static <T> List<T> list(T... values) {
@@ -48,9 +78,12 @@ public class LineReaderCsvBufferTest {
         }
         return result;
     }
-
     private static void assertReadLines(List<List<String>> expected, String... input) throws IOException {
-        File file = tmpFileFrom(input);
+        assertReadLines(true, expected, input);
+    }
+
+    private static void assertReadLines(boolean insertNewlines, List<List<String>> expected, String... input) throws IOException {
+        File file = tmpFileFrom(insertNewlines, input);
         FileInputStream istr = null;
         try {
             istr = new FileInputStream(file);
@@ -68,13 +101,15 @@ public class LineReaderCsvBufferTest {
         }
     }
 
-    private static File tmpFileFrom(String... lines) throws IOException {
+    private static File tmpFileFrom(boolean insertNewlines, String... lines) throws IOException {
         File tmpFile = File.createTempFile(LineReaderQueryBufferTest.class.getSimpleName(), null);
         tmpFile.deleteOnExit();
         FileWriter writer = new FileWriter(tmpFile);
         for(String l : lines) {
             writer.write(l);
-            writer.write('\n');
+            if (insertNewlines) {
+                writer.write('\n');
+            }
         }
         writer.flush();
         writer.close();
