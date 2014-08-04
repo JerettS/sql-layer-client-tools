@@ -58,30 +58,6 @@ class CsvLoader extends FileLoader
         throw new UnsupportedOperationException();
     }
 
-    protected CopyLoader getCopyLoader() throws IOException {
-        long start = 0;
-        long end = channel.size();
-        String headerLine = null;
-        if (header) {
-            LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
-            headerLine = lines.readLine();
-            start = lines.position();
-        }
-        StringBuilder sql = new StringBuilder();
-        sql.append("COPY ").append(targetTable);
-        if ((headerLine != null) && (targetTable.indexOf('(') < 0))
-            sql.append("(").append(headerLine).append(")");
-        sql.append(" FROM STDIN WITH (ENCODING '") .append(client.getEncoding())
-           .append("', FORMAT CSV");
-        // TODO: DELIMITER, QUOTE, ESCAPE, ...?
-        if (client.getCommitFrequency() > 0)
-            sql.append(", COMMIT ").append(client.getCommitFrequency());
-        if (client.getMaxRetries() > 1)
-            sql.append(", RETRY ").append(client.getMaxRetries());
-        sql.append(")");
-        return new CopyLoader(client, channel, sql.toString(), start, end);
-    }
-
     @Override
     void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
         if (sql.startsWith("INSERT INTO ")) {
