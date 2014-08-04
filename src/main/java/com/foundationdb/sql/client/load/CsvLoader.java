@@ -43,7 +43,12 @@ class CsvLoader extends FileLoader
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
-        List<String> columns = null;
+        start = createPreparedStatement();
+        return new CsvSegmentLoader(start,end);
+    }
+
+    private long createPreparedStatement() throws IOException {
+        long start;List<String> columns = null;
         int columnCount = 0;
         LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
         CsvBuffer buffer = new CsvBuffer(client.getEncoding());
@@ -63,7 +68,7 @@ class CsvLoader extends FileLoader
             start = 0;
         }
         preparedStatement = createPreparedStatement(targetTable, columns, columnCount);
-        return new CsvSegmentLoader(start,end);
+        return start;
     }
 
     private static String createPreparedStatement(String targetTable, List<String> columns, int columnCount) {
@@ -96,7 +101,32 @@ class CsvLoader extends FileLoader
     }
 
     public List<? extends SegmentLoader> split(int nsegments) throws IOException {
-        throw new UnsupportedOperationException();
+        List<CsvSegmentLoader> segments = new ArrayList<>(nsegments);
+        long start = 0;
+        long end = channel.size();
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                                          FileLoader.SMALL_BUFFER_SIZE, 1,
+                                          start, end);
+        start = createPreparedStatement();
+        long mid;
+        while (nsegments > 1) {
+            if ( ((end - start) < nsegments) && ((end - start) > 0)) {
+                mid = start + 1;
+                nsegments = (int)(end - start);
+            }
+            else {
+                mid = start + (end - start) / nsegments;
+            }
+            mid = lines.splitParseCsv(mid, new CsvBuffer(client.getEncoding()));
+            segments.add(new CsvSegmentLoader(start, mid));
+            if (mid >= (end - 1))
+                return segments;
+            start = mid;
+            lines.position(mid);
+            nsegments--;
+        }
+        segments.add(new CsvSegmentLoader(start, end));
+        return segments;
     }
 
     @Override
