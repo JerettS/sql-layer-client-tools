@@ -31,6 +31,7 @@ class CsvLoader extends FileLoader
 {
     private final String targetTable;
     private final boolean header;
+    private String preparedStatement;
 
     public CsvLoader(LoadClient client, FileChannel channel, 
                      String targetTable, boolean header) {
@@ -43,16 +44,55 @@ class CsvLoader extends FileLoader
         long start = 0;
         long end = channel.size();
         List<String> columns = null;
-        if (header) {
-            LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
-            CsvBuffer buffer = new CsvBuffer(client.getEncoding());
-            if (lines.readLine(buffer) && buffer.hasRow()) {
+        int columnCount = 0;
+        LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
+        CsvBuffer buffer = new CsvBuffer(client.getEncoding());
+        if (lines.readLine(buffer) && buffer.hasRow()) {
+            if (header) {
                 columns = buffer.nextRow();
+                columnCount = columns.size();
+            } else {
+                columnCount = buffer.nextRow().size();
             }
-            // since CsvBuffer will always end a row at the end of a line, the position must be the end of a line.
-            start = lines.position();
         }
+        if (header) {
+            // since CsvBuffer will always end a row at the end of a line, the position must be the end of a line.
+            // Well, so long as the character buffer size is 1 above
+            start = lines.position();
+        } else {
+            start = 0;
+        }
+        preparedStatement = createPreparedStatement(targetTable, columns, columnCount);
         return new CsvSegmentLoader(start,end);
+    }
+
+    private static String createPreparedStatement(String targetTable, List<String> columns, int columnCount) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("INSERT INTO \"");
+        // TODO escape targetTable
+        sb.append(targetTable);
+        sb.append("\" ");
+        // TODO throw exception if columnCount == 0
+        // TODO and escape columns
+        if (columns != null) {
+            sb.append("(\"");
+            for (int i=0; i<columns.size()-1; i++) {
+                sb.append(columns.get(i));
+                sb.append("\",\"");
+            }
+            sb.append(columns.get(columns.size()-1));
+            sb.append("\") ");
+        }
+        sb.append("VALUES (");
+        for (int i=0; i<columnCount-1; i++) {
+            sb.append("?, ");
+        }
+        if (columnCount > 0) {
+            sb.append("?)");
+        } else {
+            sb.append(")");
+        }
+        return sb.toString();
     }
 
     public List<? extends SegmentLoader> split(int nsegments) throws IOException {
@@ -103,29 +143,13 @@ class CsvLoader extends FileLoader
                         break;
                     }
                     List<String> values = buffer.nextRow();
-                    int columnCount = values.size();
-                    // TODO only do this once
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("INSERT INTO \"");
-                    // TODO escape targetTable
-                    sb.append(targetTable);
-                    sb.append("\" VALUES (");
-                    for (int i=0; i<columnCount-1; i++) {
-                        sb.append("?, ");
-                    }
-                    if (columnCount > 0) {
-                        sb.append("?)");
-                    } else {
-                        sb.append(")");
-                    }
-                    String prepared = sb.toString();
                     // TODO prepare
                     // TODO types?
                     try {
                         String sql = "INSERT INTO \"" + targetTable + "\" VALUES (" + values + ")";
                         // TODO uncommitted statements need to escape or something
                         uncommittedStatements.add(sql);
-                        status.pending += stmt.executeUpdatePrepared(prepared, values.toArray(emptyStringArray));
+                        status.pending += stmt.executeUpdatePrepared(preparedStatement, values.toArray(emptyStringArray));
 //                        executeSQL(connection, stmt, sql, status);
                         if (status.pending == 0) { // successful commit
                             uncommittedStatements.clear();
