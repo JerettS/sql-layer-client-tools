@@ -48,13 +48,13 @@ public class CsvLoaderTest extends ClientTestBase
         options.schema = SCHEMA_NAME;
         options.quiet = true;
         options.format = Format.CSV;
+        options.target = "states";
     }
 
     @Test
     public void testBasicLoad() throws Exception {
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
-        options.target = "states";
         assertLoad(2, "AL,Birmingham","MA,Boston");
         checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
     }
@@ -67,6 +67,26 @@ public class CsvLoaderTest extends ClientTestBase
         options.target = "the ; , \" bad ; , ? ? states";
         assertLoad(2, "AL,Birmingham","MA,Boston");
         checkQuery("SELECT * FROM " + escapedTable, list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+    }
+
+    @Test
+    public void testEscapeColumnName() throws Exception {
+        String escapedColumnName = "\"the ; , \"\" bad ; , ? ? abbreviation\"";
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (" + escapedColumnName + " CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(2, "AL,Birmingham","MA,Boston");
+        checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+    }
+
+    @Test
+    public void testEscapeColumnNameWithHeader() throws Exception {
+        String escapedColumnName = "\"the (; ,) \"\" bad ; , ? ? abbreviation\"";
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (" + escapedColumnName + " CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        options.format = Format.CSV_HEADER;
+        // conveniently csv & sql escape in the same way for table/column names
+        assertLoad(2, escapedColumnName + ",name", "AL,Birmingham","MA,Boston");
+        checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
     }
 
     private void assertLoad(int count, String... rows) throws Exception {

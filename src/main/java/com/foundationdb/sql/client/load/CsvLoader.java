@@ -74,18 +74,16 @@ class CsvLoader extends FileLoader
     private static String createPreparedStatement(String targetTable, List<String> columns, int columnCount) {
         StringBuilder sb = new StringBuilder();
         sb.append("INSERT INTO \"");
-        // TODO escape targetTable
-        sb.append(targetTable.replaceAll("\"","\"\""));
+        sb.append(escapeIdentifier(targetTable));
         sb.append("\" ");
         // TODO throw exception if columnCount == 0
-        // TODO and escape columns
         if (columns != null) {
             sb.append("(\"");
             for (int i=0; i<columns.size()-1; i++) {
-                sb.append(columns.get(i));
+                sb.append(escapeIdentifier(columns.get(i)));
                 sb.append("\",\"");
             }
-            sb.append(columns.get(columns.size()-1));
+            sb.append(escapeIdentifier(columns.get(columns.size()-1)));
             sb.append("\") ");
         }
         sb.append("VALUES (");
@@ -98,6 +96,10 @@ class CsvLoader extends FileLoader
             sb.append(")");
         }
         return sb.toString();
+    }
+
+    private static String escapeIdentifier(String identifier) {
+        return identifier.replaceAll("\"","\"\"");
     }
 
     public List<? extends SegmentLoader> split(int nsegments) throws IOException {
