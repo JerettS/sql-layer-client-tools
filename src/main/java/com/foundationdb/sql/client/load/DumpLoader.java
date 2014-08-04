@@ -20,7 +20,6 @@ import com.foundationdb.sql.client.StatementHelper;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
-import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,8 +58,11 @@ class DumpLoader extends FileLoader
     }
 
     protected class DumpSegmentQueryLoader extends SegmentLoader {
-        public DumpSegmentQueryLoader(long start, long end) {
+        private long startLineNo;
+        
+        public DumpSegmentQueryLoader(long start, long end, long startLineNo) {            
             super(DumpLoader.this.client, DumpLoader.this.channel, start, end);
+            this.startLineNo = startLineNo;
         }
         
         @Override
@@ -70,22 +72,42 @@ class DumpLoader extends FileLoader
         @Override
         public void run() {
             try {
-                count += executeSegmentQuery (start, end);
+                count += executeSegmentQuery (start, end, startLineNo);
             } catch (Exception ex) {
-                //TODO: Handle this better?
-                ex.printStackTrace();
-                
+                if (ex instanceof DumpLoaderException) {
+                    System.err.println("ERROR: During query that ends on line " + ((DumpLoaderException) ex).getLineNo() + ", starting with:" );
+                    System.err.println("       " + getPartialQuery( ((DumpLoaderException)ex).getQuery(), 160) );
+                    ex = ((DumpLoaderException) ex).getEx();
+                }
+                System.err.println(ex.getMessage());
+                if (ex instanceof SQLException) {
+                    // unwrap SQLException
+                    if (ex.getCause() instanceof SQLException) {
+                        ex = (SQLException)ex.getCause();
+                        System.err.println(ex.getMessage());
+                    }
+                    
+                    if (StatementHelper.shouldRetry((SQLException)ex, true)) {
+                        System.err.println("NOTE: In case of past version exception try flags: --commit=auto --retry=3");
+                    }
+                    System.err.println("NOTE: You can drop the partially loaded schema by doing: fdbsqlcli -c “DROP SCHEMA [schema_name] CASCADE\"");
+                }
             }
         }
     }
+    
+    private String getPartialQuery(String query, int maxLength){
+        return query.length() > maxLength ? (query.substring(0, maxLength) + " ...") : query;
+    }
 
-    protected long executeSegmentQuery (long start, long end)
-            throws SQLException, IOException {
-        LineReader lines = new LineReader(channel, client.getEncoding(), 
-                BUFFER_SIZE, BUFFER_SIZE, 
+    protected long executeSegmentQuery (long start, long end, long startLineNo)
+        throws SQLException, IOException {
+        String sql = null;
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                BUFFER_SIZE, BUFFER_SIZE,
                 start, end);
         List<String> uncommittedStatements = new ArrayList<String>();
-        QueryBuffer buffer = new QueryBuffer ();
+        QueryBuffer buffer = new QueryBuffer();
         Connection conn = getConnection(hasDDL);
         StatementHelper stmt = new StatementHelper(conn);
         CommitStatus status = new CommitStatus();
@@ -98,13 +120,13 @@ class DumpLoader extends FileLoader
                 if (lines.readLine(buffer)) {
                     while (buffer.hasQuery()) {
                         try {
-                            String sql = buffer.nextQuery();
+                            sql = buffer.nextQuery();
                             uncommittedStatements.add(sql);
                             executeSQL (conn, stmt, sql, status);
                             if (status.pending == 0) uncommittedStatements.clear();
                         } catch (SQLException e) {
                             if (!conn.getAutoCommit()) conn.rollback();
-                            if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                            if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 1)) {
                                 retry(conn, stmt, status, uncommittedStatements, e);
                             } else {
                                 throw(e);
@@ -122,13 +144,15 @@ class DumpLoader extends FileLoader
                     status.commit();
                 } catch (SQLException e) {
                     if (!conn.getAutoCommit()) conn.rollback();
-                    if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                    if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 1)) {
                         retry(conn, stmt, status, uncommittedStatements, e);
                     } else {
                         throw(e);
                     }
                 }
             }
+        } catch (Exception ex) {
+            throw new DumpLoaderException(lines.getLineCounter() + startLineNo, sql, ex);
         } finally {
             stmt.close();
             returnConnection(conn, success);
@@ -201,7 +225,7 @@ class DumpLoader extends FileLoader
         long start = 0;
         long end = channel.size();
         
-        return new DumpSegmentQueryLoader(start, end);
+        return new DumpSegmentQueryLoader(start, end, 0);
     }
 
     
@@ -217,6 +241,7 @@ class DumpLoader extends FileLoader
                                           FileLoader.SMALL_BUFFER_SIZE, 1,
                                           start, end);
         long mid;
+        long lineNo = 0;
         while (nsegments > 1) {
             if ( ((end - start) < nsegments) && ((end - start) > 0)) {
                 mid = start + 1;
@@ -226,14 +251,16 @@ class DumpLoader extends FileLoader
                 mid = start + (end - start) / nsegments;
             }
             mid = lines.splitParse (mid);
-            segments.add(new DumpSegmentQueryLoader(start, mid));
+            segments.add(new DumpSegmentQueryLoader(start, mid, lineNo));
             if (mid >= (end - 1))
                 return segments;
             start = mid;
+            lineNo += lines.getLineCounter();
+            lines.resetLineCounter();
             lines.position(mid);
             nsegments--;
         }
-        segments.add(new DumpSegmentQueryLoader(start, end));
+        segments.add(new DumpSegmentQueryLoader(start, end, lineNo));
         return segments;
     }
     
