@@ -117,32 +117,26 @@ public class LineReader
     }
 
     public boolean readLine (CsvBuffer into) throws IOException {
-        StringBuilder line = new StringBuilder (SHORT_LINE);
         boolean eol = false;
         while (true) {
             while (chars.hasRemaining()) {
                 char ch = chars.get();
+                into.append(ch);
                 if (ch == '\n') {
                     eol = true;
                     break;
                 }
-                else {
-                    line.append(ch);
-                }
             }
 
             if (eol) {
-                if(!into.isEmpty()) {
-                    into.append('\n'); // replace the \n
-                    into.append(line.toString());
-                } else {
-                    into.append(line.toString());
-                }
-                line.setLength(0);
                 eol = false;
                 if (into.hasRow()) return true;
             } else {
                 if (!refillCharsBuffer()) {
+                    if (!into.isEmpty()) {
+                        into.append('\n'); // replace the \n
+                        return into.hasRow();
+                    }
                     return false;
                 }
             }

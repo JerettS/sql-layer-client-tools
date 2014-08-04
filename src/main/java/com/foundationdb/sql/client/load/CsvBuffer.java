@@ -122,6 +122,7 @@ public class CsvBuffer
                 if ((b == cr) || (b == nl)) {
                     values.add(currentField.toString());
                     endIndex = currentIndex;
+                    state = State.ROW_START;
                     break;
                 }
                 else if (b == delim) {
@@ -139,7 +140,9 @@ public class CsvBuffer
             case IN_FIELD:
                 if ((b == cr) || (b == nl)) {
                     values.add(currentField.toString());
+                    currentField.setLength(0);
                     endIndex = currentIndex;
+                    state = State.ROW_START;
                     break;
                 }
                 else if (b == delim) {
