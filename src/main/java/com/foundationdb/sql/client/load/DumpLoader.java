@@ -20,18 +20,14 @@ import com.foundationdb.sql.client.StatementHelper;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
-import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.foundationdb.sql.client.cli.QueryBuffer;
-import org.postgresql.util.PSQLException;
 
 class DumpLoader extends FileLoader
 {
-    public static final String FDB_PAST_VERSION = "40004";
-    public static final String FDB_NOT_COMMITTED = "40002";
     boolean hasDDL;
 
     public DumpLoader(LoadClient client, FileChannel channel) {
@@ -78,21 +74,24 @@ class DumpLoader extends FileLoader
             try {
                 count += executeSegmentQuery (start, end, startLineNo);
             } catch (Exception ex) {
-                if (ex instanceof FDBSQLDumpLoaderException) {
-                    System.err.println("ERROR: During query that ends on line " + ((FDBSQLDumpLoaderException) ex).getLineNo());
-                    System.err.println("       " + ((FDBSQLDumpLoaderException) ex).getQuery());
-                    ex = ((FDBSQLDumpLoaderException) ex).getEx();
+                if (ex instanceof DumpLoaderException) {
+                    System.err.println("ERROR: During query that ends on line " + ((DumpLoaderException) ex).getLineNo() + ", starting with:" );
+                    System.err.println("       " + getPartialQuery( ((DumpLoaderException)ex).getQuery(), 160) );
+                    ex = ((DumpLoaderException) ex).getEx();
                 }
                 System.err.println(ex.getMessage());
-                if (ex instanceof PSQLException) {
-                    if (((PSQLException) ex).getSQLState().equals(FDB_NOT_COMMITTED) 
-                            || ((PSQLException) ex).getSQLState().equals(FDB_PAST_VERSION)) {
-                        System.err.println("NOTE: In case of past version exception or crash try flags: --commit=auto --retry=3");
+                if (ex instanceof SQLException) {
+                    if (StatementHelper.shouldRetry((SQLException)ex, true)) {
+                        System.err.println("NOTE: In case of past version exception try flags: --commit=auto --retry=3");
                     }
                     System.err.println("NOTE: You can drop the partially loaded schema by doing: fdbsqlcli -c “DROP SCHEMA [schema_name] CASCADE\"");
                 }
             }
         }
+    }
+    
+    private String getPartialQuery(String query, int maxLength){
+        return query.length() > maxLength ? (query.substring(0, maxLength) + " ...") : query;
     }
 
     protected long executeSegmentQuery (long start, long end, long startLineNo)
@@ -147,7 +146,7 @@ class DumpLoader extends FileLoader
                 }
             }
         } catch (Exception ex) {
-            throw new FDBSQLDumpLoaderException(lines.getLineCounter() + startLineNo, sql, ex);
+            throw new DumpLoaderException(lines.getLineCounter() + startLineNo, sql, ex);
         } finally {
             stmt.close();
             returnConnection(conn, success);

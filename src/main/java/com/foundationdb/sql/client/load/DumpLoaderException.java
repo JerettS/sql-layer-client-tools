@@ -15,12 +15,12 @@
 
 package com.foundationdb.sql.client.load;
 
-public class FDBSQLDumpLoaderException extends RuntimeException {
+public class DumpLoaderException extends RuntimeException {
     private Exception exception;
     private long lineNo;
     private String query;
     
-    public FDBSQLDumpLoaderException(long lineNo, String query, Exception exception) {
+    public DumpLoaderException(long lineNo, String query, Exception exception) {
         this.exception = exception;
         this.lineNo = lineNo;
         this.query = query == null ? "" : query;
