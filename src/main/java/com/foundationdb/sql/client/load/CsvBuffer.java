@@ -67,7 +67,7 @@ public class CsvBuffer
         return bytes[0] & 0xFF;
     }
 
-    private void reset() {
+    public void reset() {
         this.startIndex = 0;
         this.endIndex = UNSET;
         this.values = new ArrayList();

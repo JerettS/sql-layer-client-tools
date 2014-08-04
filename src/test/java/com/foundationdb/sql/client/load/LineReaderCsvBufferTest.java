@@ -32,6 +32,11 @@ public class LineReaderCsvBufferTest {
     FileInputStream inputStream;
 
     @Test
+    public void simpleReadOneColumn() throws IOException {
+        assertReadLines(list(list("field1")), "field1");
+    }
+
+    @Test
     public void simpleRead() throws IOException {
         assertReadLines(list(list("field1", "field2")), "field1,field2");
     }
@@ -76,6 +81,35 @@ public class LineReaderCsvBufferTest {
         assertReadLines(list(list("a field", "the \"second\" field")), "a field,\"the \"\"second\"\" field\"");
     }
 
+    @Test
+    public void testSplit() throws IOException {
+        String line1 = "first row,has the value,3";
+        String line2 = "second row,has the value,17";
+        String line3 = "third row,has the value,950";
+        int fullLength = line1.length() + line2.length() + line3.length();
+        int split1 = fullLength / 3;
+        int split2 = split1 * 2;
+        assertNotEquals("Don't make it too easy", split1, line1.length());
+        File file = tmpFileFrom(true, line1, line2, line3);
+        FileInputStream istr = null;
+        try {
+            istr = new FileInputStream(file);
+            // NOTE: right now the char buffer size must be 1 for calling splitParse
+            LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
+            long splitPoint = lines.splitParseCsv(split1, new CsvBuffer(encoding));
+            lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, splitPoint);
+            CsvBuffer csv = new CsvBuffer(encoding);
+            assertRows(list(list("first row", "has the value", "3")), csv, lines);
+        } finally {
+            if (istr != null) {
+                istr.close();
+            }
+        }
+    }
+
+
+
+
     private static <T> List<T> list(T... values) {
         List<T> result = new ArrayList<>();
         for (T value : values) {
@@ -94,16 +128,23 @@ public class LineReaderCsvBufferTest {
             istr = new FileInputStream(file);
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
             CsvBuffer b = new CsvBuffer(encoding);
-            List<List<String>> actual = new ArrayList<>();
-            while (lines.readLine(b)) {
-                actual.add(b.nextRow());
-            }
-            assertArrayEquals(expected.toArray(), actual.toArray());
+            assertRows(expected, b, lines);
         } finally {
             if (istr != null) {
                 istr.close();
             }
         }
+    }
+
+    private static void assertRows(List<List<String>> expected, CsvBuffer buffer, LineReader lines) throws IOException {
+        List<List<String>> actual = new ArrayList<>();
+        while (lines.readLine(buffer)) {
+            actual.add(buffer.nextRow());
+        }
+
+        System.out.println(expected);
+        System.out.println(actual);
+        assertArrayEquals(expected.toArray(), actual.toArray());
     }
 
     private static File tmpFileFrom(boolean insertNewlines, String... lines) throws IOException {
