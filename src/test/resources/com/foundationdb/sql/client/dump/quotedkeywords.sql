@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS `as`;
 
 CREATE TABLE `as`(
   testid INT
-);
+) STORAGE_FORMAT tuple;
 
 
 
@@ -21,7 +21,7 @@ DROP TABLE IF EXISTS `max`;
 
 CREATE TABLE `max`(
   testid INT
-);
+) STORAGE_FORMAT tuple;
 
 
 
@@ -35,7 +35,7 @@ CREATE TABLE t1_fk(
   id INT NOT NULL,
   CONSTRAINT t1_fk_pkey PRIMARY KEY (id),
   `user` INT
-);
+) STORAGE_FORMAT tuple;
 
 
 
@@ -47,7 +47,7 @@ DROP TABLE IF EXISTS t2_fk;
 CREATE TABLE t2_fk(
   `user` INT NOT NULL,
   CONSTRAINT t2_fk_pkey PRIMARY KEY (`user`)
-);
+) STORAGE_FORMAT tuple;
 
 
 
@@ -64,7 +64,7 @@ CREATE TABLE `table`(
   `select` INT NOT NULL,
   `into` INT NOT NULL,
   CONSTRAINT table_pkey PRIMARY KEY (`select`, `into`)
-);
+) STORAGE_FORMAT tuple;
 
 CREATE TABLE table_child(
   `select` INT NOT NULL,
@@ -73,9 +73,9 @@ CREATE TABLE table_child(
 );
 
 
-CREATE INDEX `and` ON `table`(`select`);
-CREATE INDEX `or` ON `table`(`select`, `into`);
-CREATE UNIQUE INDEX `add` ON table_child(`into`);
+CREATE INDEX `and` ON `table`(`select`) STORAGE_FORMAT tuple;
+CREATE INDEX `or` ON `table`(`select`, `into`) STORAGE_FORMAT tuple;
+CREATE UNIQUE INDEX `add` ON table_child(`into`) STORAGE_FORMAT tuple;
 ALTER TABLE table_child ADD CONSTRAINT `constraint` UNIQUE (`select`);
 ALTER TABLE table_child ADD CONSTRAINT `unique` UNIQUE (`into`);
 
@@ -90,7 +90,7 @@ DROP TABLE IF EXISTS `values`;
 CREATE TABLE `values`(
   `min` INT NOT NULL,
   CONSTRAINT values_pkey PRIMARY KEY (`min`)
-);
+) STORAGE_FORMAT tuple;
 
 
 
