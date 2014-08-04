@@ -75,7 +75,7 @@ class CsvLoader extends FileLoader
         StringBuilder sb = new StringBuilder();
         sb.append("INSERT INTO \"");
         // TODO escape targetTable
-        sb.append(targetTable);
+        sb.append(targetTable.replaceAll("\"","\"\""));
         sb.append("\" ");
         // TODO throw exception if columnCount == 0
         // TODO and escape columns
@@ -129,6 +129,7 @@ class CsvLoader extends FileLoader
         return segments;
     }
 
+    // TODO remove
     @Override
     void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
         if (sql.startsWith("INSERT INTO ")) {

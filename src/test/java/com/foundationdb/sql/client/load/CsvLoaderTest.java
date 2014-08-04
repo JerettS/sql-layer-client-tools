@@ -55,14 +55,28 @@ public class CsvLoaderTest extends ClientTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         options.target = "states";
+        assertLoad(2, "AL,Birmingham","MA,Boston");
+        checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+    }
+
+    @Test
+    public void testEscapeTableName() throws Exception {
+        String escapedTable = "\"the ; , \"\" bad ; , ? ? states\"";
+        loadDDL("DROP TABLE IF EXISTS " + escapedTable,
+                "CREATE TABLE " + escapedTable  + " (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        options.target = "the ; , \" bad ; , ? ? states";
+        assertLoad(2, "AL,Birmingham","MA,Boston");
+        checkQuery("SELECT * FROM " + escapedTable, list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+    }
+
+    private void assertLoad(int count, String... rows) throws Exception {
         LoadClient client = new LoadClient(options);
         try {
-            assertEquals(2, client.load(tmpFileFrom(true, "AL,Birmingham","MA,Boston")));
+            assertEquals(count, client.load(tmpFileFrom(true, rows)));
         }
         finally {
             client.clearConnections();
         }
-        checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"),list((Object)"MA","Boston")));
     }
 
 
