@@ -28,8 +28,8 @@ import java.util.List;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 
 public class CsvLoaderTest extends ClientTestBase
 {
@@ -56,14 +56,14 @@ public class CsvLoaderTest extends ClientTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(2, "AL,Birmingham","MA,Boston");
-        checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+        checkQuery("SELECT * FROM states", list(list((Object) "AL", "Birmingham"), list((Object) "MA", "Boston")));
     }
 
     @Test
     public void testEscapeTableName() throws Exception {
         String escapedTable = "\"the ; , \"\" bad ; , ? ? states\"";
         loadDDL("DROP TABLE IF EXISTS " + escapedTable,
-                "CREATE TABLE " + escapedTable  + " (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+                "CREATE TABLE " + escapedTable + " (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         options.target = "the ; , \" bad ; , ? ? states";
         assertLoad(2, "AL,Birmingham","MA,Boston");
         checkQuery("SELECT * FROM " + escapedTable, list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
@@ -87,6 +87,28 @@ public class CsvLoaderTest extends ClientTestBase
         // conveniently csv & sql escape in the same way for table/column names
         assertLoad(2, escapedColumnName + ",name", "AL,Birmingham","MA,Boston");
         checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+    }
+
+    @Test
+    public void testEmptyCsvWithoutHeader() throws Exception {
+        options.format = Format.CSV;
+        try {
+            assertLoad(0, "");
+            assertEquals("An exception to be thrown", "no exception was thrown");
+        } catch (IndexOutOfBoundsException e) {
+            assertEquals("Csv file is empty", e.getMessage());
+        }
+    }
+
+    @Test
+    public void testEmptyCsvWithHeader() throws Exception {
+        options.format = Format.CSV_HEADER;
+        try {
+            assertLoad(0, "");
+            assertEquals("An exception to be thrown", "no exception was thrown");
+        } catch (IndexOutOfBoundsException e) {
+            assertEquals("Csv file is empty", e.getMessage());
+        }
     }
 
     private void assertLoad(int count, String... rows) throws Exception {

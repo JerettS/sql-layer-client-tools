@@ -59,6 +59,8 @@ class CsvLoader extends FileLoader
             } else {
                 columnCount = buffer.nextRow().size();
             }
+        } else {
+            throw new IndexOutOfBoundsException("Csv file is empty");
         }
         if (header) {
             // since CsvBuffer will always end a row at the end of a line, the position must be the end of a line.
@@ -76,7 +78,6 @@ class CsvLoader extends FileLoader
         sb.append("INSERT INTO \"");
         sb.append(escapeIdentifier(targetTable));
         sb.append("\" ");
-        // TODO throw exception if columnCount == 0
         if (columns != null) {
             sb.append("(\"");
             for (int i=0; i<columns.size()-1; i++) {
