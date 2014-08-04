@@ -81,6 +81,12 @@ class DumpLoader extends FileLoader
                 }
                 System.err.println(ex.getMessage());
                 if (ex instanceof SQLException) {
+                    // unwrap SQLException
+                    if (ex.getCause() instanceof SQLException) {
+                        ex = (SQLException)ex.getCause();
+                        System.err.println(ex.getMessage());
+                    }
+                    
                     if (StatementHelper.shouldRetry((SQLException)ex, true)) {
                         System.err.println("NOTE: In case of past version exception try flags: --commit=auto --retry=3");
                     }
@@ -120,7 +126,7 @@ class DumpLoader extends FileLoader
                             if (status.pending == 0) uncommittedStatements.clear();
                         } catch (SQLException e) {
                             if (!conn.getAutoCommit()) conn.rollback();
-                            if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                            if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 1)) {
                                 retry(conn, stmt, status, uncommittedStatements, e);
                             } else {
                                 throw(e);
@@ -138,7 +144,7 @@ class DumpLoader extends FileLoader
                     status.commit();
                 } catch (SQLException e) {
                     if (!conn.getAutoCommit()) conn.rollback();
-                    if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                    if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 1)) {
                         retry(conn, stmt, status, uncommittedStatements, e);
                     } else {
                         throw(e);
