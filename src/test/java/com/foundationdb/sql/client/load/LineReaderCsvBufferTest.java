@@ -117,13 +117,14 @@ public class LineReaderCsvBufferTest {
 
 
 
-    private static <T> List<T> list(T... values) {
+    public static <T> List<T> list(T... values) {
         List<T> result = new ArrayList<>();
         for (T value : values) {
             result.add(value);
         }
         return result;
     }
+
     private static void assertReadLines(List<List<String>> expected, String... input) throws IOException {
         assertReadLines(true, expected, input);
     }
@@ -151,7 +152,7 @@ public class LineReaderCsvBufferTest {
         assertArrayEquals(expected.toArray(), actual.toArray());
     }
 
-    private static File tmpFileFrom(boolean insertNewlines, String... lines) throws IOException {
+    public static File tmpFileFrom(boolean insertNewlines, String... lines) throws IOException {
         File tmpFile = File.createTempFile(LineReaderQueryBufferTest.class.getSimpleName(), null);
         tmpFile.deleteOnExit();
         FileWriter writer = new FileWriter(tmpFile);
