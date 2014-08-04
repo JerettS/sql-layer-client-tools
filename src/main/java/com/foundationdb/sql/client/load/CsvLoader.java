@@ -168,6 +168,7 @@ class CsvLoader extends FileLoader
                     e.printStackTrace();
                 }
             }
+            count += status.count;
         }
     }
 }
