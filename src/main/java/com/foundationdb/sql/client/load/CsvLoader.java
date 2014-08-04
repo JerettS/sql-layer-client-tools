@@ -22,6 +22,7 @@ import java.lang.UnsupportedOperationException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,24 +90,43 @@ class CsvLoader extends FileLoader
             StatementHelper stmt = null;
             List<String> uncommittedStatements = new ArrayList<String>();
             LineReader lines = null;
+            String[] emptyStringArray = new String[0];
             try {
                 lines = new LineReader(channel, client.getEncoding(),
                                        BUFFER_SIZE, BUFFER_SIZE,
                                        start, end);
                 connection = client.getConnection(false);
                 stmt = new StatementHelper(connection);
+                CsvBuffer buffer = new CsvBuffer(client.getEncoding());
                 while (true) {
-                    // TODO: what about newlines in quotes...
-                    String csvLine = lines.readLine();
-                    if (csvLine == null) {
+                    if (!lines.readLine(buffer)) {
                         break;
                     }
+                    List<String> values = buffer.nextRow();
+                    int columnCount = values.size();
+                    // TODO only do this once
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("INSERT INTO \"");
+                    // TODO escape targetTable
+                    sb.append(targetTable);
+                    sb.append("\" VALUES (");
+                    for (int i=0; i<columnCount-1; i++) {
+                        sb.append("?, ");
+                    }
+                    if (columnCount > 0) {
+                        sb.append("?)");
+                    } else {
+                        sb.append(")");
+                    }
+                    String prepared = sb.toString();
                     // TODO prepare
                     // TODO types?
                     try {
-                        String sql = "INSERT INTO \"" + targetTable + "\" VALUES (" + csvLine + ")";
+                        String sql = "INSERT INTO \"" + targetTable + "\" VALUES (" + values + ")";
+                        // TODO uncommitted statements need to escape or something
                         uncommittedStatements.add(sql);
-                        executeSQL(connection, stmt, sql, status);
+                        status.pending += stmt.executeUpdatePrepared(prepared, values.toArray(emptyStringArray));
+//                        executeSQL(connection, stmt, sql, status);
                         if (status.pending == 0) { // successful commit
                             uncommittedStatements.clear();
                         }
