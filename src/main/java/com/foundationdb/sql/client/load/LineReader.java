@@ -126,8 +126,9 @@ public class LineReader
                     eol = true;
                     break;
                 }
-                else if (ch != '\r')
+                else {
                     line.append(ch);
+                }
             }
 
             if (eol) {
