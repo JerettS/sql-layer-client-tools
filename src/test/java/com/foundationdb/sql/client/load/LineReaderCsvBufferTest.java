@@ -97,9 +97,16 @@ public class LineReaderCsvBufferTest {
             // NOTE: right now the char buffer size must be 1 for calling splitParse
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
             long splitPoint = lines.splitParseCsv(split1, new CsvBuffer(encoding));
+            long splitPoint2 = lines.splitParseCsv(split2, new CsvBuffer(encoding));
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, splitPoint);
             CsvBuffer csv = new CsvBuffer(encoding);
             assertRows(list(list("first row", "has the value", "3")), csv, lines);
+            lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint, splitPoint2);
+            csv = new CsvBuffer(encoding);
+            assertRows(list(list("second row", "has the value", "17")), csv, lines);
+            lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint2, istr.getChannel().size());
+            csv = new CsvBuffer(encoding);
+            assertRows(list(list("third row", "has the value", "950")), csv, lines);
         } finally {
             if (istr != null) {
                 istr.close();
@@ -141,9 +148,6 @@ public class LineReaderCsvBufferTest {
         while (lines.readLine(buffer)) {
             actual.add(buffer.nextRow());
         }
-
-        System.out.println(expected);
-        System.out.println(actual);
         assertArrayEquals(expected.toArray(), actual.toArray());
     }
 
