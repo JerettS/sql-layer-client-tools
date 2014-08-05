@@ -33,6 +33,7 @@ public class LineReader
     private final ByteBuffer bytes;
     private final CharBuffer chars;
     private long position, limit;
+    private long lineCounter;
 
     public LineReader(FileChannel channel, String encoding) throws IOException {
         this(channel, encoding, SHORT_LINE);
@@ -57,6 +58,7 @@ public class LineReader
         chars.flip();           // Normal state is bytes filling, chars emptying.
         this.position = position;
         this.limit = limit;
+        this.lineCounter = 0;
     }
 
     public long position() {
@@ -75,6 +77,14 @@ public class LineReader
         this.limit = limit;
     }
 
+    public void resetLineCounter(){
+        this.lineCounter = 0;
+    }
+    
+    public long getLineCounter() {
+        return this.lineCounter;
+    }
+    
     public String readLine() throws IOException {
         StringBuilder str = new StringBuilder();
         if (!readLine(str) && (str.length() == 0))
@@ -92,6 +102,7 @@ public class LineReader
                 char ch = chars.get();
                 if (ch == '\n') {
                     eol = true;
+                    lineCounter++;
                     break;
                 }
                 else if (ch != '\r')
@@ -147,7 +158,10 @@ public class LineReader
         while (true) {
             while (chars.hasRemaining()) {
                 char ch = chars.get();
-                if (ch == '\n') return true;
+                if (ch == '\n') {
+                    lineCounter++;
+                    return true;
+                }
                 else if (ch != '\r')
                     into.append(ch);
             }

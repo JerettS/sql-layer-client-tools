@@ -15,7 +15,7 @@ CREATE TABLE customers(
   cid INT NOT NULL,
   CONSTRAINT customers_pkey PRIMARY KEY (cid),
   name VARCHAR(32) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL
-);
+) STORAGE_FORMAT tuple;
 
 CREATE TABLE addresses(
   aid INT NOT NULL,
@@ -52,18 +52,18 @@ CREATE TABLE shipments(
 );
 
 
-CREATE INDEX name ON customers(name);
-CREATE INDEX `__akiban_fk_2` ON addresses(cid);
-CREATE INDEX state ON addresses(state);
-CREATE INDEX `__akiban_fk_0` ON orders(cid);
-CREATE INDEX order_date ON orders(order_date);
-CREATE INDEX `__akiban_fk_1` ON items(oid);
-CREATE INDEX sku ON items(sku);
-CREATE UNIQUE INDEX order_sku ON items(oid, sku);
-CREATE INDEX cname_and_sku ON items(customers.name, sku) USING LEFT JOIN;
-CREATE INDEX sku_and_date ON items(sku, orders.order_date) USING LEFT JOIN;
-CREATE INDEX `__akiban_fk_3` ON shipments(oid);
-CREATE INDEX ship_date ON shipments(ship_date);
+CREATE INDEX name ON customers(name) STORAGE_FORMAT tuple;
+CREATE INDEX `__akiban_fk_2` ON addresses(cid) STORAGE_FORMAT tuple;
+CREATE INDEX state ON addresses(state) STORAGE_FORMAT tuple;
+CREATE INDEX `__akiban_fk_0` ON orders(cid) STORAGE_FORMAT tuple;
+CREATE INDEX order_date ON orders(order_date) STORAGE_FORMAT tuple;
+CREATE INDEX `__akiban_fk_1` ON items(oid) STORAGE_FORMAT tuple;
+CREATE INDEX sku ON items(sku) STORAGE_FORMAT tuple;
+CREATE UNIQUE INDEX order_sku ON items(oid, sku) STORAGE_FORMAT tuple;
+CREATE INDEX cname_and_sku ON items(customers.name, sku) USING LEFT JOIN STORAGE_FORMAT tuple;
+CREATE INDEX sku_and_date ON items(sku, orders.order_date) USING LEFT JOIN STORAGE_FORMAT tuple;
+CREATE INDEX `__akiban_fk_3` ON shipments(oid) STORAGE_FORMAT tuple;
+CREATE INDEX ship_date ON shipments(ship_date) STORAGE_FORMAT tuple;
 
 INSERT INTO customers VALUES(1, 'Smith');
 INSERT INTO addresses VALUES(101, 1, 'MA', 'Boston');
@@ -95,7 +95,7 @@ CREATE TABLE parent(
   CONSTRAINT parent_pkey PRIMARY KEY (id),
   name VARCHAR(128) CHARACTER SET utf8 COLLATE ucs_binary NOT NULL,
   state CHAR(2) CHARACTER SET utf8 COLLATE ucs_binary
-);
+) STORAGE_FORMAT tuple;
 
 CREATE TABLE child(
   id INT NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE child(
 );
 
 
-CREATE INDEX name ON child(name);
-CREATE INDEX pc_gi ON child(parent.name, name) USING LEFT JOIN;
+CREATE INDEX name ON child(name) STORAGE_FORMAT tuple;
+CREATE INDEX pc_gi ON child(parent.name, name) USING LEFT JOIN STORAGE_FORMAT tuple;
 
 

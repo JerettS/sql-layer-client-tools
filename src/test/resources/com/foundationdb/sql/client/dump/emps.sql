@@ -8,7 +8,7 @@ CREATE TABLE dept(
   CONSTRAINT dept_pkey PRIMARY KEY (deptno),
   name VARCHAR(16) CHARACTER SET utf8 COLLATE ucs_binary NOT NULL,
   dept_head INT
-);
+) STORAGE_FORMAT tuple;
 
 
 
@@ -27,7 +27,7 @@ CREATE TABLE emp(
   name VARCHAR(128) CHARACTER SET utf8 COLLATE ucs_binary NOT NULL,
   mgr INT,
   deptno INT
-);
+) STORAGE_FORMAT tuple;
 
 
 
@@ -46,7 +46,7 @@ CREATE TABLE memo(
   CONSTRAINT memo_pkey PRIMARY KEY (id),
   body TEXT CHARACTER SET utf8 COLLATE ucs_binary,
   author INT
-);
+) STORAGE_FORMAT tuple;
 
 
 

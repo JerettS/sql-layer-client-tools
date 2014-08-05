@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS x_pk;
 
 CREATE TABLE x_pk(
   str VARCHAR(16) CHARACTER SET utf8 COLLATE ucs_binary
-);
+) STORAGE_FORMAT tuple;
 
 
 
@@ -47,7 +47,7 @@ CREATE TABLE x_types(
   c31 LONGTEXT CHARACTER SET utf8 COLLATE ucs_binary,
   c32 DECIMAL(10,3),
   c33 DECIMAL(10,3) UNSIGNED
-);
+) STORAGE_FORMAT tuple;
 
 
 

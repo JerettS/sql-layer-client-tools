@@ -138,6 +138,7 @@ public class DumpClient
     private static final String LOAD_TABLES_QUERY =
         "SELECT QUOTE_IDENT(table_schema, '`'), "+
         "       table_name, "+
+        "       storage_format, " +
         "       QUOTE_IDENT(table_name, '`') "+
         "FROM information_schema.tables "+
         "WHERE table_schema = ? AND table_type = 'TABLE' "+
@@ -149,7 +150,7 @@ public class DumpClient
         while (rs.next()) {
             String quotedSchema = rs.getString(1);
             String name = rs.getString(2);
-            tables.put(name, new Table(schema, quotedSchema, name, rs.getString(3)));
+            tables.put(name, new Table(schema, quotedSchema, name, rs.getString(4), rs.getString(3)));
         }
         rs.close();
     }
@@ -415,9 +416,15 @@ public class DumpClient
         List<Table> children = new ArrayList<Table>();
         List<String> primaryKeys, childKeys, parentKeys;
         Set<ForeignKey> foreignKeys = new TreeSet<ForeignKey>();
-        
+        String storageFormat;
+
         public Table(String schema, String quotedSchema, String name, String quotedName) {
             super(schema, quotedSchema, name, quotedName);
+        }
+
+        public Table(String schema, String quotedSchema, String name, String quotedName, String storageFormat) {
+            super(schema, quotedSchema, name, quotedName);
+            this.storageFormat = storageFormat;
         }
     }
     
@@ -649,6 +656,7 @@ public class DumpClient
     
     protected void outputCreateTable(Table table) throws SQLException, IOException {
         Set<String> pkey = null, gkey = null;
+        boolean isRootTable = true;
         if (!table.primaryKeys.isEmpty())
             pkey = new HashSet<String>(table.primaryKeys);
         if (table.childKeys != null)
@@ -727,13 +735,17 @@ public class DumpClient
                     keys(table.parentKeys, sql);
                     gkey = null;
                     rsGk.close();
+                    isRootTable = false;
                 }
             }
         }
         rs.close();
         assert (pkey == null) : pkey;
         assert (gkey == null) : gkey;
-        sql.append(NL).append(");").append(NL).append(NL);
+        sql.append(NL).append(")");
+        if(isRootTable)
+            sql.append(" STORAGE_FORMAT ").append(table.storageFormat);
+        sql.append(";").append(NL).append(NL);
         output.write(sql.toString());
         table.dumped = true;
     }
@@ -784,6 +796,7 @@ public class DumpClient
         "       is_unique, "+
         "       join_type, "+
         "       index_method, "+
+        "       storage_format, " +
         "       QUOTE_IDENT(constraint_name, '`') "+
         "FROM information_schema.indexes "+
         "WHERE table_schema = ? AND table_name = ? AND index_type IN ('INDEX','UNIQUE') "+
@@ -793,12 +806,12 @@ public class DumpClient
         ResultSet rs = stmtHelper.executeQueryPrepared(OUTPUT_CREATE_INDEXES_FOR_TABLE_QUERY, table.schema, table.name);
         while (rs.next()) {
             
-            outputCreateIndex(table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6));
+            outputCreateIndex(table, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(7), rs.getString(6));
         }
         rs.close();
     }    
 
-    protected void outputCreateIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod, String quotedConstraintName) throws SQLException, IOException {
+    protected void outputCreateIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod, String quotedConstraintName, String storageFormat) throws SQLException, IOException {
         for (ForeignKey fkey : table.foreignKeys) {
             if ((fkey.referencingTable == table) &&
                     index.equals(fkey.name)) {
@@ -811,7 +824,7 @@ public class DumpClient
         }
         else {
             // constraint name is generated for unique constraints
-            outputCreateStandardIndex(table, index, quotedIndex, unique, joinType, indexMethod);
+            outputCreateStandardIndex(table, index, quotedIndex, unique, joinType, indexMethod, storageFormat);
         }
     }
 
@@ -820,10 +833,10 @@ public class DumpClient
         qualifiedName(table, sql);
         sql.append(" ADD CONSTRAINT ").append(quotedConstraintName);
         sql.append(" UNIQUE ");
-        appendColumns(sql, joinType, indexMethod, table, index);
+        appendColumns(sql, joinType, indexMethod, table, index, null);
     }
     
-    protected void outputCreateStandardIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod) throws SQLException, IOException {
+    protected void outputCreateStandardIndex(Table table, String index, String quotedIndex, String unique, String joinType, String indexMethod, String storageFormat) throws SQLException, IOException {
         StringBuilder sql = new StringBuilder("CREATE ");
         if ("YES".equals(unique))
             sql.append("UNIQUE ");
@@ -831,7 +844,7 @@ public class DumpClient
         sql.append(quotedIndex);
         sql.append(" ON ");
         qualifiedName(table, sql);
-        appendColumns(sql, joinType, indexMethod, table, index);
+        appendColumns(sql, joinType, indexMethod, table, index, storageFormat);
 
     }
     
@@ -845,8 +858,8 @@ public class DumpClient
                     "FROM information_schema.index_columns " +
                     "WHERE index_table_schema = ? AND index_table_name = ? AND index_name = ? " +
                     "ORDER BY ordinal_position";
-    
-    private void appendColumns(StringBuilder sql, String joinType, String indexMethod, Table table, String index ) throws SQLException, IOException {
+
+        private void appendColumns(StringBuilder sql, String joinType, String indexMethod, Table table, String index , String storageFormat) throws SQLException, IOException {
         sql.append("(");
         if (indexMethod != null)
             sql.append(indexMethod).append("(");
@@ -890,6 +903,9 @@ public class DumpClient
         sql.append(')');
         if (joinType != null) {
             sql.append(" USING ").append(joinType).append(" JOIN");
+        }
+        if(storageFormat != null) {
+            sql.append(" STORAGE_FORMAT ").append(storageFormat);
         }
         sql.append(';').append(NL);
         output.write(sql.toString());
