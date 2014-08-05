@@ -162,7 +162,7 @@ class CsvLoader extends FileLoader
             Connection connection = null;
             CommitStatus status = new CommitStatus();
             StatementHelper stmt = null;
-            List<String> uncommittedStatements = new ArrayList<String>();
+            List<String[]> uncommittedStatements = new ArrayList<>();
             LineReader lines = null;
             String[] emptyStringArray = new String[0];
             try {
@@ -177,13 +177,11 @@ class CsvLoader extends FileLoader
                         break;
                     }
                     List<String> values = buffer.nextRow();
-                    // TODO prepare
                     // TODO types?
                     try {
-                        String sql = "INSERT INTO \"" + targetTable + "\" VALUES (" + values + ")";
-                        // TODO uncommitted statements need to escape or something
-                        uncommittedStatements.add(sql);
-                        status.pending += stmt.executeUpdatePrepared(preparedStatement, values.toArray(emptyStringArray));
+                        String[] valuesArray = values.toArray(emptyStringArray);
+                        uncommittedStatements.add(valuesArray);
+                        status.pending += stmt.executeUpdatePrepared(preparedStatement, valuesArray);
 //                        executeSQL(connection, stmt, sql, status);
                         if (status.pending == 0) { // successful commit
                             uncommittedStatements.clear();
@@ -227,6 +225,30 @@ class CsvLoader extends FileLoader
                 }
             }
             count += status.count;
+        }
+
+        private void retry(Connection connection, StatementHelper stmt, CommitStatus status, List<String[]> uncommittedStatements, SQLException e) throws SQLException {
+            for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
+                status.pending = 0;
+                try {
+                    for (String[] values : uncommittedStatements) {
+                        status.pending += stmt.executeUpdatePrepared(preparedStatement, values);
+                    }
+                    if (status.pending > 0) {
+                        connection.commit();
+                        status.commit();
+                    }
+                    uncommittedStatements.clear();
+                    return;
+                } catch (SQLException newE) {
+                    if (!connection.getAutoCommit()) connection.rollback();
+                    if (!StatementHelper.shouldRetry(newE, true)) {
+                        throw(newE);
+                    }
+                    e = newE;
+                }
+            }
+            throw(new SQLException("Maximum number of retries met", e));
         }
     }
 }

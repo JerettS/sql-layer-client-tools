@@ -111,6 +111,26 @@ public class CsvLoaderTest extends ClientTestBase
         }
     }
 
+    @Test
+    public void testRetry() throws Exception {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(abbrev CHAR(4) PRIMARY KEY, name VARCHAR(128))");
+        options.maxRetries = 5;
+        String[] rows = new String[100];
+        List<List<Object>> expected = new ArrayList<>();
+        for (int i=0; i<100; i++) {
+            rows[i] = String.format("A%03d,named%d",i,i);
+            expected.add(list((Object)String.format("A%03d",i),"named" + i));
+        }
+        DdlRunner ddlRunner = new DdlRunner();
+        Thread ddlThread = new Thread(ddlRunner);
+        ddlThread.start();
+        assertLoad(100, rows);
+        ddlRunner.keepGoing = false;
+        ddlThread.stop();
+        checkQuery("SELECT * FROM states ORDER BY abbrev", expected);
+    }
+
     private void assertLoad(int count, String... rows) throws Exception {
         LoadClient client = new LoadClient(options);
         try {
@@ -120,7 +140,6 @@ public class CsvLoaderTest extends ClientTestBase
             client.clearConnections();
         }
     }
-
 
     protected void checkQuery(String query, List<List<Object>> expected) throws Exception {
         Connection conn = openConnection();
@@ -151,4 +170,20 @@ public class CsvLoaderTest extends ClientTestBase
         conn.close();
     }
 
+    private class DdlRunner implements Runnable {
+        public boolean keepGoing = true;
+        @Override
+        public void run() {
+            int sleepTime = 1;
+            try {
+                while (keepGoing) {
+                    loadDDL("DROP TABLE IF EXISTS foo", "CREATE TABLE foo (abbrev CHAR(4))");
+                    Thread.sleep(sleepTime);
+                    sleepTime *= 10;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }
