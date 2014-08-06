@@ -91,7 +91,6 @@ public class LineReader
             return null;
         return str.toString();
     }
-
     
     public boolean readLine (QueryBuffer into) throws IOException {
         into.setStripDashQuote();
@@ -109,6 +108,41 @@ public class LineReader
                     line.append(ch);
             }
             
+            if (eol) {
+                if(!into.isEmpty()) {
+                    into.append('\n'); // replace the \n
+                    into.append(line.toString());
+                } else {
+                    into.append(line.toString());
+                }
+                line.setLength(0);
+                eol = false;
+                if (into.hasQuery()) return true;
+            } else {
+                if (!refillCharsBuffer()) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    // TODO can this be combined with QueryBuffer or maybe even CsvBuffer with an interface?
+    public boolean readLine (MySQLBuffer into) throws IOException {
+        into.setStripDashQuote();
+        StringBuilder line = new StringBuilder (SHORT_LINE);
+        boolean eol = false;
+        while (true) {
+            while (chars.hasRemaining()) {
+                char ch = chars.get();
+                if (ch == '\n') {
+                    eol = true;
+                    lineCounter++;
+                    break;
+                }
+                else if (ch != '\r')
+                    line.append(ch);
+            }
+
             if (eol) {
                 if(!into.isEmpty()) {
                     into.append('\n'); // replace the \n
