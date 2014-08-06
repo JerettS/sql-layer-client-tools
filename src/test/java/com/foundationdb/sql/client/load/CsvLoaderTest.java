@@ -232,7 +232,7 @@ public class CsvLoaderTest extends ClientTestBase
 
     @Test
     public void testBlob() throws Exception {
-        // TODO add high order bytes
+        // TODO figure out real binary encoding story
         testDataType("BLOB", list("\000\003"),
                      new byte[] {0,3});
     }
@@ -323,6 +323,7 @@ public class CsvLoaderTest extends ClientTestBase
 
     @Test
     public void testXBadGuid() throws Exception {
+        expectsErrorOutput = true;
         testBadDataType("GUID", list("64e79dec-ce47-4e06-85da", "xxxxxxxx-b30d-4084-a8bd-b66b05b7e402"));
     }
 
