@@ -177,12 +177,10 @@ class CsvLoader extends FileLoader
                         break;
                     }
                     List<String> values = buffer.nextRow();
-                    // TODO types?
                     try {
                         String[] valuesArray = values.toArray(emptyStringArray);
                         uncommittedStatements.add(valuesArray);
                         status.pending += stmt.executeUpdatePrepared(preparedStatement, valuesArray);
-//                        executeSQL(connection, stmt, sql, status);
                         if (status.pending == 0) { // successful commit
                             uncommittedStatements.clear();
                         }

@@ -20,8 +20,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.postgresql.util.PSQLException;
+
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
+import java.sql.Time;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -30,6 +34,7 @@ import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.List;
+import java.util.UUID;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
@@ -185,7 +190,7 @@ public class CsvLoaderTest extends ClientTestBase
     @Test
     public void testCharForBitData() throws Exception {
         // Note these are escape sequences, so \120 is the character: 'P'
-        // our COPY command outputs the string "\120" (4 characters)
+        // our COPY command outputs the string "\120" (4 characters)g
         // TODO figure out real binary encoding story
         testDataType("CHAR FOR BIT DATA", list("\000", "\120", "\177"),
                      new byte[] {0}, new byte[] {0120}, new byte[] {0177});
@@ -215,55 +220,77 @@ public class CsvLoaderTest extends ClientTestBase
                      date(1970,1,30), date(2003,11,27), date(2024,8,28));
     }
 
-    // @Test
-    // public void testDateTime() throws Exception {
-    //     testDataType("DATETIME");
-    // }
+    @Test
+    public void testDateTime() throws Exception {
+        testDataType("DATETIME", list("1970-01-30 03:24:56", "2003-11-27 23:04:16", "2024-08-28 12:59:05"),
+                     date(1970,1,30,3,24,56), date(2003,11,27,23,4,16), date(2024,8,28,12,59,05));
+    }
 
-    // @Test
-    // public void testDecimal() throws Exception {
-    //     testDataType("DECIMAL");
-    // }
+    @Test
+    public void testDecimal() throws Exception {
+        testDataType("DECIMAL(10,2)", list("12345678.94", "333.33", "-407.74"),
+                     new BigDecimal("12345678.94"), new BigDecimal("333.33"), new BigDecimal("-407.74"));
+    }
 
-    // @Test
-    // public void testDouble() throws Exception {
-    //     testDataType("DOUBLE");
-    // }
+    @Test
+    public void testDouble() throws Exception {
+        testDataType("DOUBLE", list("34.29", "1.345E240", "-408.9", "9.42E-293"),
+                     34.29D, 1.345E240, -408.9, 9.42E-293);
+    }
 
-    // @Test
-    // public void testGuid() throws Exception {
-    //     testDataType("GUID");
-    // }
+    @Test
+    public void testGuid() throws Exception {
+        testDataType("GUID", list("64e79dec-ce47-4e06-85da-66a594786c6b", "d7c73255-b30d-4084-a8bd-b66b05b7e402"),
+                     UUID.fromString("64e79dec-ce47-4e06-85da-66a594786c6b"), UUID.fromString("d7c73255-b30d-4084-a8bd-b66b05b7e402"));
+    }
 
-    // @Test
-    // public void testInt() throws Exception {
-    //     testDataType("INT");
-    // }
+    @Test
+    public void testXBadGuid() throws Exception {
+        testBadDataType("GUID", list("64e79dec-ce47-4e06-85da", "xxxxxxxx-b30d-4084-a8bd-b66b05b7e402"));
+    }
 
-    // @Test
-    // public void testReal() throws Exception {
-    //     testDataType("REAL");
-    // }
+    @Test
+    public void testInt() throws Exception {
+        testDataType("INT", list("34", "-506"),
+                     34, -506);
+    }
 
-    // @Test
-    // public void testTime() throws Exception {
-    //     testDataType("TIME");
-    // }
+    @Test
+    public void testReal() throws Exception {
+        testDataType("REAL", list("22.978", "2.9483E24", "-408.9", "1.5E-33"),
+                     22.978F, 2.9483E24F, -408.9F, 1.5E-33F);
+    }
 
-    // @Test
-    // public void testVarchar10() throws Exception {
-    //     testDataType("VARCHAR10");
-    // }
+    @Test
+    public void testTime() throws Exception {
+        testDataType("TIME", list("04:25:48", "11:08:22", "23:58:09"),
+                     time(4,25,48), time(11,8,22), time(23,58,9));
+    }
 
-    // @Test
-    // public void testVarchar10ForBitData() throws Exception {
-    //     testDataType("VARCHAR10FORBITDATA");
-    // }
+    @Test
+    public void testVarchar10() throws Exception {
+        List<String> strings = list("123456789", "bobby");
+        testDataType("VARCHAR(10)", strings, strings.toArray());
+    }
 
-    // @Test
-    // public void test() throws Exception {
-    //     testDataType();
-    // }
+    @Test
+    public void testVarchar10ForBitData() throws Exception {
+        // Note these are escape sequences, so \120 is the character: 'P'
+        // our COPY command outputs the string "\120" (4 characters)
+        // TODO figure out real binary encoding story
+        //        testDataType("VARCHAR(10) FOR BIT DATA");
+    }
+
+    private <T> void testBadDataType(String dataType, List<String> inputs) throws Exception
+    {
+        // TODO eventually it should do more than just print to stderr, but for now, we'll just have to check that no rows were added
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(key CHAR(4) PRIMARY KEY, value " + dataType + ")");
+        for (String input : inputs) {
+            assertLoad(0, String.format("A000,%s",input));
+            checkQuery("SELECT * FROM states ORDER BY key", new ArrayList<List<Object>>());
+        }
+    }
 
     private <T> void testDataType(String dataType, List<String> inputs, T... values) throws Exception
     {
@@ -327,6 +354,10 @@ public class CsvLoaderTest extends ClientTestBase
         }
         stmt.close();
         conn.close();
+    }
+
+    protected Time time(int hour, int minute, int second) {
+        return new Time(date(1970,1,1,hour,minute,second).getTime());
     }
 
     protected Date date(int year, int month, int day) {
