@@ -22,6 +22,8 @@ import org.junit.Test;
 
 import org.postgresql.util.PSQLException;
 
+import java.io.PrintStream;
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
@@ -44,11 +46,30 @@ import static org.junit.Assert.assertArrayEquals;
 public class CsvLoaderTest extends ClientTestBase
 {
     private LoadClientOptions options;
+    // TODO if there's an error it just logs to StandardError, and doesn't insert
+    // for the most part. Since all error handling will be redone shortly, this is
+    // the stopgap, so that tests with errors don't flood the output when you run
+    // mvn test
+    private PrintStream originalError;
+    private ByteArrayOutputStream errorStream;
+    private boolean expectsErrorOutput = false;
 
     @Before
     @After
     public void cleanUp() throws Exception {
         dropSchema();
+    }
+
+    @Before
+    public void setStandardError() throws Exception {
+        originalError = System.err;
+        errorStream = new ByteArrayOutputStream();
+        System.setErr(new PrintStream(errorStream));
+    }
+
+    @After
+    public void resetStandardError() throws Exception {
+        System.setErr(originalError);
     }
 
     @Before
@@ -121,13 +142,69 @@ public class CsvLoaderTest extends ClientTestBase
         }
     }
 
-    // TODO     @Test
-    public void testTooManyColumns() throws Exception {assertEquals("implemented", "NOT");}
+    @Test
+    public void testTooManyColumnsInHeader() throws Exception {
+        // TODO for now all we can do is assert that no rows are inserted, eventually better
+        // error handling will exist and we'll be able to have better tests
+        expectsErrorOutput = true;
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        options.format = Format.CSV_HEADER;
+        assertLoad(0, "abbrev,name,other", "AL,Birmingham","MA,Boston");
+    }
 
-    // TODO    @Test
-    public void testTooFewColumns() throws Exception {assertEquals("implemented", "NOT");}
+    @Test
+    public void testTooManyColumnsWithoutHeader() throws Exception {
+        // TODO for now all we can do is assert that no rows are inserted, eventually better
+        // error handling will exist and we'll be able to have better tests
+        expectsErrorOutput = true;
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(0, "AL,Birmingham,USA","MA,Boston");
+    }
 
-    // TODO reenable    @Test
+    @Test
+    public void testTooManyColumnsWithoutHeader2() throws Exception {
+        // TODO for now all we can do is assert that no rows are inserted, eventually better
+        // error handling will exist and we'll be able to have better tests
+        expectsErrorOutput = true;
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(0, "AL,Birmingham","MA,Boston,USA");
+    }
+
+    @Test
+    public void testTooFewColumnsInHeader() throws Exception {
+        // TODO for now all we can do is assert that no rows are inserted, eventually better
+        // error handling will exist and we'll be able to have better tests
+        expectsErrorOutput = true;
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        options.format = Format.CSV_HEADER;
+        assertLoad(0, "abbrev", "AL,Birmingham","MA,Boston");
+    }
+
+    @Test
+    public void testTooFewColumnsWithoutHeader() throws Exception {
+        // TODO for now all we can do is assert that no rows are inserted, eventually better
+        // error handling will exist and we'll be able to have better tests
+        expectsErrorOutput = true;
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(0, "AL","MA,Boston");
+    }
+
+    @Test
+    public void testTooFewColumnsWithoutHeader2() throws Exception {
+        // TODO for now all we can do is assert that no rows are inserted, eventually better
+        // error handling will exist and we'll be able to have better tests
+        expectsErrorOutput = true;
+        loadDDL("DROP TABLE IF EXISTS states ",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(0, "AL,Jackson","MA");
+    }
+
+    @Test
     public void testRetry() throws Exception {
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(4) PRIMARY KEY, name VARCHAR(128))");
