@@ -32,19 +32,58 @@ public class LineReaderMySQLBufferTest {
     static final String encoding = "UTF-8";
     FileInputStream inputStream;
 
+    static final ArrayList<MySQLBuffer.Query> emptyQueries = new ArrayList<>();
 
     @Test
-    public void simpleReadLineComment() throws IOException {
+    public void testSimpleReadLineComment() throws IOException {
         // this is how mysql dumps start
-        assertReadLines(new ArrayList<MySQLBuffer.Query>(),
-                "-- MySQL dump 10.13  Distrib 5.5.28, for debian-linux-gnu (x86_64)");
+        assertReadLines(emptyQueries,
+                        "-- MySQL dump 10.13  Distrib 5.5.28, for debian-linux-gnu (x86_64)");
     }
 
     @Test
-    public void simpleReadBrokenLineComment() throws IOException {
+    public void testSimpleReadBrokenLineComment() throws IOException {
         assertUnexpectedToken('-', ' ', "- - broken comment");
     }
 
+    @Test
+    public void testDelimitedComment() throws IOException {
+        assertReadLines(emptyQueries,
+                        "/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */");
+    }
+
+    @Test
+    public void testDelimitedCommentFailedStart() throws IOException {
+        assertUnexpectedToken('*','x',"/x");
+    }
+
+    @Test
+    public void testDelimitedCommentWithFunkyStuff() throws IOException {
+        // by funky I mean * / ;
+        assertReadLines(emptyQueries,
+                        "/*!40101 SET @OLD_C * HAR;ACTER_SE / T_C;LI/ENT=@@CHARA*CTER_SET_CLIENT */");
+    }
+
+    @Test
+    public void testMultilineDelimitedCommentWithFunkyStuff() throws IOException {
+        // by funky I mean * / ;
+        assertReadLines(emptyQueries,
+                        "/*!40101 SET @OLD_C * \nHAR;ACTER_SE / T_\nC;LI/ENT=@@CHARA*CTER_SET_CLIENT */");
+    }
+
+    @Test
+    public void testEmptyStatement() throws IOException {
+        assertReadLines(emptyQueries, ";");
+    }
+
+    @Test
+    public void testDelimitedCommentWithStraySemicolon() throws IOException {
+        assertReadLines(emptyQueries, "/* a comment */;");
+    }
+
+    // TODO @Test public void testSingleLineCommentThenStatement()
+
+    // TODO @Test public void testDelimitedCommentThenStatement()
 
     private static void assertReadLines(List<MySQLBuffer.Query> expected, String... input) throws IOException {
         assertReadLines(true, expected, input);

@@ -39,7 +39,8 @@ public class MySQLBuffer
     private StringBuilder currentField = new StringBuilder();
     private State state;
 
-    private enum State { STATEMENT_START, LINE_COMMENT_START, SINGLE_LINE_COMMENT };
+    private enum State { STATEMENT_START, LINE_COMMENT_START, SINGLE_LINE_COMMENT,
+                         AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT };
 
     public MySQLBuffer(String encoding) {
         this.encoding = encoding;
@@ -108,11 +109,14 @@ public class MySQLBuffer
             char c = rowBuffer.charAt(currentIndex++);
             switch (state) {
             case STATEMENT_START:
-                if ((c == cr) || (c == nl)) {
+                if ((c == cr) || (c == nl) || (c == ';')) {
                     continue;
                 }
                 else if (c == '-') {
                     state = State.LINE_COMMENT_START;
+                    continue;
+                } else if (c == '/') {
+                    state = State.AFTER_FORWARD_SLASH;
                     continue;
                 } else {
                     throw new RuntimeException("TODO " + state + ": " + c);
@@ -130,6 +134,28 @@ public class MySQLBuffer
                     continue;
                 } // else ignore
                 break;
+            case AFTER_FORWARD_SLASH:
+                if (c == '*') {
+                    state = State.DELIMITED_COMMENT;
+                    continue;
+                } else {
+                    throw new UnexpectedTokenException('*',c);
+                }
+            case DELIMITED_COMMENT:
+                if (c == '*') {
+                    state = State.FINISHING_DELIMITED_COMMENT;
+                    continue;
+                } // else ignore
+                break;
+            case FINISHING_DELIMITED_COMMENT:
+                if (c == '/') {
+                    state = State.STATEMENT_START;
+                    continue;
+                } else {
+                    // back to comment
+                    state = State.DELIMITED_COMMENT;
+                    continue;
+                }
             default:
                 throw new RuntimeException("TODO " + state + ": " + c);
             }
