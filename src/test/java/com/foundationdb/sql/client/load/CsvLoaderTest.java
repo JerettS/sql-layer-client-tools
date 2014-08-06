@@ -111,6 +111,12 @@ public class CsvLoaderTest extends ClientTestBase
         }
     }
 
+    // TODO     @Test
+    public void testTooManyColumns() throws Exception {assertEquals("implemented", "NOT");}
+
+    // TODO    @Test
+    public void testTooFewColumns() throws Exception {assertEquals("implemented", "NOT");}
+
     @Test
     public void testRetry() throws Exception {
         loadDDL("DROP TABLE IF EXISTS states",
@@ -129,6 +135,131 @@ public class CsvLoaderTest extends ClientTestBase
         ddlRunner.keepGoing = false;
         ddlThread.stop();
         checkQuery("SELECT * FROM states ORDER BY abbrev", expected);
+    }
+
+    @Test
+    public void testBigInt() throws Exception {
+        testDataType("BIGINT", list("-9223372036854775808", "-1", "0", "1", "9223372036854775807"),
+                     -9223372036854775808L, -1L, 0L, 1L, 9223372036854775807L);
+    }
+
+    @Test
+    public void testBlob() throws Exception {
+        testDataType("BLOB", list("\000\003"),
+                     new byte[] {0,3});
+    }
+
+    @Test
+    public void testBoolean() throws Exception {
+        testDataType("BOOLEAN", list("true", "TRUE", "false", "FALSE"),
+                     true, true, false, false);
+    }
+
+    @Test
+    public void testChar() throws Exception {
+        testDataType("CHAR", list("a", "X", "9"), "a", "X", "9");
+    }
+
+    @Test
+    public void testChar20() throws Exception {
+        testDataType("CHAR(3)", list("abx", "230"), "abx", "230");
+    }
+
+    /**
+     * COPY T to 'x.csv' WITH (FORMAT CSV) outputs like:
+     *   a,\141,a
+     *   0,\000,0
+     * or (with CHAR(3) FOR BIT DATA) -- the last one is just "a"
+     *   ",",\054\054\054,","
+     *   0,\000\000\000,0
+     *   a,\141\000\000,a
+     *
+     * our current loader supports that.
+     **/
+    @Test
+    public void testCharForBitData() throws Exception {
+        testDataType("CHAR FOR BIT DATA", list("\000", "\120", "\310"),
+                     new byte[] {0}, new byte[] {80}, new byte[] {-56});
+    }
+
+    // @Test
+    // public void testChar5ForBitData() throws Exception {
+    //     testDataType("CHAR5FORBITDATA");
+    // }
+
+    // @Test
+    // public void testClob() throws Exception {
+    //     testDataType("CLOB");
+    // }
+
+    // @Test
+    // public void testDate() throws Exception {
+    //     testDataType("DATE");
+    // }
+
+    // @Test
+    // public void testDateTime() throws Exception {
+    //     testDataType("DATETIME");
+    // }
+
+    // @Test
+    // public void testDecimal() throws Exception {
+    //     testDataType("DECIMAL");
+    // }
+
+    // @Test
+    // public void testDouble() throws Exception {
+    //     testDataType("DOUBLE");
+    // }
+
+    // @Test
+    // public void testGuid() throws Exception {
+    //     testDataType("GUID");
+    // }
+
+    // @Test
+    // public void testInt() throws Exception {
+    //     testDataType("INT");
+    // }
+
+    // @Test
+    // public void testReal() throws Exception {
+    //     testDataType("REAL");
+    // }
+
+    // @Test
+    // public void testTime() throws Exception {
+    //     testDataType("TIME");
+    // }
+
+    // @Test
+    // public void testVarchar10() throws Exception {
+    //     testDataType("VARCHAR10");
+    // }
+
+    // @Test
+    // public void testVarchar10ForBitData() throws Exception {
+    //     testDataType("VARCHAR10FORBITDATA");
+    // }
+
+    // @Test
+    // public void test() throws Exception {
+    //     testDataType();
+    // }
+
+    private <T> void testDataType(String dataType, List<String> inputs, T... values) throws Exception
+    {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(key CHAR(4) PRIMARY KEY, value " + dataType + ")");
+        assertEquals("Invalidly written test", inputs.size(), values.length);
+        String[] rows = new String[inputs.size()];
+        List<List<Object>> expected = new ArrayList<>();
+        for (int i=0; i<inputs.size(); i++) {
+            rows[i] = String.format("A%03d,%s",i,inputs.get(i));
+            expected.add(list((Object)String.format("A%03d",i),values[i]));
+        }
+        assertLoad(values.length, rows);
+        checkQuery("SELECT * FROM states ORDER BY key", expected);
     }
 
     private void assertLoad(int count, String... rows) throws Exception {
@@ -157,7 +288,17 @@ public class CsvLoaderTest extends ClientTestBase
         rs.close();
         stmt.close();
         conn.close();
-        assertArrayEquals(query, expected.toArray(), actual.toArray());
+
+        Object[][] expectedArray = new Object[expected.size()][];
+        for (int i=0; i<expected.size(); i++) {
+            expectedArray[i] = expected.get(i).toArray();
+        }
+
+        Object[][] actualArray = new Object[actual.size()][];
+        for (int i=0; i<actual.size(); i++) {
+            actualArray[i] = actual.get(i).toArray();
+        }
+        assertArrayEquals(query, expectedArray, actualArray);
     }
 
     protected void loadDDL(String... ddl) throws Exception {
