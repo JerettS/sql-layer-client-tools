@@ -19,10 +19,8 @@ import com.foundationdb.sql.client.StatementHelper;
 
 import java.io.IOException;
 import java.lang.UnsupportedOperationException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -130,21 +128,6 @@ class CsvLoader extends FileLoader
         }
         segments.add(new CsvSegmentLoader(start, end));
         return segments;
-    }
-
-    // TODO remove
-    @Override
-    void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
-        if (sql.startsWith("INSERT INTO ")) {
-            status.pending += helper.executeUpdate(sql);
-            if ((client.getCommitFrequency() > 0) &&
-                (status.pending >= client.getCommitFrequency())) {
-                conn.commit();
-                status.commit();
-            }
-        } else {
-            throw new UnsupportedOperationException("CSV should only be inserting");
-        }
     }
 
     protected class CsvSegmentLoader extends SegmentLoader {

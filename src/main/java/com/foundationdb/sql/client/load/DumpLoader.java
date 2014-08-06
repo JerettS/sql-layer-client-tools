@@ -57,6 +57,31 @@ class DumpLoader extends FileLoader
         }
     }
 
+    protected void retry(Connection conn, StatementHelper stmt,
+            CommitStatus status, List<String> uncommittedStatements, SQLException e) throws SQLException {
+        for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
+            status.pending = 0;
+            try {
+                for (String sql : uncommittedStatements) {
+                    executeSQL(conn, stmt, sql, status);
+                }
+                if (status.pending > 0) {
+                    conn.commit();
+                    status.commit();
+                }
+                uncommittedStatements.clear();
+                return;
+            } catch (SQLException newE) {
+                if (!conn.getAutoCommit()) conn.rollback();
+                if (!StatementHelper.shouldRetry(newE, true)) {
+                    throw(newE);
+                }
+                e = newE;
+            }
+        }
+        throw(new SQLException("Maximum number of retries met", e));
+    }
+
     protected class DumpSegmentQueryLoader extends SegmentLoader {
         private long startLineNo;
         
@@ -160,8 +185,7 @@ class DumpLoader extends FileLoader
         return status.count;
     }
 
-    @Override
-    void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
+    void executeSQL(Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
         if (sql.startsWith("INSERT INTO ")) {
             if (hasDDL && conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
