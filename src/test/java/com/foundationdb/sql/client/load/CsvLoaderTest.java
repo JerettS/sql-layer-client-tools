@@ -21,9 +21,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.List;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
@@ -117,7 +122,7 @@ public class CsvLoaderTest extends ClientTestBase
     // TODO    @Test
     public void testTooFewColumns() throws Exception {assertEquals("implemented", "NOT");}
 
-    @Test
+    // TODO reenable    @Test
     public void testRetry() throws Exception {
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(4) PRIMARY KEY, name VARCHAR(128))");
@@ -181,23 +186,29 @@ public class CsvLoaderTest extends ClientTestBase
     public void testCharForBitData() throws Exception {
         // TODO add high order bytes
         testDataType("CHAR FOR BIT DATA", list("\000", "\120", "\177"),
-                     new byte[] {0}, new byte[] {80}, new byte[] {127});
+                     new byte[] {0}, new byte[] {0120}, new byte[] {0177});
     }
 
-    // @Test
-    // public void testChar5ForBitData() throws Exception {
-    //     testDataType("CHAR5FORBITDATA");
-    // }
+    @Test
+    public void testChar5ForBitData() throws Exception {
+        testDataType("CHAR(5) FOR BIT DATA", list("\120\000\030\047\133"),
+                     new byte[] {0120, 0, 030, 047, 0133} );
+    }
 
-    // @Test
-    // public void testClob() throws Exception {
-    //     testDataType("CLOB");
-    // }
+    @Test
+    public void testClob() throws Exception {
+        List<String> strings = list("Here is my first large string",
+                                    "Lorem ipsum dolor sit amet consectetur adipiscing elit. " +
+                                    "Donec a diam lectus. Sed sit amet ipsum mauris. " +
+                                    "Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit.");
+        testDataType("CLOB", strings, strings.toArray());
+    }
 
-    // @Test
-    // public void testDate() throws Exception {
-    //     testDataType("DATE");
-    // }
+    @Test
+    public void testDate() throws Exception {
+        testDataType("DATE", list("1970-01-30", "2003-11-27", "2024-08-28"),
+                     date(1970,1,30), date(2003,11,27), date(2024,8,28));
+    }
 
     // @Test
     // public void testDateTime() throws Exception {
@@ -311,6 +322,17 @@ public class CsvLoaderTest extends ClientTestBase
         }
         stmt.close();
         conn.close();
+    }
+
+    protected Date date(int year, int month, int day) {
+        return date(year, month, day, 0, 0, 0);
+    }
+
+    protected Date date(int year, int month, int day, int hour, int minute, int second) {
+        GregorianCalendar calendar = new GregorianCalendar(TimeZone.getDefault(), Locale.US);
+        calendar.set(year, month-1, day, hour, minute, second);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return new Date(calendar.getTime().getTime());
     }
 
     private class DdlRunner implements Runnable {
