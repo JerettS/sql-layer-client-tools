@@ -458,7 +458,7 @@ public class CsvLoaderTest extends ClientTestBase
                 while (keepGoing) {
                     loadDDL("DROP TABLE IF EXISTS foo", "CREATE TABLE foo (abbrev CHAR(4))");
                     Thread.sleep(sleepTime);
-                    sleepTime *= 10;
+                    sleepTime *= 2 * sleepTime * sleepTime;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
