@@ -184,13 +184,18 @@ public class CsvLoaderTest extends ClientTestBase
      **/
     @Test
     public void testCharForBitData() throws Exception {
-        // TODO add high order bytes
+        // Note these are escape sequences, so \120 is the character: 'P'
+        // our COPY command outputs the string "\120" (4 characters)
+        // TODO figure out real binary encoding story
         testDataType("CHAR FOR BIT DATA", list("\000", "\120", "\177"),
                      new byte[] {0}, new byte[] {0120}, new byte[] {0177});
     }
 
     @Test
     public void testChar5ForBitData() throws Exception {
+        // Note these are escape sequences, so \120 is the character: 'P'
+        // our COPY command outputs the string "\120" (4 characters)
+        // TODO figure out real binary encoding story
         testDataType("CHAR(5) FOR BIT DATA", list("\120\000\030\047\133"),
                      new byte[] {0120, 0, 030, 047, 0133} );
     }
