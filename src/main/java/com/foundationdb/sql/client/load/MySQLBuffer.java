@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -235,6 +236,7 @@ public class MySQLBuffer
                         swallowWhitespace = true;
                         state = State.INSERT_TABLE_NAME;
                         preparedStatement.append("INSERT INTO ");
+                        clearCurrentField();
                         continue;
                     } else {
                         throw new RuntimeException("TODO");
@@ -300,12 +302,14 @@ public class MySQLBuffer
                     } else {
                         endIndex = currentIndex;
                         state = State.STATEMENT_START;
+                        reset(currentIndex);
                         return true;
                     }
                 } else {
                     throw new UnexpectedTokenException("'(' or ','", c);
                 }
             case FIELD_START:
+                clearCurrentField();
                 if (isQuote(c)) {
                     // clearCurrentField();
                     // state = State.QUOTED_FIELD;
@@ -409,6 +413,43 @@ public class MySQLBuffer
 
         public String[] getValues() {
             return values;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (other instanceof Query) {
+                Query otherQuery = (Query)other;
+                return equalStrings(preparedStatement,otherQuery.preparedStatement) &&
+                    equalArrays(values, otherQuery.values);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return preparedStatement + "; " + Arrays.toString(values);
+        }
+
+        private boolean equalStrings(String a, String b) {
+            if (a == null) {
+                return b == null;
+            } else {
+                return a.equals(b);
+            }
+        }
+
+        private boolean equalArrays(String[] as, String[] bs) {
+            if (as.length != bs.length) {
+                return false;
+            } else {
+                for (int i=0; i<as.length; i++) {
+                    if (!equalStrings(as[i],bs[i])) {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
     }
 

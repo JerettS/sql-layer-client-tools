@@ -141,7 +141,7 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testSimpleInsert() throws Exception {
-        assertReadLines(query("INSERT INTO t VALUES (?)", "1"), "INSERT INTO t VALUES (1);");
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "1"), "INSERT INTO t VALUES (1);");
     }
 
     @Test
@@ -151,7 +151,7 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testInsertQuotedTableName() throws Exception {
-        assertReadLines(query("INSERT INTO `t` VALUES (?)", "1"), "INSERT INTO `t` VALUES (1);");
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "1"), "INSERT INTO `t` VALUES (1);");
     }
 
     @Test
