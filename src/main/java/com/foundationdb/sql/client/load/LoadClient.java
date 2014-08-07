@@ -58,12 +58,14 @@ public class LoadClient
         assert !urls.isEmpty() : "No connection URLs";
         if(options.commitFrequency == null) {
             options.commitFrequency = 0L;
-            if (options.maxRetries == null) {
-                options.maxRetries = 0;
-            }
         }
-        if (options.maxRetries == null) {
-            options.maxRetries = 10;
+        if(options.maxRetries == null) {
+            if (options.commitFrequency == 0) {
+                options.maxRetries = 1;
+            }
+            else {
+                options.maxRetries = 10;
+            }
         }
     }
 
