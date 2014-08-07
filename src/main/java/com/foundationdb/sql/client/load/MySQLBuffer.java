@@ -42,7 +42,7 @@ public class MySQLBuffer
     private char quoteChar;
     private State state;
     private State postSwallowedCharacterState;
-    private boolean firstRow, firstField;
+    private boolean firstRow, firstField, escapedChar, swallowWhitespace;
 
     private enum State { STATEMENT_START, LINE_COMMENT_START, SINGLE_LINE_COMMENT,
                          AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT,
@@ -50,7 +50,7 @@ public class MySQLBuffer
                          // the next character will be skipped, and state will be returned to
                          // postSwallowedCharacterState
                          SWALLOWED_CHARACTER,
-                         INSERT, INSERT_TABLE_NAME, TABLE_QUOTED, INSERT_VALUES_KEYWORD,
+                         INSERT, INSERT_TABLE_NAME, INSERT_TABLE_QUOTED, INSERT_VALUES_KEYWORD,
                          ROW_START, FIELD_START };
 
     public MySQLBuffer(String encoding) {
@@ -93,6 +93,7 @@ public class MySQLBuffer
         rowBuffer.setLength(0);
         firstRow = true;
         firstField = true;
+        swallowWhitespace = true;
         preparedStatement.setLength(0);
     }
 
@@ -124,6 +125,13 @@ public class MySQLBuffer
             // because we may be on the last character in the buffer
             // and if you do that whatever state you have will be lost
             char c = rowBuffer.charAt(currentIndex++);
+            if (swallowWhitespace) {
+                if (c == ' ') {
+                    continue;
+                } else {
+                    swallowWhitespace = false;
+                }
+            }
             switch (state) {
             case STATEMENT_START:
                 if ((c == cr) || (c == nl) || (c == ';')) {
@@ -185,17 +193,19 @@ public class MySQLBuffer
                         state = State.IGNORED_STATEMENT;
                         continue;
                     } else if (s.equalsIgnoreCase("insert")) {
+                        swallowWhitespace = true;
                         state = State.INSERT;
                         clearCurrentField();
                         continue;
                     } else {
-                        throw new UnexpectedVerb(currentField.toString());
+                        throw new UnexpectedKeyword("INSERT", currentField.toString());
                     }
                 }
                 break;
             case IGNORED_STATEMENT:
                 if (c == ';') {
                     clearCurrentField();
+                    swallowWhitespace = true;
                     state = State.STATEMENT_START;
                     continue;
                 } else if (isQuote(c)) {
@@ -222,6 +232,7 @@ public class MySQLBuffer
                 if (readKeyword(c)) {
                     String s = currentField.toString();
                     if (s.equalsIgnoreCase("into")) {
+                        swallowWhitespace = true;
                         state = State.INSERT_TABLE_NAME;
                         preparedStatement.append("INSERT INTO ");
                         continue;
@@ -233,21 +244,35 @@ public class MySQLBuffer
             case INSERT_TABLE_NAME:
                 if (isQuote(c)) {
                     quoteChar = c;
-                    state = State.TABLE_QUOTED;
+                    state = State.INSERT_TABLE_QUOTED;
                     continue;
                 } else if (isIdentifierCharacter(c)) {
                     currentField.append(c);
                     continue;
                 } else if (c == ' ') {
-                    preparedStatement.append('"');
-                    preparedStatement.append(escapeIdentifier(currentField.toString()));
-                    preparedStatement.append('"');
-                    preparedStatement.append(' ');
-                    clearCurrentField();
+                    setTableName();
+                    swallowWhitespace = true;
                     state = State.INSERT_VALUES_KEYWORD;
                     continue;
                 } else {
                     throw new UnexpectedTokenException("a valid identifier character", c);
+                }
+            case INSERT_TABLE_QUOTED:
+                if (escapedChar) {
+                    currentField.append(c);
+                    escapedChar = false;
+                    continue;
+                } else if (c == quoteChar) {
+                    setTableName();
+                    swallowWhitespace = true;
+                    state = State.INSERT_VALUES_KEYWORD;
+                    continue;
+                } else if (c == '\\') {
+                    escapedChar = true;
+                    continue;
+                } else {
+                    currentField.append(c);
+                    continue;
                 }
             case INSERT_VALUES_KEYWORD:
                 if (readKeyword(c)) {
@@ -257,7 +282,8 @@ public class MySQLBuffer
                         preparedStatement.append("VALUES ");
                         continue;
                     } else {
-                        throw new RuntimeException("TODO Values other");
+                        System.out.println(rowBuffer.substring(0,currentIndex));
+                        throw new UnexpectedKeyword("VALUES", s);
                     }
                 }
                 break;
@@ -304,6 +330,14 @@ public class MySQLBuffer
 
     private void clearCurrentField() {
         currentField.setLength(0);
+    }
+
+    private void setTableName() {
+        preparedStatement.append('"');
+        preparedStatement.append(escapeIdentifier(currentField.toString()));
+        preparedStatement.append('"');
+        preparedStatement.append(' ');
+        clearCurrentField();
     }
 
     private void addRow() {
@@ -373,16 +407,22 @@ public class MySQLBuffer
     }
 
     // TODO probably this shouldn't be an IOException
-    public static class UnexpectedVerb extends IOException {
-        private String verb;
+    public static class UnexpectedKeyword extends IOException {
+        private String actual;
+        private String expected;
 
-        public UnexpectedVerb(String verb) {
-            super("Error parsing mysql: Unrecognized verb: " + verb);
-            this.verb = verb;
+        public UnexpectedKeyword(String expected, String actual) {
+            super("Error parsing mysql: Expected keyword: " + expected + " but got the word: " + actual);
+            this.actual = actual;
+            this.expected = expected;
         }
 
-        public String getVerb() {
-            return verb;
+        public String getActual() {
+            return actual;
+        }
+
+        public String getExpected() {
+            return expected;
         }
     }
 

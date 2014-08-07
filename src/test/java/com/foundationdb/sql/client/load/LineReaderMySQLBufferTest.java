@@ -98,8 +98,8 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testUnexpectedVerb() throws Exception {
-        MySQLBuffer.UnexpectedVerb e = (MySQLBuffer.UnexpectedVerb)returnException("WHATEVER you want to do;");
-        assertEquals("WHATEVER", e.getVerb());
+        MySQLBuffer.UnexpectedKeyword e = (MySQLBuffer.UnexpectedKeyword)returnException("WHATEVER you want to do;");
+        assertEquals("WHATEVER", e.getActual());
     }
 
     @Test
