@@ -109,7 +109,7 @@ public class LoadClientOptions extends ClientOptionsBase
     public Long commitFrequency;
 
     @Parameter(names = { "-r", "--retry" }, description = "number of times to try on transaction error")
-    public int maxRetries = 10;
+    public Integer maxRetries = null;
 
     @Parameter(names = { "-q", "--quiet" }, description = "no progress output")
     public boolean quiet;
