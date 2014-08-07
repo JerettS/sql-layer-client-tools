@@ -139,6 +139,30 @@ public class LineReaderMySQLBufferTest {
 
     // @Test public void testIgnoredLockStatementThenRealStatement() throws Exception {
 
+    @Test
+    public void testSimpleInsert() throws Exception {
+        assertReadLines(query("INSERT INTO t VALUES (?)", "1"), "INSERT INTO t VALUES (1);");
+    }
+
+    @Test
+    public void testChallengingTableName() throws Exception {
+        assertReadLines(query("INSERT INTO \"tY3_$\u0080\" VALUES (?)", "1"), "INSERT INTO tY3_$\u0080 VALUES (1);");
+    }
+
+    @Test
+    public void testInsertQuotedTableName() throws Exception {
+        assertReadLines(query("INSERT INTO `t` VALUES (?)", "1"), "INSERT INTO `t` VALUES (1);");
+    }
+
+    @Test
+    public void testInsertQuotedTableNameEscapes() throws Exception {
+        assertReadLines(query("INSERT INTO \"t` worst \"\"table\"\" name \\ever \" VALUES (?)", "1"),
+                        "INSERT INTO `t\\` worst \\\"table\\\" name \\\\ever ` VALUES (1);");
+    }
+
+    private static MySQLBuffer.Query query(String prepared, String... values) {
+        return new MySQLBuffer.Query(prepared, values);
+    }
 
     private static void assertReadLines(String... input) throws IOException {
         assertReadLines(true, new ArrayList<MySQLBuffer.Query>(), input);

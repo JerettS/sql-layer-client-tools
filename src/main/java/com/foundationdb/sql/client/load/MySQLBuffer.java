@@ -37,14 +37,21 @@ public class MySQLBuffer
     private int startIndex, endIndex, currentIndex;
     private StringBuilder rowBuffer;
     private StringBuilder currentField = new StringBuilder();
+    private StringBuilder preparedStatement = new StringBuilder();
+    private String currentTable;
     private char quoteChar;
     private State state;
     private State postSwallowedCharacterState;
+    private boolean firstRow, firstField;
 
     private enum State { STATEMENT_START, LINE_COMMENT_START, SINGLE_LINE_COMMENT,
                          AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT,
                          STATEMENT_VERB, IGNORED_STATEMENT, IGNORED_STATEMENT_QUOTE,
-                         SWALLOWED_CHARACTER };
+                         // the next character will be skipped, and state will be returned to
+                         // postSwallowedCharacterState
+                         SWALLOWED_CHARACTER,
+                         INSERT, INSERT_TABLE_NAME, TABLE_QUOTED, INSERT_VALUES_KEYWORD,
+                         ROW_START, FIELD_START };
 
     public MySQLBuffer(String encoding) {
         this.encoding = encoding;
@@ -84,6 +91,9 @@ public class MySQLBuffer
         this.state = State.STATEMENT_START;
         this.currentField = new StringBuilder();
         rowBuffer.setLength(0);
+        firstRow = true;
+        firstField = true;
+        preparedStatement.setLength(0);
     }
 
     public boolean isEmpty() {
@@ -126,7 +136,7 @@ public class MySQLBuffer
                     state = State.AFTER_FORWARD_SLASH;
                     continue;
                 } else if (Character.isLetter(c)) {
-                    currentField.setLength(0);
+                    clearCurrentField();
                     currentField.append(c);
                     state = State.STATEMENT_VERB;
                     continue;
@@ -169,26 +179,26 @@ public class MySQLBuffer
                     continue;
                 }
             case STATEMENT_VERB:
-                if (Character.isLetter(c)) {
-                    currentField.append(c);
-                    continue;
-                } else if (Character.isSpace(c)) {
+                if (readKeyword(c)) {
                     String s = currentField.toString();
                     if (s.equalsIgnoreCase("lock") || s.equalsIgnoreCase("unlock")) {
                         state = State.IGNORED_STATEMENT;
                         continue;
+                    } else if (s.equalsIgnoreCase("insert")) {
+                        state = State.INSERT;
+                        clearCurrentField();
+                        continue;
                     } else {
                         throw new UnexpectedVerb(currentField.toString());
                     }
-                } else {
-                    throw new UnexpectedTokenException("a letter", c);
                 }
+                break;
             case IGNORED_STATEMENT:
                 if (c == ';') {
-                    currentField.setLength(0);
+                    clearCurrentField();
                     state = State.STATEMENT_START;
                     continue;
-                } else if (c == '\'' || c == '"' || c == '`') {
+                } else if (isQuote(c)) {
                     quoteChar = c;
                     state = State.IGNORED_STATEMENT_QUOTE;
                     continue;
@@ -208,6 +218,57 @@ public class MySQLBuffer
                     // ignored character
                     continue;
                 }
+            case INSERT:
+                if (readKeyword(c)) {
+                    String s = currentField.toString();
+                    if (s.equalsIgnoreCase("into")) {
+                        state = State.INSERT_TABLE_NAME;
+                        preparedStatement.append("INSERT INTO ");
+                        continue;
+                    } else {
+                        throw new RuntimeException("TODO");
+                    }
+                }
+                break;
+            case INSERT_TABLE_NAME:
+                if (isQuote(c)) {
+                    quoteChar = c;
+                    state = State.TABLE_QUOTED;
+                    continue;
+                } else if (isIdentifierCharacter(c)) {
+                    currentField.append(c);
+                    continue;
+                } else if (c == ' ') {
+                    preparedStatement.append('"');
+                    preparedStatement.append(escapeIdentifier(currentField.toString()));
+                    preparedStatement.append('"');
+                    preparedStatement.append(' ');
+                    clearCurrentField();
+                    state = State.INSERT_VALUES_KEYWORD;
+                    continue;
+                } else {
+                    throw new UnexpectedTokenException("a valid identifier character", c);
+                }
+            case INSERT_VALUES_KEYWORD:
+                if (readKeyword(c)) {
+                    String s = currentField.toString();
+                    if (s.equalsIgnoreCase("values")) {
+                        state = State.ROW_START;
+                        preparedStatement.append("VALUES ");
+                        continue;
+                    } else {
+                        throw new RuntimeException("TODO Values other");
+                    }
+                }
+                break;
+            case ROW_START:
+                if (c == '(') {
+                    addRow();
+                    state = State.FIELD_START;
+                    continue;
+                } else {
+                    throw new UnexpectedTokenException('(', c);
+                }
             case SWALLOWED_CHARACTER:
                 state = postSwallowedCharacterState;
                 continue;
@@ -216,6 +277,54 @@ public class MySQLBuffer
             }
         }
         return endIndex != UNSET;
+    }
+
+    private boolean isIdentifierCharacter(char c) {
+        return Character.isLetterOrDigit(c) || c == '_' || c == '$' || (c >= '\u0080' && c <= '\uFFFF');
+    }
+
+    private boolean isQuote(char c) {
+        return c == '`' || c == '\'' || c == '"';
+    }
+
+    private boolean readKeyword(char c) throws UnexpectedTokenException {
+        if (Character.isLetter(c)) {
+            currentField.append(c);
+            return false;
+        } else if (Character.isSpace(c)) {
+            return true;
+        } else {
+            throw new UnexpectedTokenException("a letter", c);
+        }
+    }
+
+    private static String escapeIdentifier(String identifier) {
+        return identifier.replaceAll("\"","\"\"");
+    }
+
+    private void clearCurrentField() {
+        currentField.setLength(0);
+    }
+
+    private void addRow() {
+        firstField = true;
+        if (firstRow) {
+            preparedStatement.append("(");
+            firstRow = false;
+        } else {
+            preparedStatement.append("), (");
+            throw new RuntimeException("TODO combined rows");
+        }
+    }
+
+    private void addField(String s) {
+        if (firstField) {
+            preparedStatement.append("?");
+            firstField = false;
+        } else {
+            preparedStatement.append(", ?");
+            throw new RuntimeException("TODO multiple columns");
+        }
     }
 
 
