@@ -38,16 +38,18 @@ public class MySQLBuffer
     private StringBuilder rowBuffer;
     private StringBuilder currentField = new StringBuilder();
     private StringBuilder preparedStatement = new StringBuilder();
+    private Query query;
     private String currentTable;
     private char quoteChar;
     private State state;
     private boolean firstRow, firstField, escapedChar, swallowWhitespace;
+    private static final String[] emptyStringForToArray = new String[0];
 
     private enum State { STATEMENT_START, LINE_COMMENT_START, SINGLE_LINE_COMMENT,
                          AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT,
                          STATEMENT_VERB, IGNORED_STATEMENT, IGNORED_STATEMENT_QUOTE,
                          INSERT, INSERT_TABLE_NAME, INSERT_TABLE_QUOTED, INSERT_VALUES_KEYWORD,
-                         ROW_START, FIELD_START };
+                         ROW_START, FIELD_START, FIELD };
 
     public MySQLBuffer(String encoding) {
         this.encoding = encoding;
@@ -81,16 +83,22 @@ public class MySQLBuffer
 
     public void reset() {
         this.startIndex = 0;
-        this.endIndex = UNSET;
         this.values = new ArrayList();
         this.currentIndex = 0;
-        this.state = State.STATEMENT_START;
-        this.currentField = new StringBuilder();
         rowBuffer.setLength(0);
+        reset(UNSET);
+    }
+
+    public void reset(int endIndex) {
+        this.endIndex = endIndex;
+        query = new Query(preparedStatement.toString(), values.toArray(emptyStringForToArray));
+        preparedStatement.setLength(0);
+        values.clear();
         firstRow = true;
         firstField = true;
         swallowWhitespace = true;
-        preparedStatement.setLength(0);
+        this.state = State.STATEMENT_START;
+        this.currentField.setLength(0);
     }
 
     public boolean isEmpty() {
@@ -106,13 +114,7 @@ public class MySQLBuffer
     }
 
     public Query nextQuery() {
-        return new Query("",new String[0]);
-        // if (endIndex == UNSET) {
-        //     throw new IllegalArgumentException("No Row Present");
-        // }
-        // List<String> values = this.values;
-        // reset();
-        // return values;
+        return query;
     }
 
     public boolean hasQuery() throws IOException {
@@ -122,7 +124,7 @@ public class MySQLBuffer
             // and if you do that whatever state you have will be lost
             char c = rowBuffer.charAt(currentIndex++);
             if (swallowWhitespace) {
-                if (c == ' ') {
+                if (c == ' ' || (c == cr) || (c == nl)) {
                     continue;
                 } else {
                     swallowWhitespace = false;
@@ -280,7 +282,6 @@ public class MySQLBuffer
                         preparedStatement.append("VALUES ");
                         continue;
                     } else {
-                        System.out.println(rowBuffer.substring(0,currentIndex));
                         throw new UnexpectedKeyword("VALUES", s);
                     }
                 }
@@ -290,8 +291,39 @@ public class MySQLBuffer
                     addRow();
                     state = State.FIELD_START;
                     continue;
+                } else if (c == ',') {
+                    // technically this allows as many commas as possible between rows
+                    continue;
+                } else if (c == ';') {
+                    if (values.size() == 0) {
+                        throw new UnexpectedTokenException("a row", ';');
+                    } else {
+                        endIndex = currentIndex;
+                        state = State.STATEMENT_START;
+                        return true;
+                    }
                 } else {
-                    throw new UnexpectedTokenException('(', c);
+                    throw new UnexpectedTokenException("'(' or ','", c);
+                }
+            case FIELD_START:
+                if (isQuote(c)) {
+                    // clearCurrentField();
+                    // state = State.QUOTED_FIELD;
+                    // continue; 
+                } else {
+                    currentField.append(c);
+                    state = State.FIELD;
+                    continue;
+                }
+            case FIELD:
+                if (c == ')') {
+                    addField();
+                    endRow();
+                    swallowWhitespace = true;
+                    state = State.ROW_START;
+                    continue;
+                } else {
+                    throw new RuntimeException("multi char field");
                 }
             default:
                 throw new RuntimeException("TODO " + state + ": " + c);
@@ -341,12 +373,16 @@ public class MySQLBuffer
             preparedStatement.append("(");
             firstRow = false;
         } else {
-            preparedStatement.append("), (");
+            preparedStatement.append(", (");
             throw new RuntimeException("TODO combined rows");
         }
     }
 
-    private void addField(String s) {
+    private void endRow() {
+        preparedStatement.append(")");
+    }
+
+    private void addField() {
         if (firstField) {
             preparedStatement.append("?");
             firstField = false;
@@ -354,6 +390,7 @@ public class MySQLBuffer
             preparedStatement.append(", ?");
             throw new RuntimeException("TODO multiple columns");
         }
+        values.add(currentField.toString());
     }
 
 
