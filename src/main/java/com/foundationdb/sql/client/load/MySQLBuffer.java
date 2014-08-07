@@ -41,15 +41,11 @@ public class MySQLBuffer
     private String currentTable;
     private char quoteChar;
     private State state;
-    private State postSwallowedCharacterState;
     private boolean firstRow, firstField, escapedChar, swallowWhitespace;
 
     private enum State { STATEMENT_START, LINE_COMMENT_START, SINGLE_LINE_COMMENT,
                          AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT,
                          STATEMENT_VERB, IGNORED_STATEMENT, IGNORED_STATEMENT_QUOTE,
-                         // the next character will be skipped, and state will be returned to
-                         // postSwallowedCharacterState
-                         SWALLOWED_CHARACTER,
                          INSERT, INSERT_TABLE_NAME, INSERT_TABLE_QUOTED, INSERT_VALUES_KEYWORD,
                          ROW_START, FIELD_START };
 
@@ -217,12 +213,14 @@ public class MySQLBuffer
                     continue;
                 }
             case IGNORED_STATEMENT_QUOTE:
-                if (c == quoteChar) {
+                if (escapedChar) {
+                    escapedChar = false;
+                    continue;
+                } else if (c == quoteChar) {
                     state = State.IGNORED_STATEMENT;
                     continue;
                 } else if (c == '\\') {
-                    postSwallowedCharacterState = state;
-                    state = State.SWALLOWED_CHARACTER;
+                    escapedChar = true;
                     continue;
                 } else {
                     // ignored character
@@ -295,9 +293,6 @@ public class MySQLBuffer
                 } else {
                     throw new UnexpectedTokenException('(', c);
                 }
-            case SWALLOWED_CHARACTER:
-                state = postSwallowedCharacterState;
-                continue;
             default:
                 throw new RuntimeException("TODO " + state + ": " + c);
             }
