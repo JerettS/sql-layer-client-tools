@@ -35,12 +35,12 @@ public class MySQLBuffer
     private final String encoding;
 
     private List<String> values;
-    private int startIndex, endIndex, currentIndex;
+    private int endIndex;
+    private int currentIndex;
     private StringBuilder rowBuffer;
     private StringBuilder currentField = new StringBuilder();
     private StringBuilder preparedStatement = new StringBuilder();
     private Query query;
-    private String currentTable;
     private char quoteChar;
     private State state;
     private boolean firstRow, firstField, escapedChar, swallowWhitespace;
@@ -83,7 +83,6 @@ public class MySQLBuffer
     }
 
     public void reset() {
-        this.startIndex = 0;
         this.values = new ArrayList();
         this.currentIndex = 0;
         rowBuffer.setLength(0);
