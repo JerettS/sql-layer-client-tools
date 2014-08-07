@@ -26,6 +26,7 @@ import java.util.List;
 import org.junit.Test;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
+import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
 
@@ -33,13 +34,10 @@ public class LineReaderMySQLBufferTest {
     static final String encoding = "UTF-8";
     FileInputStream inputStream;
 
-    static final ArrayList<MySQLBuffer.Query> emptyQueries = new ArrayList<>();
-
     @Test
     public void testSimpleReadLineComment() throws IOException {
         // this is how mysql dumps start
-        assertReadLines(emptyQueries,
-                        "-- MySQL dump 10.13 /* ' \" ` Dist;rib 5.5.28, for debian-linux-gnu (x86_64)");
+        assertReadLines("-- MySQL dump 10.13 /* ' \" ` Dist;rib 5.5.28, for debian-linux-gnu (x86_64)");
     }
 
     @Test
@@ -49,8 +47,7 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testDelimitedComment() throws IOException {
-        assertReadLines(emptyQueries,
-                        "/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */");
+        assertReadLines("/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */");
     }
 
     @Test
@@ -61,25 +58,23 @@ public class LineReaderMySQLBufferTest {
     @Test
     public void testDelimitedCommentWithFunkyStuff() throws IOException {
         // by funky I mean * / ;
-        assertReadLines(emptyQueries,
-                        "/*!40101 SET @OLD_C * HAR;ACTER_SE / T_C;LI/ENT=@@CHARA*CTER_SET_CLIENT */");
+        assertReadLines("/*!40101 SET @OLD_C * HAR;ACTER_SE / T_C;LI/ENT=@@CHARA*CTER_SET_CLIENT */");
     }
 
     @Test
     public void testMultilineDelimitedCommentWithFunkyStuff() throws IOException {
         // by funky I mean * / ; " ' `
-        assertReadLines(emptyQueries,
-                        "/*!40101 SET @OLD_C * \nHAR;ACTER_SE / T_\nC;LI/E`NT=@@C\"HARA*CTER_SET_C'LIENT */");
+        assertReadLines("/*!40101 SET @OLD_C * \nHAR;ACTER_SE / T_\nC;LI/E`NT=@@C\"HARA*CTER_SET_C'LIENT */");
     }
 
     @Test
     public void testEmptyStatement() throws IOException {
-        assertReadLines(emptyQueries, ";");
+        assertReadLines(";");
     }
 
     @Test
     public void testDelimitedCommentWithStraySemicolon() throws IOException {
-        assertReadLines(emptyQueries, "/* a comment */;");
+        assertReadLines("/* a comment */;");
     }
 
     // TODO @Test public void testSingleLineCommentThenStatement()
@@ -88,12 +83,12 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testIgnoredLockStatement() throws IOException {
-        assertReadLines(emptyQueries, "LOCK INSERT INTO TABLE t VALUES (1,3);");
+        assertReadLines("LOCK INSERT INTO TABLE t VALUES (1,3);");
     }
 
     @Test
     public void testIgnoredUnlockStatement() throws IOException {
-        assertReadLines(emptyQueries, "UNLOCK INSERT INTO TABLE t VALUES (1,3);");
+        assertReadLines("UNLOCK INSERT INTO TABLE t VALUES (1,3);");
     }
 
     @Test
@@ -109,40 +104,49 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testBackQuotesInIgnoredStatement() throws Exception {
-        assertReadLines(emptyQueries, "LOCK `;INSERT INTO FOO` yadda;");
+        assertReadLines("LOCK `;INSERT INTO FOO` yadda;");
     }
 
     @Test
     public void testSingleQuotesInIgnoredStatement() throws Exception {
-        assertReadLines(emptyQueries, "LOCK ';INSERT INTO FOO' yadda;");
+        assertReadLines("LOCK ';INSERT INTO FOO' yadda;");
     }
 
     @Test
     public void testDoubleQuotesInIgnoredStatement() throws Exception {
-        assertReadLines(emptyQueries, "LOCK \";INSERT INTO FOO\" yadda;");
+        assertReadLines("LOCK \";INSERT INTO FOO\" yadda;");
     }
 
     @Test
     public void testBackQuotesEscapedIgnoredStatement() throws Exception {
-        assertReadLines(emptyQueries, "LOCK ` wooo \\`;INSERT INTO FOO` yadda;");
+        assertReadLines("LOCK ` wooo \\`;INSERT INTO FOO` yadda;");
     }
 
     @Test
     public void testSingleQuotesEscapedIgnoredStatement() throws Exception {
-        assertReadLines(emptyQueries, "LOCK ' wooo \\';INSERT INTO FOO' yadda;");
+        assertReadLines("LOCK ' wooo \\';INSERT INTO FOO' yadda;");
     }
 
     @Test
     public void testDoubleQuotesEscapedIgnoredStatement() throws Exception {
-        assertReadLines(emptyQueries, "LOCK \" wooo \\\";INSERT INTO FOO\" yadda;");
+        assertReadLines("LOCK \" wooo \\\";INSERT INTO FOO\" yadda;");
     }
 
     @Test
     public void testDoubleQuotesEscapedBackslashIgnoredStatement() throws Exception {
-        assertReadLines(emptyQueries, "LOCK \" wooo \\\\\\\\\\\";INSERT INTO FOO\" yadda;");
+        assertReadLines("LOCK \" wooo \\\\\\\\\\\";INSERT INTO FOO\" yadda;");
     }
 
     // @Test public void testIgnoredLockStatementThenRealStatement() throws Exception {
+
+
+    private static void assertReadLines(String... input) throws IOException {
+        assertReadLines(true, new ArrayList<MySQLBuffer.Query>(), input);
+    }
+
+    private static void assertReadLines(MySQLBuffer.Query expected, String... input) throws IOException {
+        assertReadLines(true, list(expected), input);
+    }
 
     private static void assertReadLines(List<MySQLBuffer.Query> expected, String... input) throws IOException {
         assertReadLines(true, expected, input);
