@@ -59,10 +59,10 @@ public class LoadClient
         if(options.commitFrequency == null) {
             options.commitFrequency = 0L;
             if (options.maxRetries == null) {
-                options.maxRetries = 1;
+                options.maxRetries = 0;
             }
         }
-        else if (options.maxRetries == null) {
+        if (options.maxRetries == null) {
             options.maxRetries = 10;
         }
     }
