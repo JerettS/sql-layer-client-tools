@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
 import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.instanceOf;
 
 public class LineReaderMySQLBufferTest {
     static final String encoding = "UTF-8";
@@ -38,7 +39,7 @@ public class LineReaderMySQLBufferTest {
     public void testSimpleReadLineComment() throws IOException {
         // this is how mysql dumps start
         assertReadLines(emptyQueries,
-                        "-- MySQL dump 10.13  Distrib 5.5.28, for debian-linux-gnu (x86_64)");
+                        "-- MySQL dump 10.13 /* ' \" ` Dist;rib 5.5.28, for debian-linux-gnu (x86_64)");
     }
 
     @Test
@@ -66,9 +67,9 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testMultilineDelimitedCommentWithFunkyStuff() throws IOException {
-        // by funky I mean * / ;
+        // by funky I mean * / ; " ' `
         assertReadLines(emptyQueries,
-                        "/*!40101 SET @OLD_C * \nHAR;ACTER_SE / T_\nC;LI/ENT=@@CHARA*CTER_SET_CLIENT */");
+                        "/*!40101 SET @OLD_C * \nHAR;ACTER_SE / T_\nC;LI/E`NT=@@C\"HARA*CTER_SET_C'LIENT */");
     }
 
     @Test
@@ -84,6 +85,64 @@ public class LineReaderMySQLBufferTest {
     // TODO @Test public void testSingleLineCommentThenStatement()
 
     // TODO @Test public void testDelimitedCommentThenStatement()
+
+    @Test
+    public void testIgnoredLockStatement() throws IOException {
+        assertReadLines(emptyQueries, "LOCK INSERT INTO TABLE t VALUES (1,3);");
+    }
+
+    @Test
+    public void testIgnoredUnlockStatement() throws IOException {
+        assertReadLines(emptyQueries, "UNLOCK INSERT INTO TABLE t VALUES (1,3);");
+    }
+
+    @Test
+    public void testBadCharacterInVerb() throws Exception {
+        assertUnexpectedToken("a letter", '3', "LOC3");
+    }
+
+    @Test
+    public void testUnexpectedVerb() throws Exception {
+        MySQLBuffer.UnexpectedVerb e = (MySQLBuffer.UnexpectedVerb)returnException("WHATEVER you want to do;");
+        assertEquals("WHATEVER", e.getVerb());
+    }
+
+    @Test
+    public void testBackQuotesInIgnoredStatement() throws Exception {
+        assertReadLines(emptyQueries, "LOCK `;INSERT INTO FOO` yadda;");
+    }
+
+    @Test
+    public void testSingleQuotesInIgnoredStatement() throws Exception {
+        assertReadLines(emptyQueries, "LOCK ';INSERT INTO FOO' yadda;");
+    }
+
+    @Test
+    public void testDoubleQuotesInIgnoredStatement() throws Exception {
+        assertReadLines(emptyQueries, "LOCK \";INSERT INTO FOO\" yadda;");
+    }
+
+    @Test
+    public void testBackQuotesEscapedIgnoredStatement() throws Exception {
+        assertReadLines(emptyQueries, "LOCK ` wooo \\`;INSERT INTO FOO` yadda;");
+    }
+
+    @Test
+    public void testSingleQuotesEscapedIgnoredStatement() throws Exception {
+        assertReadLines(emptyQueries, "LOCK ' wooo \\';INSERT INTO FOO' yadda;");
+    }
+
+    @Test
+    public void testDoubleQuotesEscapedIgnoredStatement() throws Exception {
+        assertReadLines(emptyQueries, "LOCK \" wooo \\\";INSERT INTO FOO\" yadda;");
+    }
+
+    @Test
+    public void testDoubleQuotesEscapedBackslashIgnoredStatement() throws Exception {
+        assertReadLines(emptyQueries, "LOCK \" wooo \\\\\\\\\\\";INSERT INTO FOO\" yadda;");
+    }
+
+    // @Test public void testIgnoredLockStatementThenRealStatement() throws Exception {
 
     private static void assertReadLines(List<MySQLBuffer.Query> expected, String... input) throws IOException {
         assertReadLines(true, expected, input);
@@ -105,6 +164,18 @@ public class LineReaderMySQLBufferTest {
     }
 
     private static void assertUnexpectedToken(char expected, char actual, String... input) throws IOException {
+        assertUnexpectedToken("'" + expected + "'", actual, input);
+    }
+
+    private static void assertUnexpectedToken(String expected, char actual, String... input) throws IOException {
+        Exception e = returnException(input);
+        assertThat(e,instanceOf(MySQLBuffer.UnexpectedTokenException.class));
+        MySQLBuffer.UnexpectedTokenException ute = (MySQLBuffer.UnexpectedTokenException) e;
+        assertEquals(expected, ute.getExpected());
+        assertEquals(actual, ute.getActual());
+    }
+
+    private static Exception returnException(String... input) throws IOException {
         File file = tmpFileFrom(true, input);
         FileInputStream istr = null;
         try {
@@ -115,16 +186,16 @@ public class LineReaderMySQLBufferTest {
                 while (lines.readLine(buffer)) {
                     buffer.nextQuery();
                 }
-                assertEquals("an UnexpectedTokenException to be thrown", "not thrown");
-            } catch (MySQLBuffer.UnexpectedTokenException e) {
-                assertEquals(expected, e.getExpected());
-                assertEquals(actual, e.getActual());
+                assertEquals("an Exception to be thrown", "not thrown");
+            } catch (Exception e) {
+                return e;
             }
         } finally {
             if (istr != null) {
                 istr.close();
             }
         }
+        throw new RuntimeException("returnException is broken");
     }
 
     private static void assertRows(List<MySQLBuffer.Query> expected, MySQLBuffer buffer, LineReader lines) throws IOException {

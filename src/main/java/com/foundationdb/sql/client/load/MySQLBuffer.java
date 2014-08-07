@@ -37,10 +37,14 @@ public class MySQLBuffer
     private int startIndex, endIndex, currentIndex;
     private StringBuilder rowBuffer;
     private StringBuilder currentField = new StringBuilder();
+    private char quoteChar;
     private State state;
+    private State postSwallowedCharacterState;
 
     private enum State { STATEMENT_START, LINE_COMMENT_START, SINGLE_LINE_COMMENT,
-                         AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT };
+                         AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT,
+                         STATEMENT_VERB, IGNORED_STATEMENT, IGNORED_STATEMENT_QUOTE,
+                         SWALLOWED_CHARACTER };
 
     public MySQLBuffer(String encoding) {
         this.encoding = encoding;
@@ -106,6 +110,9 @@ public class MySQLBuffer
 
     public boolean hasQuery() throws IOException {
         while (currentIndex < rowBuffer.length()) {
+            // DO NOT increment currentIndex within the switch
+            // because we may be on the last character in the buffer
+            // and if you do that whatever state you have will be lost
             char c = rowBuffer.charAt(currentIndex++);
             switch (state) {
             case STATEMENT_START:
@@ -117,6 +124,11 @@ public class MySQLBuffer
                     continue;
                 } else if (c == '/') {
                     state = State.AFTER_FORWARD_SLASH;
+                    continue;
+                } else if (Character.isLetter(c)) {
+                    currentField.setLength(0);
+                    currentField.append(c);
+                    state = State.STATEMENT_VERB;
                     continue;
                 } else {
                     throw new RuntimeException("TODO " + state + ": " + c);
@@ -156,6 +168,49 @@ public class MySQLBuffer
                     state = State.DELIMITED_COMMENT;
                     continue;
                 }
+            case STATEMENT_VERB:
+                if (Character.isLetter(c)) {
+                    currentField.append(c);
+                    continue;
+                } else if (Character.isSpace(c)) {
+                    String s = currentField.toString();
+                    if (s.equalsIgnoreCase("lock") || s.equalsIgnoreCase("unlock")) {
+                        state = State.IGNORED_STATEMENT;
+                        continue;
+                    } else {
+                        throw new UnexpectedVerb(currentField.toString());
+                    }
+                } else {
+                    throw new UnexpectedTokenException("a letter", c);
+                }
+            case IGNORED_STATEMENT:
+                if (c == ';') {
+                    currentField.setLength(0);
+                    state = State.STATEMENT_START;
+                    continue;
+                } else if (c == '\'' || c == '"' || c == '`') {
+                    quoteChar = c;
+                    state = State.IGNORED_STATEMENT_QUOTE;
+                    continue;
+                } else {
+                    // ignored character
+                    continue;
+                }
+            case IGNORED_STATEMENT_QUOTE:
+                if (c == quoteChar) {
+                    state = State.IGNORED_STATEMENT;
+                    continue;
+                } else if (c == '\\') {
+                    postSwallowedCharacterState = state;
+                    state = State.SWALLOWED_CHARACTER;
+                    continue;
+                } else {
+                    // ignored character
+                    continue;
+                }
+            case SWALLOWED_CHARACTER:
+                state = postSwallowedCharacterState;
+                continue;
             default:
                 throw new RuntimeException("TODO " + state + ": " + c);
             }
@@ -184,16 +239,22 @@ public class MySQLBuffer
 
     // TODO probably this shouldn't be an IOException
     public static class UnexpectedTokenException extends IOException {
-        private char expected;
+        private String expected;
         private char actual;
 
         public UnexpectedTokenException(char expected, char actual) {
-            super("Error parsing mysql: expected to get '" + expected + "' but got the token " + actual + "'");
+            super("Error parsing mysql: expected to get '" + expected + "' but got the token '" + actual + "'");
+            this.expected = "'" + expected + "'";
+            this.actual = actual;
+        }
+
+        public UnexpectedTokenException(String expected, char actual) {
+            super("Error parsing mysql: expected to get " + expected + " but got the token '" + actual + "'");
             this.expected = expected;
             this.actual = actual;
         }
 
-        public char getExpected() {
+        public String getExpected() {
             return expected;
         }
 
@@ -202,5 +263,18 @@ public class MySQLBuffer
         }
     }
 
+    // TODO probably this shouldn't be an IOException
+    public static class UnexpectedVerb extends IOException {
+        private String verb;
+
+        public UnexpectedVerb(String verb) {
+            super("Error parsing mysql: Unrecognized verb: " + verb);
+            this.verb = verb;
+        }
+
+        public String getVerb() {
+            return verb;
+        }
+    }
 
 }
