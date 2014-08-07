@@ -59,6 +59,14 @@ public class LoadClient
         if(options.commitFrequency == null) {
             options.commitFrequency = 0L;
         }
+        if(options.maxRetries == null) {
+            if (options.commitFrequency == 0) {
+                options.maxRetries = 1;
+            }
+            else {
+                options.maxRetries = 10;
+            }
+        }
     }
 
     public String getEncoding() {
