@@ -58,41 +58,10 @@ class MySQLLoader extends FileLoader
     }
 
 
-
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
         return new MySQLSegmentLoader(start,end);
-    }
-
-    private static String createPreparedStatement(String targetTable, List<String> columns, int columnCount) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("INSERT INTO \"");
-        sb.append(escapeIdentifier(targetTable));
-        sb.append("\" ");
-        if (columns != null) {
-            sb.append("(\"");
-            for (int i=0; i<columns.size()-1; i++) {
-                sb.append(escapeIdentifier(columns.get(i)));
-                sb.append("\",\"");
-            }
-            sb.append(escapeIdentifier(columns.get(columns.size()-1)));
-            sb.append("\") ");
-        }
-        sb.append("VALUES (");
-        for (int i=0; i<columnCount-1; i++) {
-            sb.append("?, ");
-        }
-        if (columnCount > 0) {
-            sb.append("?)");
-        } else {
-            sb.append(")");
-        }
-        return sb.toString();
-    }
-
-    private static String escapeIdentifier(String identifier) {
-        return identifier.replaceAll("\"","\"\"");
     }
 
     public List<? extends SegmentLoader> split(int nsegments) throws IOException {
@@ -134,70 +103,69 @@ class MySQLLoader extends FileLoader
 
         @Override
         public void run() {
-            // boolean success = false;
-            // Connection connection = null;
-            // CommitStatus status = new CommitStatus();
-            // StatementHelper stmt = null;
-            // List<String[]> uncommittedStatements = new ArrayList<>();
-            // LineReader lines = null;
-            // String[] emptyStringArray = new String[0];
-            // try {
-            //     lines = new LineReader(channel, client.getEncoding(),
-            //             BUFFER_SIZE, BUFFER_SIZE,
-            //             start, end);
-            //     connection = client.getConnection(false);
-            //     stmt = new StatementHelper(connection);
-            //     MySQLBuffer buffer = new MySQLBuffer();
-            //     while (true) {
-            //         if (!lines.readLine(buffer)) {
-            //             break;
-            //         }
-            //         MySQLBuffer.Query query = buffer.nextQuery();
-            //         try {
-            //             uncommittedStatements.add(query);
-            //             status.pending += stmt.executeUpdatePrepared(query.getPreparedStatement(), query.getValues());
-            //             if (status.pending == 0) { // successful commit
-            //                 uncommittedStatements.clear();
-            //             }
-            //         } catch (SQLException e) {
-            //             if (!connection.getAutoCommit()) connection.rollback();
-            //             if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
-            //                 retry(connection, stmt, status, uncommittedStatements, e);
-            //             } else {
-            //                 throw(e);
-            //             }
-            //         }
+            boolean success = false;
+            Connection connection = null;
+            CommitStatus status = new CommitStatus();
+            StatementHelper stmt = null;
+            List<MySQLBuffer.Query> uncommittedStatements = new ArrayList<>();
+            LineReader lines = null;
+            try {
+                 lines = new LineReader(channel, client.getEncoding(),
+                         BUFFER_SIZE, BUFFER_SIZE,
+                         start, end);
+                 connection = client.getConnection(false);
+                 stmt = new StatementHelper(connection);
+                 MySQLBuffer buffer = new MySQLBuffer(client.getEncoding());
+                 while (true) {
+                     if (!lines.readLine(buffer)) {
+                         break;
+                     }
+                     MySQLBuffer.Query query = buffer.nextQuery();
+                     try {
+                         uncommittedStatements.add(query);
+                         status.pending += stmt.executeUpdatePrepared(query.getPreparedStatement(), query.getValues());
+                         if (status.pending == 0) { // successful commit
+                             uncommittedStatements.clear();
+                         }
+                     } catch (SQLException e) {
+                         if (!connection.getAutoCommit()) connection.rollback();
+                         if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                             retry(connection, stmt, status, uncommittedStatements, e);
+                         } else {
+                             throw(e);
+                         }
+                     }
 
-            //     }
-            //     if (status.pending > 0) {
-            //         try {
-            //             connection.commit();
-            //             status.commit();
-            //         } catch (SQLException e) {
-            //             if (!connection.getAutoCommit()) connection.rollback();
-            //             if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
-            //                 retry(connection, stmt, status, uncommittedStatements, e);
-            //             } else {
-            //                 throw(e);
-            //             }
-            //         }
-            //     }
-            //     success = true;
-            // }
-            // catch (Exception ex) {
-            //     ex.printStackTrace();
-            // }
-            // finally {
-            //     if (stmt != null) {
-            //         stmt.close();
-            //     }
-            //     try {
-            //         returnConnection(connection, success);
-            //     } catch (SQLException e) {
-            //         e.printStackTrace();
-            //     }
-            // }
-            // count += status.count;
+                 }
+                 if (status.pending > 0) {
+                     try {
+                         connection.commit();
+                         status.commit();
+                     } catch (SQLException e) {
+                         if (!connection.getAutoCommit()) connection.rollback();
+                         if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                             retry(connection, stmt, status, uncommittedStatements, e);
+                         } else {
+                             throw(e);
+                         }
+                     }
+                 }
+                 success = true;
+            }
+            catch (Exception ex) {
+                 ex.printStackTrace();
+            }
+            finally {
+                 if (stmt != null) {
+                     stmt.close();
+                 }
+                 try {
+                     returnConnection(connection, success);
+                 } catch (SQLException e) {
+                     e.printStackTrace();
+                 }
+            }
+            count += status.count;
         }
 
         private void retry(Connection connection, StatementHelper stmt, CommitStatus status,

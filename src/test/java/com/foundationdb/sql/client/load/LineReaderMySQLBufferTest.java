@@ -160,6 +160,16 @@ public class LineReaderMySQLBufferTest {
                         "INSERT INTO `t\\` worst \\\"table\\\" name \\\\ever ` VALUES (1);");
     }
 
+    @Test
+    public void testInsertMultipleCharacterField() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "173"), "INSERT INTO t VALUES (173);");
+    }
+
+    @Test
+    public void testInsertMultipleColumns() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?, ?)", "18", "173"), "INSERT INTO t VALUES (18, 173);");
+    }
+
     private static MySQLBuffer.Query query(String prepared, String... values) {
         return new MySQLBuffer.Query(prepared, values);
     }

@@ -312,7 +312,7 @@ public class MySQLBuffer
                 if (isQuote(c)) {
                     // clearCurrentField();
                     // state = State.QUOTED_FIELD;
-                    // continue; 
+                    // continue;
                 } else {
                     currentField.append(c);
                     state = State.FIELD;
@@ -325,8 +325,17 @@ public class MySQLBuffer
                     swallowWhitespace = true;
                     state = State.ROW_START;
                     continue;
+                } else if (c == ',') {
+                    addField();
+                    swallowWhitespace = true;
+                    state = State.FIELD_START;
+                    continue;
+                } else if (isQuote(c)) {
+                    throw new UnexpectedTokenException("a literal character", '\'');
                 } else {
-                    throw new RuntimeException("multi char field");
+                    // TODO this is really lax, but that's what the old one did, so let's roll with it
+                    currentField.append(c);
+                    break;
                 }
             default:
                 throw new RuntimeException("TODO " + state + ": " + c);
@@ -391,7 +400,6 @@ public class MySQLBuffer
             firstField = false;
         } else {
             preparedStatement.append(", ?");
-            throw new RuntimeException("TODO multiple columns");
         }
         values.add(currentField.toString());
     }
