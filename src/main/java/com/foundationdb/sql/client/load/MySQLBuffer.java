@@ -50,7 +50,7 @@ public class MySQLBuffer
                          AFTER_FORWARD_SLASH, DELIMITED_COMMENT, FINISHING_DELIMITED_COMMENT,
                          STATEMENT_VERB, IGNORED_STATEMENT, IGNORED_STATEMENT_QUOTE,
                          INSERT, INSERT_TABLE_NAME, INSERT_TABLE_QUOTED, INSERT_VALUES_KEYWORD,
-                         ROW_START, FIELD_START, FIELD };
+                         ROW_START, AFTER_ROW, FIELD_START, FIELD, QUOTED_FIELD, AFTER_QUOTED_FIELD };
 
     public MySQLBuffer(String encoding) {
         this.encoding = encoding;
@@ -147,7 +147,7 @@ public class MySQLBuffer
                     state = State.STATEMENT_VERB;
                     continue;
                 } else {
-                    throw new RuntimeException("TODO " + state + ": " + c);
+                    throw new UnexpectedTokenException("a statement start", 'c');
                 }
             case LINE_COMMENT_START:
                 if (c == '-') {
@@ -238,7 +238,7 @@ public class MySQLBuffer
                         clearCurrentField();
                         continue;
                     } else {
-                        throw new RuntimeException("TODO");
+                        throw new UnexpectedKeyword("INTO", currentField.toString());
                     }
                 }
                 break;
@@ -292,8 +292,12 @@ public class MySQLBuffer
                     addRow();
                     state = State.FIELD_START;
                     continue;
-                } else if (c == ',') {
-                    // technically this allows as many commas as possible between rows
+                } else {
+                    throw new UnexpectedTokenException('(', c);
+                }
+            case AFTER_ROW:
+                if (c == ',') {
+                    state = State.ROW_START;
                     continue;
                 } else if (c == ';') {
                     if (values.size() == 0) {
@@ -305,14 +309,15 @@ public class MySQLBuffer
                         return true;
                     }
                 } else {
-                    throw new UnexpectedTokenException("'(' or ','", c);
+                    throw new UnexpectedTokenException(',', c);
                 }
             case FIELD_START:
                 clearCurrentField();
                 if (isQuote(c)) {
-                    // clearCurrentField();
-                    // state = State.QUOTED_FIELD;
-                    // continue;
+                    quoteChar = c;
+                    clearCurrentField();
+                    state = State.QUOTED_FIELD;
+                    continue;
                 } else {
                     currentField.append(c);
                     state = State.FIELD;
@@ -323,7 +328,7 @@ public class MySQLBuffer
                     addField();
                     endRow();
                     swallowWhitespace = true;
-                    state = State.ROW_START;
+                    state = State.AFTER_ROW;
                     continue;
                 } else if (c == ',') {
                     addField();
@@ -333,9 +338,68 @@ public class MySQLBuffer
                 } else if (isQuote(c)) {
                     throw new UnexpectedTokenException("a literal character", '\'');
                 } else {
-                    // TODO this is really lax, but that's what the old one did, so let's roll with it
                     currentField.append(c);
                     break;
+                }
+            case QUOTED_FIELD:
+                if (escapedChar) {
+                    escapedChar = false;
+                    switch (c) {
+                    case '0':
+                        currentField.append('\000');
+                        break;
+                    case 'b':
+                        currentField.append('\b');
+                        break;
+                    case 'n':
+                        currentField.append('\n');
+                        break;
+                    case 'r':
+                        currentField.append('\r');
+                        break;
+                    case 't':
+                        currentField.append('\t');
+                        break;
+                    case 'Z':
+                        // The ASCII 26 character can be encoded as “\Z” to enable you to work
+                        //  around the problem that ASCII 26 stands for END-OF-FILE on Windows.
+                        //  ASCII 26 within a file causes problems if you try to use mysql db_name < file_name.
+                        currentField.append('\u001A');
+                        break;
+                    default:
+                        currentField.append(c);
+                        break;
+                    }
+                    continue;
+                } else if (c == quoteChar) {
+                    swallowWhitespace = true;
+                    state = State.AFTER_QUOTED_FIELD;
+                    continue;
+                } else if (c == '\\') {
+                    escapedChar = true;
+                    continue;
+                } else {
+                    currentField.append(c);
+                    continue;
+                }
+            case AFTER_QUOTED_FIELD:
+                if (c == quoteChar) {
+                    currentField.append(c);
+                    state = State.QUOTED_FIELD;
+                    continue;
+                } else if (c == ',') {
+                    addField();
+                    swallowWhitespace = true;
+                    state = State.FIELD_START;
+                    continue;
+                } else if (c == ')') {
+                    addField();
+                    swallowWhitespace = true;
+                    endRow();
+                    state = State.AFTER_ROW;
+                    continue;
+                } else {
+                    throw new UnexpectedTokenException("',' or ')'", c);
                 }
             default:
                 throw new RuntimeException("TODO " + state + ": " + c);

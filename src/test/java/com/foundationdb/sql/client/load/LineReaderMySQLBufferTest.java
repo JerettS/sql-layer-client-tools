@@ -77,9 +77,20 @@ public class LineReaderMySQLBufferTest {
         assertReadLines("/* a comment */;");
     }
 
-    // TODO @Test public void testSingleLineCommentThenStatement()
+    @Test
+    public void testSingleLineCommentThenStatement() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "1"),
+                        "-- INSERT INTO t VALUES (5);",
+                        "INSERT INTO t VALUES (1);");
+    }
 
-    // TODO @Test public void testDelimitedCommentThenStatement()
+    @Test
+    public void testDelimitedCommentThenStatement() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "83"),
+                        "/*INSERT INTO t VALUES (5);",
+                        "Insert into t VALUES (9);*/",
+                        "INSERT INTO t VALUES (83);");
+    }
 
     @Test
     public void testIgnoredLockStatement() throws IOException {
@@ -137,7 +148,30 @@ public class LineReaderMySQLBufferTest {
         assertReadLines("LOCK \" wooo \\\\\\\\\\\";INSERT INTO FOO\" yadda;");
     }
 
-    // @Test public void testIgnoredLockStatementThenRealStatement() throws Exception {
+    @Test
+    public void testIgnoredLockStatementThenRealStatement() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "1"),
+                        "LOCK TABLES `t1` WRITE;",
+                        "INSERT INTO t VALUES (1);");
+    }
+
+    @Test
+    public void testLeadingWhitespace() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "TRUE"),
+                        "  \r  \n INSERT INTO t VALUES (TRUE);");
+    }
+
+    @Test
+    public void testInsertGibberish() throws Exception {
+        MySQLBuffer.UnexpectedKeyword e = (MySQLBuffer.UnexpectedKeyword)returnException("INSERT foobar is cool");
+        assertEquals("foobar", e.getActual());
+        assertEquals("INTO", e.getExpected());
+    }
+
+    @Test
+    public void testInsertWithColumns() throws Exception {
+        assertUnexpectedToken("a letter", '(', "INSERT into t (a,b) VALUES (3,4);");
+    }
 
     @Test
     public void testSimpleInsert() throws Exception {
@@ -168,6 +202,41 @@ public class LineReaderMySQLBufferTest {
     @Test
     public void testInsertMultipleColumns() throws Exception {
         assertReadLines(query("INSERT INTO \"t\" VALUES (?, ?)", "18", "173"), "INSERT INTO t VALUES (18, 173);");
+    }
+
+    @Test
+    public void testSingleQuotedField() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is cool"), "INSERT INTO t VALUES ('boo is cool');");
+    }
+
+    @Test
+    public void testDoubleQuotedField() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is cool"), "INSERT INTO t VALUES (\"boo is cool\");");
+    }
+
+    @Test
+    public void testSingleQuotedFieldFunkyStuff() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is ' \" \\ % _ ' \" ,); a 7 z + cool"),
+                        "INSERT INTO t VALUES ('boo is \\' \\\" \\\\ \\% \\_ '' \" ,); \\a \\7 \\z \\+ cool');");
+    }
+
+    @Test
+    public void testDoubleQuotedFieldWithFunkyStuff() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is ' \" \\ % _ \" ' ,); a 7 z + cool"),
+                        "INSERT INTO t VALUES (\"boo is \\' \\\" \\\\ \\% \\_ \"\" ' ,); \\a \\7 \\z \\+ cool\");");
+    }
+
+    // TODO do one of these tests through the sql layer
+    @Test
+    public void testSingleQuotedFieldFunkyStuff2() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is \u0000 \b \n \r \t \u001A cool"),
+                        "INSERT INTO t VALUES ('boo is \\0 \\b \\n \\r \\t \\Z cool');");
+    }
+
+    @Test
+    public void testDoubleQuotedFieldWithFunkyStuff2() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is \u0000 \b \n \r \t \u001A cool"),
+                        "INSERT INTO t VALUES (\"boo is \\0 \\b \\n \\r \\t \\Z cool\");");
     }
 
     private static MySQLBuffer.Query query(String prepared, String... values) {
