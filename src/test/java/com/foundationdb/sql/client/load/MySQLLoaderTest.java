@@ -173,8 +173,6 @@ public class MySQLLoaderTest extends ClientTestBase
         assertThat(errorStream.toString(), containsString("MySQL import does not support the --into option"));
     }
 
-    // TODO options.target thorws exception
-
     // TODO test data types
 
 
