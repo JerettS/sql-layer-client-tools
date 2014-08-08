@@ -205,6 +205,11 @@ public class LineReaderMySQLBufferTest {
     }
 
     @Test
+    public void testInsertMultipleRows() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?, ?), (?, ?)", "18", "173", "120", "40"), "INSERT INTO t VALUES (18, 173), (120, 40);");
+    }
+
+    @Test
     public void testSingleQuotedField() throws Exception {
         assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is cool"), "INSERT INTO t VALUES ('boo is cool');");
     }

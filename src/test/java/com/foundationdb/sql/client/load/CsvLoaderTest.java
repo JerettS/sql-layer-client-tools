@@ -218,9 +218,12 @@ public class CsvLoaderTest extends ClientTestBase
         DdlRunner ddlRunner = new DdlRunner();
         Thread ddlThread = new Thread(ddlRunner);
         ddlThread.start();
-        assertLoad(100, rows);
-        ddlRunner.keepGoing = false;
-        ddlThread.stop();
+        try {
+            assertLoad(100, rows);
+        } finally {
+            ddlRunner.keepGoing = false;
+            ddlThread.stop();
+        }
         checkQuery("SELECT * FROM states ORDER BY abbrev", expected);
     }
 

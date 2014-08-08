@@ -26,11 +26,8 @@ import java.util.List;
 
 class MySQLLoader extends FileLoader
 {
-    private final String target;
-
-    public MySQLLoader(LoadClient client, FileChannel channel, String target) {
+    public MySQLLoader(LoadClient client, FileChannel channel) {
         super(client, channel);
-        this.target = target;
     }
 
     /** Is this .sql file really a MySQL dump file? */

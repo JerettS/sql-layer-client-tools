@@ -297,6 +297,7 @@ public class MySQLBuffer
                 }
             case AFTER_ROW:
                 if (c == ',') {
+                    swallowWhitespace = true;
                     state = State.ROW_START;
                     continue;
                 } else if (c == ';') {
@@ -309,7 +310,7 @@ public class MySQLBuffer
                         return true;
                     }
                 } else {
-                    throw new UnexpectedTokenException(',', c);
+                    throw new UnexpectedTokenException("a ',' or ';'", c);
                 }
             case FIELD_START:
                 clearCurrentField();
@@ -448,7 +449,6 @@ public class MySQLBuffer
             firstRow = false;
         } else {
             preparedStatement.append(", (");
-            throw new RuntimeException("TODO combined rows");
         }
     }
 

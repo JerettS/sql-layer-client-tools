@@ -40,6 +40,8 @@ import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.hamcrest.CoreMatchers.containsString;
 
 public class MySQLLoaderTest extends ClientTestBase
 {
@@ -78,7 +80,6 @@ public class MySQLLoaderTest extends ClientTestBase
         options.schema = SCHEMA_NAME;
         options.quiet = true;
         options.format = Format.MYSQL_DUMP;
-        options.target = "states";
     }
 
     @Test
@@ -86,7 +87,7 @@ public class MySQLLoaderTest extends ClientTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(x int PRIMARY KEY, y int)");
         assertLoad(1, "INSERT INTO `states` VALUES (1, 348);");
-        checkQuery("SELECT * FROM states", list(list((Object) 1, 348)));
+        checkQuery("SELECT * FROM states", list(listO(1, 348)));
     }
 
     @Test
@@ -94,11 +95,11 @@ public class MySQLLoaderTest extends ClientTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(2), name VARCHAR(30), abbrev2 char(2))");
         assertLoad(1, "INSERT INTO states VALUES ('AB', 'boo is \\0 \\b \\n \\r \\t \\Z cool', \"XY\");");
-        checkQuery("SELECT * FROM states", list(list((Object)"AB", "boo is \u0000 \b \n \r \t \u001A cool", "XY")));
+        checkQuery("SELECT * FROM states", list(listO("AB", "boo is \u0000 \b \n \r \t \u001A cool", "XY")));
     }
 
 
-    //TODO    @Test
+    @Test
     public void testRetry() throws Exception {
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(4) PRIMARY KEY, name VARCHAR(128))");
@@ -106,24 +107,42 @@ public class MySQLLoaderTest extends ClientTestBase
         String[] rows = new String[100];
         List<List<Object>> expected = new ArrayList<>();
         for (int i=0; i<100; i++) {
-            rows[i] = String.format("A%03d,named%d",i,i);
-            expected.add(list((Object)String.format("A%03d",i),"named" + i));
+            rows[i] = String.format("INSERT INTO `states` VALUES (A%03d,named%d);",i,i);
+            expected.add(listO(String.format("A%03d", i), "named" + i));
         }
         DdlRunner ddlRunner = new DdlRunner();
         Thread ddlThread = new Thread(ddlRunner);
         ddlThread.start();
         try {
             assertLoad(100, rows);
-            ddlRunner.keepGoing = false;
         } finally {
+            ddlRunner.keepGoing = false;
             ddlThread.stop();
         }
         checkQuery("SELECT * FROM states ORDER BY abbrev", expected);
     }
 
-    // TODO test multiple rows
+    @Test
+    public void testMultipleRows() throws Exception {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(2, "INSERT INTO `states` VALUES (AL,Birmingham);",
+                   "INSERT INTO `states` VALUES (MA,Boston);");
+        checkQuery("SELECT * FROM states", list(listO("AL","Birmingham"), listO("MA","Boston")));
+    }
 
-    // TODO schema in table name?
+
+    @Test
+    public void testMultipleRowRows() throws Exception {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(4, "INSERT INTO `states` VALUES (AL,Birmingham),(TX, Austin);",
+                   "INSERT INTO `states` VALUES (MA,Boston),(AK,Denali);");
+        checkQuery("SELECT * FROM states", list(listO("AK", "Denali"), listO("AL","Birmingham"),
+                                                listO("MA","Boston"), listO("TX", "Austin")));
+    }
+
+    // TODO schema in table name? what does mysql do when you dump multiple schemas
 
     @Test
     public void testEscapeTableName() throws Exception {
@@ -133,7 +152,7 @@ public class MySQLLoaderTest extends ClientTestBase
                 "CREATE TABLE " + escapedTable + " (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(2, "INSERT INTO " + mysqlTable + " VALUES (AL,Birmingham);",
                    "INSERT INTO " + mysqlTable + " VALUES (MA,Boston);");
-        checkQuery("SELECT * FROM " + escapedTable, list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+        checkQuery("SELECT * FROM " + escapedTable, list(listO("AL","Birmingham"), listO("MA", "Boston")));
     }
 
     @Test
@@ -141,13 +160,27 @@ public class MySQLLoaderTest extends ClientTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(x int PRIMARY KEY, y int)");
         assertLoad(1, "insert into `states` values (1, 348);");
-        checkQuery("SELECT * FROM states", list(list((Object) 1, 348)));
+        checkQuery("SELECT * FROM states", list(listO(1, 348)));
+    }
+
+    @Test
+    public void testIntoOption() throws Exception {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(x int PRIMARY KEY, y int)");
+        options.target = "not the right table";
+        expectsErrorOutput = true;
+        assertLoad(-1, "insert into `states` values (1, 348);");
+        assertThat(errorStream.toString(), containsString("MySQL import does not support the --into option"));
     }
 
     // TODO options.target thorws exception
 
     // TODO test data types
 
+
+    private List<Object> listO(Object... objects) {
+        return list(objects);
+    }
 
     private void assertLoad(int expectedCount, String... rows) throws Exception {
         LoadClient client = new LoadClient(options);
