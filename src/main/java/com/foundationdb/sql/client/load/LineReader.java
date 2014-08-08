@@ -127,7 +127,7 @@ public class LineReader
     }
 
     // TODO can this be combined with QueryBuffer or maybe even CsvBuffer with an interface?
-    public boolean readLine (MySQLBuffer into) throws IOException {
+    public boolean readLine (MySQLBuffer into) throws IOException,MySQLBuffer.ParseException {
         StringBuilder line = new StringBuilder (SHORT_LINE);
         boolean eol = false;
         while (true) {

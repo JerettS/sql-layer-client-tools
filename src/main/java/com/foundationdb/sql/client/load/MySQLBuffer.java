@@ -117,7 +117,7 @@ public class MySQLBuffer
         return query;
     }
 
-    public boolean hasQuery() throws IOException {
+    public boolean hasQuery() throws IOException,ParseException {
         while (currentIndex < rowBuffer.length()) {
             // DO NOT increment currentIndex within the switch
             // because we may be on the last character in the buffer
@@ -522,19 +522,24 @@ public class MySQLBuffer
         }
     }
 
-    // TODO probably this shouldn't be an IOException
-    public static class UnexpectedTokenException extends IOException {
+    public static class ParseException extends Exception {
+        public ParseException(String message) {
+            super("Error parsing mysql: " + message);
+        }
+    }
+
+    public static class UnexpectedTokenException extends ParseException {
         private String expected;
         private char actual;
 
         public UnexpectedTokenException(char expected, char actual) {
-            super("Error parsing mysql: expected to get '" + expected + "' but got the token '" + actual + "'");
+            super("expected to get '" + expected + "' but got the token '" + actual + "'");
             this.expected = "'" + expected + "'";
             this.actual = actual;
         }
 
         public UnexpectedTokenException(String expected, char actual) {
-            super("Error parsing mysql: expected to get " + expected + " but got the token '" + actual + "'");
+            super("expected to get " + expected + " but got the token '" + actual + "'");
             this.expected = expected;
             this.actual = actual;
         }
@@ -548,13 +553,12 @@ public class MySQLBuffer
         }
     }
 
-    // TODO probably this shouldn't be an IOException
-    public static class UnexpectedKeyword extends IOException {
+    public static class UnexpectedKeyword extends ParseException {
         private String actual;
         private String expected;
 
         public UnexpectedKeyword(String expected, String actual) {
-            super("Error parsing mysql: Expected keyword: " + expected + " but got the word: " + actual);
+            super("Expected keyword: " + expected + " but got the word: " + actual);
             this.actual = actual;
             this.expected = expected;
         }
@@ -568,4 +572,9 @@ public class MySQLBuffer
         }
     }
 
+    public static class UnexpectedEndOfFileException extends ParseException {
+        public UnexpectedEndOfFileException() {
+            super("End of file mid statement");
+        }
+    }
 }

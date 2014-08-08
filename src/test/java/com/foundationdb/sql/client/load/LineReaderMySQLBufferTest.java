@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,45 +34,45 @@ public class LineReaderMySQLBufferTest {
     FileInputStream inputStream;
 
     @Test
-    public void testSimpleReadLineComment() throws IOException {
+    public void testSimpleReadLineComment() throws Exception {
         // this is how mysql dumps start
         assertReadLines("-- MySQL dump 10.13 /* ' \" ` Dist;rib 5.5.28, for debian-linux-gnu (x86_64)");
     }
 
     @Test
-    public void testSimpleReadBrokenLineComment() throws IOException {
+    public void testSimpleReadBrokenLineComment() throws Exception {
         assertUnexpectedToken('-', ' ', "- - broken comment");
     }
 
     @Test
-    public void testDelimitedComment() throws IOException {
+    public void testDelimitedComment() throws Exception {
         assertReadLines("/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */");
     }
 
     @Test
-    public void testDelimitedCommentFailedStart() throws IOException {
+    public void testDelimitedCommentFailedStart() throws Exception {
         assertUnexpectedToken('*','x',"/x");
     }
 
     @Test
-    public void testDelimitedCommentWithFunkyStuff() throws IOException {
+    public void testDelimitedCommentWithFunkyStuff() throws Exception {
         // by funky I mean * / ;
         assertReadLines("/*!40101 SET @OLD_C * HAR;ACTER_SE / T_C;LI/ENT=@@CHARA*CTER_SET_CLIENT */");
     }
 
     @Test
-    public void testMultilineDelimitedCommentWithFunkyStuff() throws IOException {
+    public void testMultilineDelimitedCommentWithFunkyStuff() throws Exception {
         // by funky I mean * / ; " ' `
         assertReadLines("/*!40101 SET @OLD_C * \nHAR;ACTER_SE / T_\nC;LI/E`NT=@@C\"HARA*CTER_SET_C'LIENT */");
     }
 
     @Test
-    public void testEmptyStatement() throws IOException {
+    public void testEmptyStatement() throws Exception {
         assertReadLines(";");
     }
 
     @Test
-    public void testDelimitedCommentWithStraySemicolon() throws IOException {
+    public void testDelimitedCommentWithStraySemicolon() throws Exception {
         assertReadLines("/* a comment */;");
     }
 
@@ -93,12 +92,12 @@ public class LineReaderMySQLBufferTest {
     }
 
     @Test
-    public void testIgnoredLockStatement() throws IOException {
+    public void testIgnoredLockStatement() throws Exception {
         assertReadLines("LOCK INSERT INTO TABLE t VALUES (1,3);");
     }
 
     @Test
-    public void testIgnoredUnlockStatement() throws IOException {
+    public void testIgnoredUnlockStatement() throws Exception {
         assertReadLines("UNLOCK INSERT INTO TABLE t VALUES (1,3);");
     }
 
@@ -243,25 +242,33 @@ public class LineReaderMySQLBufferTest {
                         "INSERT INTO t VALUES (\"boo is \\0 \\b \\n \\r \\t \\Z cool\");");
     }
 
-    // TODO end file mid statement?
+    @Test
+    public void testEndOfFileNoNewline() throws Exception {
+        assertReadLines(false, list(query("INSERT INTO \"t\" VALUES (?)", "1")), "INSERT INTO t VALUES (1);");
+    }
+
+    @Test(expected = MySQLBuffer.UnexpectedEndOfFileException.class)
+    public void testEndOfFileMidStatement() throws Exception {
+        assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "1"), "INSERT INTO t VALUES (1);");
+    }
 
     private static MySQLBuffer.Query query(String prepared, String... values) {
         return new MySQLBuffer.Query(prepared, values);
     }
 
-    private static void assertReadLines(String... input) throws IOException {
+    private static void assertReadLines(String... input) throws Exception {
         assertReadLines(true, new ArrayList<MySQLBuffer.Query>(), input);
     }
 
-    private static void assertReadLines(MySQLBuffer.Query expected, String... input) throws IOException {
+    private static void assertReadLines(MySQLBuffer.Query expected, String... input) throws Exception {
         assertReadLines(true, list(expected), input);
     }
 
-    private static void assertReadLines(List<MySQLBuffer.Query> expected, String... input) throws IOException {
+    private static void assertReadLines(List<MySQLBuffer.Query> expected, String... input) throws Exception {
         assertReadLines(true, expected, input);
     }
 
-    private static void assertReadLines(boolean insertNewlines, List<MySQLBuffer.Query> expected, String... input) throws IOException {
+    private static void assertReadLines(boolean insertNewlines, List<MySQLBuffer.Query> expected, String... input) throws Exception {
         File file = tmpFileFrom(insertNewlines, input);
         FileInputStream istr = null;
         try {
@@ -276,11 +283,11 @@ public class LineReaderMySQLBufferTest {
         }
     }
 
-    private static void assertUnexpectedToken(char expected, char actual, String... input) throws IOException {
+    private static void assertUnexpectedToken(char expected, char actual, String... input) throws Exception {
         assertUnexpectedToken("'" + expected + "'", actual, input);
     }
 
-    private static void assertUnexpectedToken(String expected, char actual, String... input) throws IOException {
+    private static void assertUnexpectedToken(String expected, char actual, String... input) throws Exception {
         Exception e = returnException(input);
         assertThat(e,instanceOf(MySQLBuffer.UnexpectedTokenException.class));
         MySQLBuffer.UnexpectedTokenException ute = (MySQLBuffer.UnexpectedTokenException) e;
@@ -288,7 +295,7 @@ public class LineReaderMySQLBufferTest {
         assertEquals(actual, ute.getActual());
     }
 
-    private static Exception returnException(String... input) throws IOException {
+    private static Exception returnException(String... input) throws Exception {
         File file = tmpFileFrom(true, input);
         FileInputStream istr = null;
         try {
@@ -311,7 +318,7 @@ public class LineReaderMySQLBufferTest {
         throw new RuntimeException("returnException is broken");
     }
 
-    private static void assertRows(List<MySQLBuffer.Query> expected, MySQLBuffer buffer, LineReader lines) throws IOException {
+    private static void assertRows(List<MySQLBuffer.Query> expected, MySQLBuffer buffer, LineReader lines) throws Exception,MySQLBuffer.ParseException {
         List<MySQLBuffer.Query> actual = new ArrayList<>();
         while (lines.readLine(buffer)) {
             actual.add(buffer.nextQuery());
