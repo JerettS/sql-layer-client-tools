@@ -401,8 +401,6 @@ public class MySQLBuffer
                 } else {
                     throw new UnexpectedTokenException("',' or ')'", c);
                 }
-            default:
-                throw new RuntimeException("TODO " + state + ": " + c);
             }
         }
         return endIndex != UNSET;

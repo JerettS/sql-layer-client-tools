@@ -60,6 +60,7 @@ public class MySQLLoaderTest extends ClientTestBase
 
     @Before
     public void setStandardError() throws Exception {
+        expectsErrorOutput = false;
         originalError = System.err;
         errorStream = new ByteArrayOutputStream();
         System.setErr(new PrintStream(errorStream));
@@ -88,10 +89,74 @@ public class MySQLLoaderTest extends ClientTestBase
         checkQuery("SELECT * FROM states", list(list((Object) 1, 348)));
     }
 
-    private void assertLoad(int count, String... rows) throws Exception {
+    @Test
+    public void testSingleQuotedFieldFunkyStuff2() throws Exception {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(abbrev CHAR(2), name VARCHAR(30), abbrev2 char(2))");
+        assertLoad(1, "INSERT INTO states VALUES ('AB', 'boo is \\0 \\b \\n \\r \\t \\Z cool', \"XY\");");
+        checkQuery("SELECT * FROM states", list(list((Object)"AB", "boo is \u0000 \b \n \r \t \u001A cool", "XY")));
+    }
+
+
+    //TODO    @Test
+    public void testRetry() throws Exception {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(abbrev CHAR(4) PRIMARY KEY, name VARCHAR(128))");
+        options.maxRetries = 5;
+        String[] rows = new String[100];
+        List<List<Object>> expected = new ArrayList<>();
+        for (int i=0; i<100; i++) {
+            rows[i] = String.format("A%03d,named%d",i,i);
+            expected.add(list((Object)String.format("A%03d",i),"named" + i));
+        }
+        DdlRunner ddlRunner = new DdlRunner();
+        Thread ddlThread = new Thread(ddlRunner);
+        ddlThread.start();
+        try {
+            assertLoad(100, rows);
+            ddlRunner.keepGoing = false;
+        } finally {
+            ddlThread.stop();
+        }
+        checkQuery("SELECT * FROM states ORDER BY abbrev", expected);
+    }
+
+    // TODO test multiple rows
+
+    // TODO schema in table name?
+
+    @Test
+    public void testEscapeTableName() throws Exception {
+        String escapedTable = "\"the ; , \"\" bad ; , ? ? states\"";
+        String mysqlTable = "`the ; , \" bad ; , ? ? states`";
+        loadDDL("DROP TABLE IF EXISTS " + escapedTable,
+                "CREATE TABLE " + escapedTable + " (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(2, "INSERT INTO " + mysqlTable + " VALUES (AL,Birmingham);",
+                   "INSERT INTO " + mysqlTable + " VALUES (MA,Boston);");
+        checkQuery("SELECT * FROM " + escapedTable, list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+    }
+
+    @Test
+    public void testLowercaseInsert() throws Exception {
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(x int PRIMARY KEY, y int)");
+        assertLoad(1, "insert into `states` values (1, 348);");
+        checkQuery("SELECT * FROM states", list(list((Object) 1, 348)));
+    }
+
+    // TODO options.target thorws exception
+
+    // TODO test data types
+
+
+    private void assertLoad(int expectedCount, String... rows) throws Exception {
         LoadClient client = new LoadClient(options);
         try {
-            assertEquals(count, client.load(tmpFileFrom(true, rows)));
+            long count = client.load(tmpFileFrom(true, rows));
+            if (!expectsErrorOutput) {
+                assertEquals("Error output stream", "", errorStream.toString());
+            }
+            assertEquals(expectedCount, count);
         }
         finally {
             client.clearConnections();

@@ -44,14 +44,14 @@ class MySQLLoader extends FileLoader
     public void checkFormat() throws IOException {
         LineReader lines = new LineReader(channel, client.getEncoding());
         while (true) {
-            String line = lines.readLine();
+            String line = lines.readLine().toLowerCase();
             if (line == null) break;
             if ((line.length() == 0) ||
                 line.startsWith("--") ||
                 line.startsWith("/*"))
                 continue;
-            if (line.startsWith("LOCK ") ||
-                line.startsWith("INSERT INTO "))
+            if (line.startsWith("lock ") ||
+                line.startsWith("insert into "))
                 return;         // Good.
             throw new UnsupportedOperationException("File contains " + line + " and can only be loaded by MySQL. Try mysqldump --no-create-info.");
         }

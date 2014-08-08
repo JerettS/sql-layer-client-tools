@@ -226,7 +226,6 @@ public class LineReaderMySQLBufferTest {
                         "INSERT INTO t VALUES (\"boo is \\' \\\" \\\\ \\% \\_ \"\" ' ,); \\a \\7 \\z \\+ cool\");");
     }
 
-    // TODO do one of these tests through the sql layer
     @Test
     public void testSingleQuotedFieldFunkyStuff2() throws Exception {
         assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is \u0000 \b \n \r \t \u001A cool"),
@@ -238,6 +237,8 @@ public class LineReaderMySQLBufferTest {
         assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "boo is \u0000 \b \n \r \t \u001A cool"),
                         "INSERT INTO t VALUES (\"boo is \\0 \\b \\n \\r \\t \\Z cool\");");
     }
+
+    // TODO end file mid statement?
 
     private static MySQLBuffer.Query query(String prepared, String... values) {
         return new MySQLBuffer.Query(prepared, values);
