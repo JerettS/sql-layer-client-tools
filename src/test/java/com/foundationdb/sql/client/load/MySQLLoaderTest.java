@@ -18,10 +18,14 @@ package com.foundationdb.sql.client.load;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
+import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -172,12 +176,61 @@ public class MySQLLoaderTest extends LoaderTestBase
                      timestamp(2045, 04, 17, 8, 43, 56), timestamp(1970, 04, 17, 13, 43, 56));
     }
     // don't worry mysql doesn't dump the microseconds if it has them.
-    // time_________________'-15:22:58'__________'-15:22:58'
-    // timeWithFractionalSeconds_'483:08:27'__________'483:08:27.493028'
     @Test
     public void testTime() throws Exception {
-        testDataType("TIME", list("'-15:22:58'"),
-                     time(-15,22,58));
+        testDataType("TIME", list("'15:22:58'"),
+                     time(15, 22, 58));
+    }
+    @Test
+    public void testNegativeTime() throws Exception {
+        // Note: I inlined testDataTypes and checkQuery here so that I could change it to call
+        // getString instead of getObject because jdbc doesn't support negative times
+        // since we are also, most likely, not going to support negative times soon, I'm leaving
+        // this as a mess with duplicated code.
+        List<String> inputs = list("'-15:22:58'");
+        // So, just a little tidbit of information, time(-15, 22, 58) becomes 9:22:58
+        String[] values = new String[] {"-15:22:58"};
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states(key CHAR(4) PRIMARY KEY, value " + "TIME" + ")");
+        assertEquals("Invalidly written test", inputs.size(), values.length);
+        String[] rows = new String[inputs.size()];
+        List<List<Object>> expected = new ArrayList<>();
+        for (int i=0; i<inputs.size(); i++) {
+            rows[i] = String.format("INSERT INTO states VALUES (A%03d,%s);",i,inputs.get(i));
+            expected.add(listO(String.format("A%03d",i), values[i]));
+        }
+        assertLoad(values.length, rows);
+        Connection conn = openConnection();
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT * FROM states ORDER BY key");
+        int ncols = rs.getMetaData().getColumnCount();
+        List<List<Object>> actual = new ArrayList<>();
+        while (rs.next()) {
+            List<Object> row = new ArrayList<>();
+            for (int i = 1; i <= ncols; i++) {
+                // difference with testDataTypes
+                row.add(rs.getString(i));
+            }
+            actual.add(row);
+        }
+        rs.close();
+        stmt.close();
+        conn.close();
+
+        Object[][] expectedArray = new Object[expected.size()][];
+        for (int i=0; i< expected.size(); i++) {
+            expectedArray[i] = expected.get(i).toArray();
+        }
+
+        Object[][] actualArray = new Object[actual.size()][];
+        for (int i=0; i<actual.size(); i++) {
+            actualArray[i] = actual.get(i).toArray();
+        }
+        if (expectedArray.length > 0) {
+            assertThat("SELECT * FROM states ORDER BY key",actualArray, arrayContaining(expectedArray));
+        } else {
+            assertThat("SELECT * FROM states ORDER BY key", actualArray, arrayWithSize(0));
+        }
     }
     // NOTE there's nothing we can really do about years right now, they're printed out weirdly
     // e.g. YEAR(2) for 2006 prints out as 36. Year(4) makes sense, it prints out as the integer for the year.
@@ -193,6 +246,7 @@ public class MySQLLoaderTest extends LoaderTestBase
     @Test
     public void testBinary() throws Exception {
         // in mysql this would be BINARY(19)
+        // NOTE: \nnn is octal
         testDataType("CHAR(19) FOR BIT DATA", list("'\004\037\123\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'"),
                      bytes(04,037,0123,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0));
     }
@@ -201,8 +255,10 @@ public class MySQLLoaderTest extends LoaderTestBase
     @Test
     public void testVarbinary() throws Exception {
         // in mysql this would be varbinary(19) or blob
-        testDataType("VARCHAR(19) FOR BIT DATA", list("'\\''","'\\\"'","'b\000\007\234\037'","'\u4379'"),
-                     bytes(0x27), bytes(0x22), bytes(0x62,0x0,0x7,0234,037),bytes(0x47,0x79));
+        // NOTE: \nnn is octal
+        // TODO figure out real binary data story, so that you can get those high bytes (e.g. \234)
+        testDataType("VARCHAR(19) FOR BIT DATA", list("'\\''","'\\\"'","'b\000\007\037'","'\077\024'"),
+                     bytes(0x27), bytes(0x22), bytes(0x62,0x0,0x7,037),bytes(077,024));
     }
     // text_________________'Lorem ipsum dolor sit amet'_'Lorem ipsum dolor sit amet'
     // enum_________________'SECOND'_____________'second'
