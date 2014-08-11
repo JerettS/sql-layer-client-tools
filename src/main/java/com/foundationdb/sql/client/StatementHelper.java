@@ -126,25 +126,25 @@ public class StatementHelper implements Closeable
     }
 
     public int executeUpdatePrepared(String prepared, boolean retryRollback, String... args) throws SQLException {
-        for(;;) {
-        PreparedStatement ps;
-        try {
-            ps = preparedMap.get(prepared);
-            if(ps == null) {
-                ps = conn.prepareStatement(prepared);
+        while (true) {
+            PreparedStatement ps;
+            try {
+                ps = preparedMap.get(prepared);
+                if(ps == null) {
+                    ps = conn.prepareStatement(prepared);
+                }
+                for(int i = 0; i < args.length; ++i) {
+                    ps.setString(i+1, args[i]);
+                }
+                return ps.executeUpdate();
+            } catch(SQLException e) {
+                if(!shouldRetry(e, retryRollback)) {
+                    throw e;
+                }
+                preparedMap.remove(prepared);
+                // retry
             }
-            for(int i = 0; i < args.length; ++i) {
-                ps.setString(i+1, args[i]);
-            }
-            return ps.executeUpdate();
-        } catch(SQLException e) {
-            if(!shouldRetry(e, retryRollback)) {
-                throw e;
-            }
-            preparedMap.remove(prepared);
-            // retry
         }
-    }
     }
 
     public static boolean shouldRetry(SQLException e, boolean retryRollback) {
