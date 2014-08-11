@@ -244,7 +244,7 @@ public class MySQLLoaderTest extends ClientTestBase
     @Test
     public void testBinary() throws Exception {
         // in mysql this would be BINARY(19)
-        testDataType("CHAR(19) FOR BIT DATA", list("\004\037\123\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"),
+        testDataType("CHAR(19) FOR BIT DATA", list("'\004\037\123\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'"),
                      bytes(0x4b,0x37b,0x123b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b));
     }
     // varbinary____________'#??#	'______________X'012394852309'
