@@ -126,7 +126,8 @@ public class LineReader
         }
     }
 
-    // TODO can this be combined with QueryBuffer or maybe even CsvBuffer with an interface?
+    // TODO At some point we should remove/reduce all this triple buffering stuff
+    // at that point, combine these all into one.
     public boolean readLine (MySQLBuffer into) throws IOException,MySQLBuffer.ParseException {
         StringBuilder line = new StringBuilder (SHORT_LINE);
         boolean eol = false;
