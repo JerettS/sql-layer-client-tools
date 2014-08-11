@@ -61,7 +61,7 @@ class MySQLLoader extends FileLoader
         return new MySQLSegmentLoader(start,end);
     }
 
-    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
+    public List<? extends SegmentLoader> split(int nsegments) throws IOException, LineReader.ParseException {
         List<MySQLSegmentLoader> segments = new ArrayList<>(nsegments);
         long start = 0;
         long end = channel.size();
@@ -77,7 +77,7 @@ class MySQLLoader extends FileLoader
             else {
                 mid = start + (end - start) / nsegments;
             }
-            mid = lines.splitParseCsv(mid, new CsvBuffer(client.getEncoding()));
+            mid = lines.splitParseMySQL(mid, new MySQLBuffer(client.getEncoding()));
             segments.add(new MySQLSegmentLoader(start, mid));
             if (mid >= (end - 1))
                 return segments;

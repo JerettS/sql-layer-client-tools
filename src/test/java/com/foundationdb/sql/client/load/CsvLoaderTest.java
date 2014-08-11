@@ -337,6 +337,23 @@ public class CsvLoaderTest extends LoaderTestBase
         //        testDataType("VARCHAR(10) FOR BIT DATA");
     }
 
+    @Test
+    public void testSplit() throws Exception {
+        // Note: right now we need the newlines because of a bug in LineReader.
+        // Since the mysql dumps always put newlines, hold off on fixing it until
+        // LineReader is removed.
+        options.nthreads = 2;
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(7, "a,b", "c,d", "e,f",
+                   "\"Bo\",\"Suzie\"", "\"Al\",\"Jen\"",
+                   "x,y","u,v");
+        checkQuery("SELECT * FROM states ORDER BY abbrev", list(
+                                                listO("Al","Jen"), listO("Bo","Suzie"),
+                                                listO("a","b"), listO("c","d"), listO("e","f"),
+                                                listO("u","v"), listO("x","y")));
+    }
+
     private <T> void testBadDataType(String dataType, List<String> inputs) throws Exception
     {
         expectsErrorOutput = true;

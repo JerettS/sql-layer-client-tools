@@ -261,6 +261,25 @@ public class MySQLLoaderTest extends LoaderTestBase
         testDataType("INT", list("00017"), 17);
     }
 
+    @Test
+    public void testSplit() throws Exception {
+        // Note: right now we need the newlines because of a bug in LineReader.
+        // Since the mysql dumps always put newlines, hold off on fixing it until
+        // LineReader is removed.
+        String line1 = "INSERT INTO states VALUES (a,b),\n\t\t(c,d),\n\t\t(e,f);\n";
+        String line2 = "INSERT INTO states VALUES (\"Bo\",\"Suzie\"),(\"Al\",\"Jen\");\n";
+        String line3 = "INSERT INTO states VALUES (x,y),\n\t\t(u,v);\n";
+        options.nthreads = 2;
+        loadDDL("DROP TABLE IF EXISTS states",
+                "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
+        assertLoad(7, line1, line2, line3);
+        checkQuery("SELECT * FROM states ORDER BY abbrev", list(
+                                                listO("Al","Jen"), listO("Bo","Suzie"),
+                                                listO("a","b"), listO("c","d"), listO("e","f"),
+                                                listO("u","v"), listO("x","y")));
+    }
+
+
     private <T> void testDataType(String dataType, List<String> inputs, T... values) throws Exception
     {
         loadDDL("DROP TABLE IF EXISTS states",

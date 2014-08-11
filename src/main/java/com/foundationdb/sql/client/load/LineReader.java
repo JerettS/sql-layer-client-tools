@@ -371,4 +371,9 @@ public class LineReader
             return after;
     }
 
+    public static class ParseException extends Exception {
+        public ParseException(String message) {
+            super(message);
+        }
+    }
 }

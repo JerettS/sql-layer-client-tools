@@ -404,7 +404,7 @@ public class MySQLBuffer
                 }
             }
         }
-        return endIndex != UNSET;
+        return false;
     }
 
     private boolean isIdentifierCharacter(char c) {
@@ -522,7 +522,7 @@ public class MySQLBuffer
         }
     }
 
-    public static class ParseException extends Exception {
+    public static class ParseException extends LineReader.ParseException {
         public ParseException(String message) {
             super("Error parsing mysql: " + message);
         }
