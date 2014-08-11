@@ -94,7 +94,10 @@ public class MySQLLoaderTest extends LoaderTestBase
                                                 listO("MA","Boston"), listO("TX", "Austin")));
     }
 
-    // TODO schema in table name? what does mysql do when you dump multiple schemas
+    // NOTE: mysqldump does not include the schema, so we don't need to worry about that.
+    // If you do dump multiple schemas it uses "USE dbname;". Unless you include the -n
+    // option it will also include "CREATE DATABASE ..." lines. We don't handle either of
+    // these.
 
     @Test
     public void testEscapeTableName() throws Exception {
@@ -125,62 +128,53 @@ public class MySQLLoaderTest extends LoaderTestBase
         assertThat(errorStream.toString(), containsString("MySQL import does not support the --into option"));
     }
 
-    // TODO test data types
-    // tinyInt______________3____________________3
-    // smallInt_____________-385_________________-385
-    // mediumInt____________84935________________84935
-    // int__________________-47483648____________-47483648
     @Test
     public void testInt() throws Exception {
         testDataType("INT", list("-47483648", "40283"),
                      -47483648, 40283);
     }
 
-    // bigInt_______________-9223372036854775803_-9223372036854775803
     @Test
     public void testBigInt() throws Exception {
         testDataType("BIGINT", list("-9223372036854775803"),
                      -9223372036854775803L);
     }
 
-    // decimal______________958.97_______________958.97
     @Test
     public void testDecimal() throws Exception {
         testDataType("DECIMAL(5,2)", list("958.97"), new BigDecimal("958.97"));
     }
 
-    // numeric______________2983749.391__________2983749.391
     @Test
     public void testNumeric() throws Exception {
         testDataType("DECIMAL(17,3)", list("2983749.391"), new BigDecimal("2983749.391"));
     }
-    // float________________230987_______________230987.293
-    // double_______________2.039e28_____________2.039E28
+
     @Test
     public void testDouble() throws Exception {
         testDataType("DOUBLE", list("2.039e28"),
                      2.039E28);
     }
-    // bit__________________')'__________________b'101001'
-    // date_________________'1000-02-03'_________'1000-02-03'
+
     @Test
     public void testDate() throws Exception {
         testDataType("DATE", list("'1000-02-03'"),
                      date(1000,2,3));
     }
-    // datetime_____________'2045-04-17 08:43:56'_'2045-04-17 08:43:56'
-    // timestamp____________'1970-04-17 13:43:56'_'1970-04-17 08:43:56'
+
     @Test
     public void testDatetime() throws Exception {
         testDataType("DATETIME", list("'2045-04-17 08:43:56'","'1970-04-17 13:43:56'"),
                      timestamp(2045, 04, 17, 8, 43, 56), timestamp(1970, 04, 17, 13, 43, 56));
     }
+
     // don't worry mysql doesn't dump the microseconds if it has them.
     @Test
     public void testTime() throws Exception {
         testDataType("TIME", list("'15:22:58'"),
                      time(15, 22, 58));
     }
+
     @Test
     public void testNegativeTime() throws Exception {
         // Note: I inlined testDataTypes and checkQuery here so that I could change it to call
@@ -232,17 +226,16 @@ public class MySQLLoaderTest extends LoaderTestBase
             assertThat("SELECT * FROM states ORDER BY key", actualArray, arrayWithSize(0));
         }
     }
+
     // NOTE there's nothing we can really do about years right now, they're printed out weirdly
     // e.g. YEAR(2) for 2006 prints out as 36. Year(4) makes sense, it prints out as the integer for the year.
 
-    // char_________________'here'_______________'here'
-    // varchar______________'over there'_________'over there'
     @Test
     public void testVarchar() throws Exception {
         testDataType("VARCHAR(17)", list("over there"),
                      "over there");
     }
-    // binary_______________'4Uc               '_X'12345563'
+
     @Test
     public void testBinary() throws Exception {
         // in mysql this would be BINARY(19)
@@ -250,8 +243,7 @@ public class MySQLLoaderTest extends LoaderTestBase
         testDataType("CHAR(19) FOR BIT DATA", list("'\004\037\123\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'"),
                      bytes(04,037,0123,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0));
     }
-    // varbinary____________'#??#	'______________X'012394852309'
-    // blob_________________' 8I?B0??	??T????'___X'2038491089423095980981039854af98b23908efc289'
+
     @Test
     public void testVarbinary() throws Exception {
         // in mysql this would be varbinary(19) or blob
@@ -260,11 +252,7 @@ public class MySQLLoaderTest extends LoaderTestBase
         testDataType("VARCHAR(19) FOR BIT DATA", list("'\\''","'\\\"'","'b\000\007\037'","'\077\024'"),
                      bytes(0x27), bytes(0x22), bytes(0x62,0x0,0x7,037),bytes(077,024));
     }
-    // text_________________'Lorem ipsum dolor sit amet'_'Lorem ipsum dolor sit amet'
-    // enum_________________'SECOND'_____________'second'
-    // set__________________'A|B'________________'a,b'
-    // tinyintAsBool________1____________________1
-    // intZerofill__________00017________________17
+
     @Test
     public void testIntZerofill() throws Exception {
         // in mysql this would be INT(5) ZEROFILL
