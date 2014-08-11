@@ -92,6 +92,10 @@ public class MySQLBuffer
     public void reset(int endIndex) {
         this.endIndex = endIndex;
         query = new Query(preparedStatement.toString(), values.toArray(emptyStringForToArray));
+        if (endIndex >= 0) {
+            rowBuffer.delete(0,endIndex);
+            currentIndex -= endIndex;
+        }
         preparedStatement.setLength(0);
         values.clear();
         firstRow = true;
@@ -116,8 +120,17 @@ public class MySQLBuffer
     public Query nextQuery() {
         return query;
     }
+    
+    public boolean hasQuery(boolean endOfFile) throws IOException, ParseException {
+        if (hasQuery()) {
+            return true;
+        } else if (endOfFile && state != State.STATEMENT_START) {
+            throw new UnexpectedEndOfFileException();
+        }
+        return false;
+    }
 
-    public boolean hasQuery() throws IOException,ParseException {
+    public boolean hasQuery() throws IOException, ParseException {
         while (currentIndex < rowBuffer.length()) {
             // DO NOT increment currentIndex within the switch
             // because we may be on the last character in the buffer
@@ -577,4 +590,5 @@ public class MySQLBuffer
             super("End of file mid statement");
         }
     }
+
 }

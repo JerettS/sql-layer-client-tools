@@ -129,33 +129,24 @@ public class LineReader
     // TODO At some point we should remove/reduce all this triple buffering stuff
     // at that point, combine these all into one.
     public boolean readLine (MySQLBuffer into) throws IOException,MySQLBuffer.ParseException {
-        StringBuilder line = new StringBuilder (SHORT_LINE);
         boolean eol = false;
         while (true) {
             while (chars.hasRemaining()) {
                 char ch = chars.get();
+                into.append(ch);
                 if (ch == '\n') {
                     eol = true;
                     lineCounter++;
                     break;
                 }
-                else if (ch != '\r')
-                    line.append(ch);
             }
 
             if (eol) {
-                if(!into.isEmpty()) {
-                    into.append('\n'); // replace the \n
-                    into.append(line.toString());
-                } else {
-                    into.append(line.toString());
-                }
-                line.setLength(0);
                 eol = false;
                 if (into.hasQuery()) return true;
             } else {
                 if (!refillCharsBuffer()) {
-                    return false;
+                    return into.hasQuery(true);
                 }
             }
         }
