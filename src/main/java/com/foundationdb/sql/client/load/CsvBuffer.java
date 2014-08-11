@@ -31,7 +31,8 @@ public class CsvBuffer
     private final String encoding;
 
     private List<String> values;
-    private int startIndex, endIndex, currentIndex;
+    private int endIndex;
+    private int currentIndex;
     private StringBuilder rowBuffer;
     private StringBuilder currentField = new StringBuilder();
     private State state;
@@ -68,7 +69,6 @@ public class CsvBuffer
     }
 
     public void reset() {
-        this.startIndex = 0;
         this.endIndex = UNSET;
         this.values = new ArrayList();
         this.currentIndex = 0;
