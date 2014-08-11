@@ -40,7 +40,9 @@ import java.util.UUID;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 
 public class CsvLoaderTest extends LoaderTestBase
@@ -114,64 +116,64 @@ public class CsvLoaderTest extends LoaderTestBase
 
     @Test
     public void testTooManyColumnsInHeader() throws Exception {
-        // TODO for now all we can do is assert that no rows are inserted, eventually better
-        // error handling will exist and we'll be able to have better tests
         expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states ",
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         options.format = Format.CSV_HEADER;
         assertLoad(0, "abbrev,name,other", "AL,Birmingham","MA,Boston");
+        assertThat(errorStream.toString(),
+                   containsString("No value specified for parameter 3."));
     }
 
     @Test
     public void testTooManyColumnsWithoutHeader() throws Exception {
-        // TODO for now all we can do is assert that no rows are inserted, eventually better
-        // error handling will exist and we'll be able to have better tests
         expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states ",
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(0, "AL,Birmingham,USA","MA,Boston");
+        assertThat(errorStream.toString(),
+                   containsString("Number of target columns (2) is not the same as number of expressions (3)"));
     }
 
     @Test
     public void testTooManyColumnsWithoutHeader2() throws Exception {
-        // TODO for now all we can do is assert that no rows are inserted, eventually better
-        // error handling will exist and we'll be able to have better tests
         expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states ",
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(0, "AL,Birmingham","MA,Boston,USA");
+        assertThat(errorStream.toString(),
+                   containsString("The column index is out of range: 3, number of columns: 2."));
     }
 
     @Test
     public void testTooFewColumnsInHeader() throws Exception {
-        // TODO for now all we can do is assert that no rows are inserted, eventually better
-        // error handling will exist and we'll be able to have better tests
         expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states ",
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         options.format = Format.CSV_HEADER;
         assertLoad(0, "abbrev", "AL,Birmingham","MA,Boston");
+        assertThat(errorStream.toString(),
+                   containsString("The column index is out of range: 2, number of columns: 1."));
     }
 
     @Test
     public void testTooFewColumnsWithoutHeader() throws Exception {
-        // TODO for now all we can do is assert that no rows are inserted, eventually better
-        // error handling will exist and we'll be able to have better tests
         expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states ",
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(0, "AL","MA,Boston");
+        assertThat(errorStream.toString(),
+                   containsString("The column index is out of range: 2, number of columns: 1."));
     }
 
     @Test
     public void testTooFewColumnsWithoutHeader2() throws Exception {
-        // TODO for now all we can do is assert that no rows are inserted, eventually better
-        // error handling will exist and we'll be able to have better tests
         expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states ",
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(0, "AL,Jackson","MA");
+        assertThat(errorStream.toString(),
+                   containsString("No value specified for parameter 2."));
     }
 
     @Test
