@@ -208,7 +208,8 @@ class CsvLoader extends FileLoader
             count += status.count;
         }
 
-        private void retry(Connection connection, StatementHelper stmt, CommitStatus status, List<String[]> uncommittedStatements, SQLException e) throws SQLException {
+        private void retry(Connection connection, StatementHelper stmt, CommitStatus status,
+                           List<String[]> uncommittedStatements, SQLException e) throws SQLException {
             for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
                 status.pending = 0;
                 try {
