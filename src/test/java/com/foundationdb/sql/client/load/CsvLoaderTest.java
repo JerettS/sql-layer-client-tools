@@ -196,6 +196,8 @@ public class CsvLoaderTest extends LoaderTestBase
             ddlRunner.keepGoing = false;
             ddlThread.stop();
         }
+        // just to make sure the ddlThread is done.
+        Thread.sleep(4);
         checkQuery("SELECT * FROM states ORDER BY abbrev", expected);
     }
 

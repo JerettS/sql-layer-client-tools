@@ -178,7 +178,15 @@ public class LoaderTestBase extends ClientTestBase{
                 while (keepGoing) {
                     loadDDL("DROP TABLE IF EXISTS foo", "CREATE TABLE foo (abbrev CHAR(4))");
                     Thread.sleep(sleepTime);
-                    sleepTime *= 2 * sleepTime * sleepTime;
+                    // running the csv & mysql retry tests multiple times put this at about 3 retries
+                    // on my machine, which should give some leway on the server
+                    // 1, 4, 256, 4294967296 milliseconds
+                    // if we can't import 100 rows in 50 days, something's terribly wrong
+                    // if it takes 1 millisecond before we start importing (possible), and we import the
+                    // 100 rows before the 4 milliseconds we won't need to retry, then we can import 30
+                    // rows in the amount of time it takes to prep to import the first row (not including
+                    // DDL stuff).
+                    sleepTime *= 4 * sleepTime * sleepTime;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
