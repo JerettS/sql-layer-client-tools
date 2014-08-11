@@ -169,6 +169,7 @@ public class LineReader
                 into.append(ch);
                 if (ch == '\n') {
                     eol = true;
+                    lineCounter++;
                     break;
                 }
             }
