@@ -252,6 +252,25 @@ public class LineReader
         }
     }
 
+    public long splitParseMySQL(long point, MySQLBuffer buffer) throws IOException, MySQLBuffer.ParseException {
+        long before = -1;
+        long after = -1;
+        decoder.reset();
+
+        while (position < point) {
+            before = position;
+            readLine(buffer);
+            buffer.reset();
+            after = position;
+        }
+
+        if (before < after) {
+            return after;
+        } else {
+            return before;
+        }
+    }
+
     public long splitParseCsv (long point, CsvBuffer buffer) throws IOException {
         long before = -1;
         long after = -1;

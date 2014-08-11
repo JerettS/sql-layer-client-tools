@@ -252,6 +252,46 @@ public class LineReaderMySQLBufferTest {
         assertReadLines(query("INSERT INTO \"t\" VALUES (?)", "1"), "INSERT INTO t VALUES (1);");
     }
 
+
+    @Test
+    public void testSplit() throws Exception {
+        // Note: right now we need the newlines because of a bug in LineReader.
+        // Since the mysql dumps always put newlines, hold off on fixing it until
+        // LineReader is removed.
+        String line1 = "INSERT INTO states VALUES (a,b),\n\t\t(c,d),\n\t\t(e,f);\n";
+        String line2 = "INSERT INTO states VALUES (3,4),(5,6);\n";
+        String line3 = "INSERT INTO states VALUES (x,y),\n\t\t(u,v);\n";
+        int fullLength = line1.length() + line2.length() + line3.length();
+        int split1 = fullLength / 3;
+        int split2 = split1 * 2;
+        assertNotEquals("Don't make it too easy", split1, line1.length());
+        File file = tmpFileFrom(false, line1, line2, line3);
+        FileInputStream istr = null;
+        try {
+            istr = new FileInputStream(file);
+            // NOTE: right now the char buffer size must be 1 for calling splitParse
+            LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
+            long splitPoint = lines.splitParseMySQL(split1, new MySQLBuffer(encoding));
+            long splitPoint2 = lines.splitParseMySQL(split2, new MySQLBuffer(encoding));
+            assertEquals("First split", line1, (line1 + line2 + line3).substring(0, (int)splitPoint));
+            //assertEquals("First split", line1.length(), splitPoint);
+            //assertEquals("Second splint", line1.length() + line2.length(), splitPoint2);
+            lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, splitPoint);
+            MySQLBuffer mySQL = new MySQLBuffer(encoding);
+            assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?), (?, ?)","a","b","c","d","e","f")), mySQL, lines);
+            lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint, splitPoint2);
+            mySQL = new MySQLBuffer(encoding);
+            assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)","3","4","5","6")), mySQL, lines);
+            lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint2, istr.getChannel().size());
+            mySQL = new MySQLBuffer(encoding);
+            assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)","x","y","u","v")), mySQL, lines);
+        } finally {
+            if (istr != null) {
+                istr.close();
+            }
+        }
+    }
+
     private static MySQLBuffer.Query query(String prepared, String... values) {
         return new MySQLBuffer.Query(prepared, values);
     }

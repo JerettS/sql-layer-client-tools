@@ -124,7 +124,7 @@ public class MySQLBuffer
             // and if you do that whatever state you have will be lost
             char c = rowBuffer.charAt(currentIndex++);
             if (swallowWhitespace) {
-                if (c == ' ' || (c == cr) || (c == nl)) {
+                if (Character.isWhitespace(c)) {
                     continue;
                 } else {
                     swallowWhitespace = false;
