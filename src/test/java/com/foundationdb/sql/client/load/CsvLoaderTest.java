@@ -300,8 +300,9 @@ public class CsvLoaderTest extends LoaderTestBase
 
     @Test
     public void testXBadGuid() throws Exception {
-        expectsErrorOutput = true;
         testBadDataType("GUID", list("64e79dec-ce47-4e06-85da", "xxxxxxxx-b30d-4084-a8bd-b66b05b7e402"));
+        assertThat(errorStream.toString(),
+                   containsString("Invalid UUID string: 64e79dec-ce47-4e06-85da"));
     }
 
     @Test
@@ -338,7 +339,7 @@ public class CsvLoaderTest extends LoaderTestBase
 
     private <T> void testBadDataType(String dataType, List<String> inputs) throws Exception
     {
-        // TODO eventually it should do more than just print to stderr, but for now, we'll just have to check that no rows were added
+        expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(key CHAR(4) PRIMARY KEY, value " + dataType + ")");
         for (String input : inputs) {
