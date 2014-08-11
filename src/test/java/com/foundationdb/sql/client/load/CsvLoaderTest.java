@@ -43,41 +43,11 @@ import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFr
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
 
-public class CsvLoaderTest extends ClientTestBase
+public class CsvLoaderTest extends LoaderTestBase
 {
-    private LoadClientOptions options;
-    // TODO if there's an error it just logs to StandardError, and doesn't insert
-    // for the most part. Since all error handling will be redone shortly, this is
-    // the stopgap, so that tests with errors don't flood the output when you run
-    // mvn test
-    private PrintStream originalError;
-    private ByteArrayOutputStream errorStream;
-    private boolean expectsErrorOutput = false;
-
-    @Before
-    @After
-    public void cleanUp() throws Exception {
-        dropSchema();
-    }
-
-    @Before
-    public void setStandardError() throws Exception {
-        originalError = System.err;
-        errorStream = new ByteArrayOutputStream();
-        System.setErr(new PrintStream(errorStream));
-    }
-
-    @After
-    public void resetStandardError() throws Exception {
-        System.setErr(originalError);
-    }
-
     @Before
     public void setupOptions() {
-        options = new LoadClientOptions();
-        fillBaseOptions(options);
-        options.schema = SCHEMA_NAME;
-        options.quiet = true;
+        super.setupOptions();
         options.format = Format.CSV;
         options.target = "states";
     }
@@ -303,7 +273,7 @@ public class CsvLoaderTest extends ClientTestBase
     @Test
     public void testDateTime() throws Exception {
         testDataType("DATETIME", list("1970-01-30 03:24:56", "2003-11-27 23:04:16", "2024-08-28 12:59:05"),
-                     date(1970,1,30,3,24,56), date(2003,11,27,23,4,16), date(2024,8,28,12,59,05));
+                     timestamp(1970,1,30,3,24,56), timestamp(2003,11,27,23,4,16), timestamp(2024,8,28,12,59,05));
     }
 
     @Test
@@ -388,84 +358,4 @@ public class CsvLoaderTest extends ClientTestBase
         checkQuery("SELECT * FROM states ORDER BY key", expected);
     }
 
-    private void assertLoad(int count, String... rows) throws Exception {
-        LoadClient client = new LoadClient(options);
-        try {
-            assertEquals(count, client.load(tmpFileFrom(true, rows)));
-        }
-        finally {
-            client.clearConnections();
-        }
-    }
-
-    protected void checkQuery(String query, List<List<Object>> expected) throws Exception {
-        Connection conn = openConnection();
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery(query);
-        int ncols = rs.getMetaData().getColumnCount();
-        List<List<Object>> actual = new ArrayList<>();
-        while (rs.next()) {
-            List<Object> row = new ArrayList<>();
-            for (int i = 1; i <= ncols; i++) {
-                row.add(rs.getObject(i));
-            }
-            actual.add(row);
-        }
-        rs.close();
-        stmt.close();
-        conn.close();
-
-        Object[][] expectedArray = new Object[expected.size()][];
-        for (int i=0; i<expected.size(); i++) {
-            expectedArray[i] = expected.get(i).toArray();
-        }
-
-        Object[][] actualArray = new Object[actual.size()][];
-        for (int i=0; i<actual.size(); i++) {
-            actualArray[i] = actual.get(i).toArray();
-        }
-        assertArrayEquals(query, expectedArray, actualArray);
-    }
-
-    protected void loadDDL(String... ddl) throws Exception {
-        Connection conn = openConnection();
-        Statement stmt = conn.createStatement();
-        for (String sql : ddl) {
-            stmt.execute(sql);
-        }
-        stmt.close();
-        conn.close();
-    }
-
-    protected Time time(int hour, int minute, int second) {
-        return new Time(date(1970,1,1,hour,minute,second).getTime());
-    }
-
-    protected Date date(int year, int month, int day) {
-        return date(year, month, day, 0, 0, 0);
-    }
-
-    protected Date date(int year, int month, int day, int hour, int minute, int second) {
-        GregorianCalendar calendar = new GregorianCalendar(TimeZone.getDefault(), Locale.US);
-        calendar.set(year, month-1, day, hour, minute, second);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return new Date(calendar.getTime().getTime());
-    }
-
-    private class DdlRunner implements Runnable {
-        public boolean keepGoing = true;
-        @Override
-        public void run() {
-            int sleepTime = 1;
-            try {
-                while (keepGoing) {
-                    loadDDL("DROP TABLE IF EXISTS foo", "CREATE TABLE foo (abbrev CHAR(4))");
-                    Thread.sleep(sleepTime);
-                    sleepTime *= 2 * sleepTime * sleepTime;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
 }
