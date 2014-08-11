@@ -35,7 +35,6 @@ public class MySQLBuffer
     private final String encoding;
 
     private List<String> values;
-    private int endIndex;
     private int currentIndex;
     private StringBuilder rowBuffer;
     private StringBuilder currentField = new StringBuilder();
@@ -90,7 +89,6 @@ public class MySQLBuffer
     }
 
     public void reset(int endIndex) {
-        this.endIndex = endIndex;
         query = new Query(preparedStatement.toString(), values.toArray(emptyStringForToArray));
         if (endIndex >= 0) {
             rowBuffer.delete(0,endIndex);
@@ -317,7 +315,6 @@ public class MySQLBuffer
                     if (values.size() == 0) {
                         throw new UnexpectedTokenException("a row", ';');
                     } else {
-                        endIndex = currentIndex;
                         state = State.STATEMENT_START;
                         reset(currentIndex);
                         return true;
