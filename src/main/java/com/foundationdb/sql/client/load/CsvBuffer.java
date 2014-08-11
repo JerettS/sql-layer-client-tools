@@ -103,88 +103,19 @@ public class CsvBuffer
             char b = rowBuffer.charAt(currentIndex++);
             switch (state) {
             case ROW_START:
-                if ((b == cr) || (b == nl)) {
-                    continue;
-                }
-                else if (b == delim) {
-                    values.add("");
-                    state = State.FIELD_START;
-                }
-                else if (b == quote) {
-                    state = State.IN_QUOTE;
-                }
-                else {
-                    currentField.append(b);
-                    state = State.IN_FIELD;
-                }
+                handleRowStart(b);
                 break;
             case FIELD_START:
-                if ((b == cr) || (b == nl)) {
-                    values.add(currentField.toString());
-                    endIndex = currentIndex;
-                    state = State.ROW_START;
-                    break;
-                }
-                else if (b == delim) {
-                    values.add(currentField.toString());
-                    currentField.setLength(0);
-                }
-                else if (b == quote) {
-                    state = State.IN_QUOTE;
-                }
-                else {
-                    currentField.append(b);
-                    state = State.IN_FIELD;
-                }
+                handleFieldStart(b);
                 break;
             case IN_FIELD:
-                if ((b == cr) || (b == nl)) {
-                    values.add(currentField.toString());
-                    currentField.setLength(0);
-                    endIndex = currentIndex;
-                    state = State.ROW_START;
-                    break;
-                }
-                else if (b == delim) {
-                    values.add(currentField.toString());
-                    currentField.setLength(0);
-                    state = State.FIELD_START;
-                }
-                else if (b == quote) {
-                    throw new UnsupportedOperationException("CSV File contains QUOTE in the middle of a field and cannot be fast loaded : " + rowBuffer);
-                }
-                else {
-                    currentField.append(b);
-                }
+                handleInField(b);
                 break;
             case IN_QUOTE:
-                if (b == quote) {
-                    state = State.AFTER_QUOTE;
-                }
-                else {
-                    currentField.append(b);
-                }
+                handleInQuote(b);
                 break;
             case AFTER_QUOTE:
-                if ((b == cr) || (b == nl)) {
-                    values.add(currentField.toString());
-                    currentField.setLength(0);
-                    endIndex = currentIndex;
-                    state = State.ROW_START;
-                    break;
-                }
-                else if (b == delim) {
-                    values.add(currentField.toString());
-                    currentField.setLength(0);
-                    state = State.FIELD_START;
-                }
-                else if (b == quote) {
-                    currentField.append(b);
-                    state = State.IN_QUOTE;
-                }
-                else {
-                    throw new UnsupportedOperationException("CSV File contains junk after quoted field and cannot be fast loaded : " + rowBuffer);
-                }
+                handleAfterQuote(b);
                 break;
             }
         }
@@ -195,6 +126,93 @@ public class CsvBuffer
             state = State.ROW_START;
         }
         return endIndex != UNSET;
+    }
+
+    private void handleRowStart(char b) {
+        if ((b == cr) || (b == nl)) {
+        }
+        else if (b == delim) {
+            values.add("");
+            state = State.FIELD_START;
+        }
+        else if (b == quote) {
+            state = State.IN_QUOTE;
+        }
+        else {
+            currentField.append(b);
+            state = State.IN_FIELD;
+        }
+    }
+
+    private void handleFieldStart(char b) {
+        if ((b == cr) || (b == nl)) {
+            values.add(currentField.toString());
+            endIndex = currentIndex;
+            state = State.ROW_START;
+        }
+        else if (b == delim) {
+            values.add(currentField.toString());
+            currentField.setLength(0);
+        }
+        else if (b == quote) {
+            state = State.IN_QUOTE;
+        }
+        else {
+            currentField.append(b);
+            state = State.IN_FIELD;
+        }
+    }
+
+    private void handleInField(char b) {
+        if ((b == cr) || (b == nl)) {
+            values.add(currentField.toString());
+            currentField.setLength(0);
+            endIndex = currentIndex;
+            state = State.ROW_START;
+        }
+        else if (b == delim) {
+            values.add(currentField.toString());
+            currentField.setLength(0);
+            state = State.FIELD_START;
+        }
+        else if (b == quote) {
+            throw new UnsupportedOperationException(
+                    "CSV File contains QUOTE in the middle of a field and cannot be fast loaded : " + rowBuffer);
+        }
+        else {
+            currentField.append(b);
+        }
+    }
+
+    private void handleInQuote(char b) {
+        if (b == quote) {
+            state = State.AFTER_QUOTE;
+        }
+        else {
+            currentField.append(b);
+        }
+    }
+
+    private void handleAfterQuote(char b) {
+        if ((b == cr) || (b == nl)) {
+            values.add(currentField.toString());
+            currentField.setLength(0);
+            endIndex = currentIndex;
+            state = State.ROW_START;
+        }
+        else if (b == delim) {
+            values.add(currentField.toString());
+            currentField.setLength(0);
+            state = State.FIELD_START;
+        }
+        else if (b == quote) {
+            currentField.append(b);
+            state = State.IN_QUOTE;
+        }
+        else {
+            throw new UnsupportedOperationException(
+                    "CSV File contains junk after quoted field and cannot be fast loaded : " + rowBuffer);
+        }
     }
 
 }
