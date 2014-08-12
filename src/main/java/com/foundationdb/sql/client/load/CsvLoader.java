@@ -37,14 +37,14 @@ class CsvLoader extends FileLoader
         this.header = header;
     }
 
-    public SegmentLoader wholeFile() throws IOException {
+    public SegmentLoader wholeFile() throws IOException, LineReader.ParseException {
         long start = 0;
         long end = channel.size();
         start = createPreparedStatement();
         return new CsvSegmentLoader(start,end);
     }
 
-    private long createPreparedStatement() throws IOException {
+    private long createPreparedStatement() throws IOException, LineReader.ParseException {
         long start;List<String> columns = null;
         int columnCount = 0;
         LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
@@ -100,7 +100,7 @@ class CsvLoader extends FileLoader
         return identifier.replaceAll("\"","\"\"");
     }
 
-    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
+    public List<? extends SegmentLoader> split(int nsegments) throws IOException, LineReader.ParseException {
         List<CsvSegmentLoader> segments = new ArrayList<>(nsegments);
         long start = 0;
         long end = channel.size();
@@ -117,7 +117,7 @@ class CsvLoader extends FileLoader
             else {
                 mid = start + (end - start) / nsegments;
             }
-            mid = lines.splitParseCsv(mid, new CsvBuffer(client.getEncoding()));
+            mid = lines.splitParse(mid, new CsvBuffer(client.getEncoding()));
             segments.add(new CsvSegmentLoader(start, mid));
             if (mid >= (end - 1))
                 return segments;

@@ -77,7 +77,7 @@ class MySQLLoader extends FileLoader
             else {
                 mid = start + (end - start) / nsegments;
             }
-            mid = lines.splitParseMySQL(mid, new MySQLBuffer(client.getEncoding()));
+            mid = lines.splitParse(mid, new MySQLBuffer(client.getEncoding()));
             segments.add(new MySQLSegmentLoader(start, mid));
             if (mid >= (end - 1))
                 return segments;

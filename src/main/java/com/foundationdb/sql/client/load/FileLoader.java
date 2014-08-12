@@ -39,7 +39,7 @@ abstract class FileLoader
     public void checkFormat() throws IOException {
     }
 
-    abstract SegmentLoader wholeFile() throws IOException;
+    abstract SegmentLoader wholeFile() throws IOException, LineReader.ParseException;
 
     abstract List<? extends SegmentLoader> split(int nsegments) throws IOException, LineReader.ParseException;
 

@@ -152,30 +152,6 @@ public class LineReader
         }
     }
 
-    public boolean readLine (CsvBuffer into) throws IOException {
-        boolean eol = false;
-        while (true) {
-            while (chars.hasRemaining()) {
-                char ch = chars.get();
-                into.append(ch);
-                if (ch == '\n') {
-                    eol = true;
-                    lineCounter++;
-                    break;
-                }
-            }
-
-            if (eol) {
-                eol = false;
-                if (into.hasStatement(false)) return true;
-            } else {
-                if (!refillCharsBuffer()) {
-                    return into.hasStatement(true);
-                }
-            }
-        }
-    }
-
     public boolean readLine(StringBuilder into) throws IOException {
         while (true) {
             while (chars.hasRemaining()) {
@@ -239,7 +215,7 @@ public class LineReader
         }
     }
 
-    public long splitParseMySQL(long point, MySQLBuffer buffer) throws IOException, ParseException {
+    public long splitParse(long point, StatementBuffer buffer) throws IOException, ParseException {
         long before = -1;
         long after = -1;
         decoder.reset();
@@ -247,26 +223,6 @@ public class LineReader
         while (position < point) {
             before = position;
             readLine(buffer);
-            buffer.reset();
-            after = position;
-        }
-
-        if (before < after) {
-            return after;
-        } else {
-            return before;
-        }
-    }
-
-    public long splitParseCsv (long point, CsvBuffer buffer) throws IOException {
-        long before = -1;
-        long after = -1;
-        decoder.reset();
-
-        while (position < point) {
-            before = position;
-            readLine(buffer);
-            buffer.reset();
             after = position;
         }
 

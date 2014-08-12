@@ -17,7 +17,6 @@ package com.foundationdb.sql.client.load;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,57 +29,57 @@ public class LineReaderCsvBufferTest {
     FileInputStream inputStream;
 
     @Test
-    public void simpleReadOneColumn() throws IOException {
+    public void simpleReadOneColumn() throws Exception {
         assertReadLines(list(list("field1")), "field1");
     }
 
     @Test
-    public void simpleRead() throws IOException {
+    public void simpleRead() throws Exception {
         assertReadLines(list(list("field1", "field2")), "field1,field2");
     }
 
     @Test
-    public void simpleReadMissingTrailingNewline() throws IOException {
+    public void simpleReadMissingTrailingNewline() throws Exception {
         assertReadLines(false, list(list("field1", "field2")), "field1,field2");
     }
 
     @Test
-    public void simpleReadTwoRows() throws IOException {
+    public void simpleReadTwoRows() throws Exception {
         assertReadLines(list(list("field1", "field2"),list("field3", "field4")), "field1,field2","field3,field4");
     }
 
     @Test
-    public void simpleMissingTrailingNewlineReadTwoRows() throws IOException {
+    public void simpleMissingTrailingNewlineReadTwoRows() throws Exception {
         assertReadLines(false, list(list("field1", "field2"),list("field3", "field4")), "field1,field2\n","field3,field4");
     }
 
     @Test
-    public void simpleQuoted() throws IOException {
+    public void simpleQuoted() throws Exception {
         assertReadLines(list(list("a field", "field2")), "\"a field\",field2");
     }
 
     @Test
-    public void simpleQuotedDelimiter() throws IOException {
+    public void simpleQuotedDelimiter() throws Exception {
         assertReadLines(list(list("a,field", "field2")), "\"a,field\",field2");
     }
 
     @Test
-    public void quotedNewline() throws IOException {
+    public void quotedNewline() throws Exception {
         assertReadLines(list(list("a\nfield", "field2")), "\"a\nfield\",field2");
     }
 
     @Test
-    public void quotedCarriageReturn() throws IOException {
+    public void quotedCarriageReturn() throws Exception {
         assertReadLines(list(list("a\rfield", "field2")), "\"a\rfield\",field2");
     }
 
     @Test
-    public void quotedQuote() throws IOException {
+    public void quotedQuote() throws Exception {
         assertReadLines(list(list("a field", "the \"second\" field")), "a field,\"the \"\"second\"\" field\"");
     }
 
     @Test
-    public void testSplit() throws IOException {
+    public void testSplit() throws Exception {
         String line1 = "first row,has the value,3";
         String line2 = "second row,has the value,17";
         String line3 = "third row,has the value,950";
@@ -94,8 +93,8 @@ public class LineReaderCsvBufferTest {
             istr = new FileInputStream(file);
             // NOTE: right now the char buffer size must be 1 for calling splitParse
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
-            long splitPoint = lines.splitParseCsv(split1, new CsvBuffer(encoding));
-            long splitPoint2 = lines.splitParseCsv(split2, new CsvBuffer(encoding));
+            long splitPoint = lines.splitParse(split1, new CsvBuffer(encoding));
+            long splitPoint2 = lines.splitParse(split2, new CsvBuffer(encoding));
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, splitPoint);
             CsvBuffer csv = new CsvBuffer(encoding);
             assertRows(list(list("first row", "has the value", "3")), csv, lines);
@@ -112,9 +111,6 @@ public class LineReaderCsvBufferTest {
         }
     }
 
-
-
-
     public static <T> List<T> list(T... values) {
         List<T> result = new ArrayList<>();
         for (T value : values) {
@@ -123,11 +119,11 @@ public class LineReaderCsvBufferTest {
         return result;
     }
 
-    private static void assertReadLines(List<List<String>> expected, String... input) throws IOException {
+    private static void assertReadLines(List<List<String>> expected, String... input) throws Exception {
         assertReadLines(true, expected, input);
     }
 
-    private static void assertReadLines(boolean insertNewlines, List<List<String>> expected, String... input) throws IOException {
+    private static void assertReadLines(boolean insertNewlines, List<List<String>> expected, String... input) throws Exception {
         File file = tmpFileFrom(insertNewlines, input);
         FileInputStream istr = null;
         try {
@@ -142,7 +138,7 @@ public class LineReaderCsvBufferTest {
         }
     }
 
-    private static void assertRows(List<List<String>> expected, CsvBuffer buffer, LineReader lines) throws IOException {
+    private static void assertRows(List<List<String>> expected, CsvBuffer buffer, LineReader lines) throws Exception {
         List<List<String>> actual = new ArrayList<>();
         while (lines.readLine(buffer)) {
             actual.add(buffer.nextStatement());
@@ -150,7 +146,7 @@ public class LineReaderCsvBufferTest {
         assertArrayEquals(expected.toArray(), actual.toArray());
     }
 
-    public static File tmpFileFrom(boolean insertNewlines, String... lines) throws IOException {
+    public static File tmpFileFrom(boolean insertNewlines, String... lines) throws Exception {
         File tmpFile = File.createTempFile(LineReaderQueryBufferTest.class.getSimpleName(), null);
         tmpFile.deleteOnExit();
         FileWriter writer = new FileWriter(tmpFile);

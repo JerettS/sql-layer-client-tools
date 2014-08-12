@@ -268,8 +268,8 @@ public class LineReaderMySQLBufferTest {
             istr = new FileInputStream(file);
             // NOTE: right now the char buffer size must be 1 for calling splitParse
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
-            long splitPoint = lines.splitParseMySQL(split1, new MySQLBuffer(encoding));
-            long splitPoint2 = lines.splitParseMySQL(split2, new MySQLBuffer(encoding));
+            long splitPoint = lines.splitParse(split1, new MySQLBuffer(encoding));
+            long splitPoint2 = lines.splitParse(split2, new MySQLBuffer(encoding));
             assertEquals("First split", line1, (line1 + line2 + line3).substring(0, (int)splitPoint));
             //assertEquals("First split", line1.length(), splitPoint);
             //assertEquals("Second splint", line1.length() + line2.length(), splitPoint2);
