@@ -18,7 +18,6 @@
 package com.foundationdb.sql.client.load;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
@@ -27,8 +26,10 @@ import java.util.List;
 public class CsvBuffer implements StatementBuffer<List<String>>
 {
     private static final int UNSET = -1;
-    private final int delim, quote, escape, nl, cr;
-    private final String encoding;
+    private static final char DELIM = ',';
+    private static final char QUOTE = '\"';
+    private static final char NEWLINE = '\n';
+    private static final char CARRIAGE_RETURN = '\r';
 
     private List<String> values;
     private int endIndex;
@@ -39,33 +40,9 @@ public class CsvBuffer implements StatementBuffer<List<String>>
 
     private enum State { ROW_START, FIELD_START, IN_FIELD, IN_QUOTE, AFTER_QUOTE };
 
-    public CsvBuffer(String encoding) {
-        this.encoding = encoding;
-        this.delim = getSingleByte(",");
-        this.quote = getSingleByte("\"");
-        this.escape = quote;
-        this.nl = getSingleByte("\n");
-        this.cr = getSingleByte("\r");
+    public CsvBuffer() {
         this.rowBuffer = new StringBuilder();
         reset();
-    }
-
-    private byte[] getBytes(String str) {
-        try {
-            return str.getBytes(encoding);
-        }
-        catch (UnsupportedEncodingException ex) {
-            UnsupportedCharsetException nex = new UnsupportedCharsetException(encoding);
-            nex.initCause(ex);
-            throw nex;
-        }
-    }
-
-    private int getSingleByte(String str) {
-        byte[] bytes = getBytes(str);
-        if (bytes.length != 1)
-            throw new IllegalArgumentException("Must encode as a single byte.");
-        return bytes[0] & 0xFF;
     }
 
     public void reset() {
@@ -100,29 +77,29 @@ public class CsvBuffer implements StatementBuffer<List<String>>
 
     public boolean hasStatement(boolean endOfFile) throws IOException {
         if (endOfFile && !isEmpty()) {
-            append('\n'); // replace the \n
+            append(NEWLINE); // replace the \n
         }
         return hasStatement();
     }
 
     public boolean hasStatement() throws IOException {
         while (currentIndex < rowBuffer.length()) {
-            char b = rowBuffer.charAt(currentIndex++);
+            char ch = rowBuffer.charAt(currentIndex++);
             switch (state) {
             case ROW_START:
-                handleRowStart(b);
+                handleRowStart(ch);
                 break;
             case FIELD_START:
-                handleFieldStart(b);
+                handleFieldStart(ch);
                 break;
             case IN_FIELD:
-                handleInField(b);
+                handleInField(ch);
                 break;
             case IN_QUOTE:
-                handleInQuote(b);
+                handleInQuote(ch);
                 break;
             case AFTER_QUOTE:
-                handleAfterQuote(b);
+                handleAfterQuote(ch);
                 break;
             }
         }
@@ -136,13 +113,13 @@ public class CsvBuffer implements StatementBuffer<List<String>>
     }
 
     private void handleRowStart(char b) {
-        if ((b == cr) || (b == nl)) {
+        if ((b == CARRIAGE_RETURN) || (b == NEWLINE)) {
         }
-        else if (b == delim) {
+        else if (b == DELIM) {
             values.add("");
             state = State.FIELD_START;
         }
-        else if (b == quote) {
+        else if (b == QUOTE) {
             state = State.IN_QUOTE;
         }
         else {
@@ -152,16 +129,16 @@ public class CsvBuffer implements StatementBuffer<List<String>>
     }
 
     private void handleFieldStart(char b) {
-        if ((b == cr) || (b == nl)) {
+        if ((b == CARRIAGE_RETURN) || (b == NEWLINE)) {
             values.add(currentField.toString());
             endIndex = currentIndex;
             state = State.ROW_START;
         }
-        else if (b == delim) {
+        else if (b == DELIM) {
             values.add(currentField.toString());
             currentField.setLength(0);
         }
-        else if (b == quote) {
+        else if (b == QUOTE) {
             state = State.IN_QUOTE;
         }
         else {
@@ -171,18 +148,18 @@ public class CsvBuffer implements StatementBuffer<List<String>>
     }
 
     private void handleInField(char b) {
-        if ((b == cr) || (b == nl)) {
+        if ((b == CARRIAGE_RETURN) || (b == NEWLINE)) {
             values.add(currentField.toString());
             currentField.setLength(0);
             endIndex = currentIndex;
             state = State.ROW_START;
         }
-        else if (b == delim) {
+        else if (b == DELIM) {
             values.add(currentField.toString());
             currentField.setLength(0);
             state = State.FIELD_START;
         }
-        else if (b == quote) {
+        else if (b == QUOTE) {
             throw new UnsupportedOperationException(
                     "CSV File contains QUOTE in the middle of a field and cannot be fast loaded : " + rowBuffer);
         }
@@ -192,7 +169,7 @@ public class CsvBuffer implements StatementBuffer<List<String>>
     }
 
     private void handleInQuote(char b) {
-        if (b == quote) {
+        if (b == QUOTE) {
             state = State.AFTER_QUOTE;
         }
         else {
@@ -201,18 +178,18 @@ public class CsvBuffer implements StatementBuffer<List<String>>
     }
 
     private void handleAfterQuote(char b) {
-        if ((b == cr) || (b == nl)) {
+        if ((b == CARRIAGE_RETURN) || (b == NEWLINE)) {
             values.add(currentField.toString());
             currentField.setLength(0);
             endIndex = currentIndex;
             state = State.ROW_START;
         }
-        else if (b == delim) {
+        else if (b == DELIM) {
             values.add(currentField.toString());
             currentField.setLength(0);
             state = State.FIELD_START;
         }
-        else if (b == quote) {
+        else if (b == QUOTE) {
             currentField.append(b);
             state = State.IN_QUOTE;
         }

@@ -268,19 +268,19 @@ public class LineReaderMySQLBufferTest {
             istr = new FileInputStream(file);
             // NOTE: right now the char buffer size must be 1 for calling splitParse
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
-            long splitPoint = lines.splitParse(split1, new MySQLBuffer(encoding));
-            long splitPoint2 = lines.splitParse(split2, new MySQLBuffer(encoding));
+            long splitPoint = lines.splitParse(split1, new MySQLBuffer());
+            long splitPoint2 = lines.splitParse(split2, new MySQLBuffer());
             assertEquals("First split", line1, (line1 + line2 + line3).substring(0, (int)splitPoint));
             //assertEquals("First split", line1.length(), splitPoint);
             //assertEquals("Second splint", line1.length() + line2.length(), splitPoint2);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, splitPoint);
-            MySQLBuffer mySQL = new MySQLBuffer(encoding);
+            MySQLBuffer mySQL = new MySQLBuffer();
             assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?), (?, ?)","a","b","c","d","e","f")), mySQL, lines);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint, splitPoint2);
-            mySQL = new MySQLBuffer(encoding);
+            mySQL = new MySQLBuffer();
             assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)","3","4","5","6")), mySQL, lines);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint2, istr.getChannel().size());
-            mySQL = new MySQLBuffer(encoding);
+            mySQL = new MySQLBuffer();
             assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)","x","y","u","v")), mySQL, lines);
         } finally {
             if (istr != null) {
@@ -311,7 +311,7 @@ public class LineReaderMySQLBufferTest {
         try {
             istr = new FileInputStream(file);
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
-            MySQLBuffer b = new MySQLBuffer(encoding);
+            MySQLBuffer b = new MySQLBuffer();
             assertRows(expected, b, lines);
         } finally {
             if (istr != null) {
@@ -338,7 +338,7 @@ public class LineReaderMySQLBufferTest {
         try {
             istr = new FileInputStream(file);
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
-            MySQLBuffer buffer = new MySQLBuffer(encoding);
+            MySQLBuffer buffer = new MySQLBuffer();
             try {
                 while (lines.readLine(buffer)) {
                     buffer.nextStatement();

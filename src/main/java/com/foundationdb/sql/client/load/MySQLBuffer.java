@@ -16,8 +16,6 @@
 package com.foundationdb.sql.client.load;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,9 +28,8 @@ import java.util.List;
  */
 public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     private static final int UNSET = -1;
-    private final int nl;
-    private final int cr;
-    private final String encoding;
+    private static final char NEWLINE = '\n';
+    private static final char CARRIAGE_RETURN = '\r';
 
     private List<String> values;
     private int currentIndex;
@@ -51,30 +48,9 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
                          INSERT, INSERT_TABLE_NAME, INSERT_TABLE_QUOTED, INSERT_VALUES_KEYWORD,
                          ROW_START, AFTER_ROW, FIELD_START, FIELD, QUOTED_FIELD, AFTER_QUOTED_FIELD };
 
-    public MySQLBuffer(String encoding) {
-        this.encoding = encoding;
-        this.nl = getSingleByte("\n");
-        this.cr = getSingleByte("\r");
+    public MySQLBuffer() {
         this.rowBuffer = new StringBuilder();
         reset();
-    }
-
-    private byte[] getBytes(String str) {
-        try {
-            return str.getBytes(encoding);
-        }
-        catch (UnsupportedEncodingException ex) {
-            UnsupportedCharsetException nex = new UnsupportedCharsetException(encoding);
-            nex.initCause(ex);
-            throw nex;
-        }
-    }
-
-    private int getSingleByte(String str) {
-        byte[] bytes = getBytes(str);
-        if (bytes.length != 1)
-            throw new IllegalArgumentException("Must encode as a single byte.");
-        return bytes[0] & 0xFF;
     }
 
     public void reset() {
@@ -152,7 +128,7 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
                 }
                 break;
             case SINGLE_LINE_COMMENT:
-                if (c == nl) {
+                if (c == NEWLINE) {
                     state = State.STATEMENT_START;
                 } // else ignore
                 break;
@@ -218,7 +194,7 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     }
 
     private void handleStatementStart(char c) throws UnexpectedTokenException {
-        if ((c == cr) || (c == nl) || (c == ';')) {
+        if ((c == CARRIAGE_RETURN) || (c == NEWLINE) || (c == ';')) {
             return;
         }
         else if (c == '-') {

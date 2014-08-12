@@ -48,7 +48,7 @@ class CsvLoader extends FileLoader
         long start;List<String> columns = null;
         int columnCount = 0;
         LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
-        CsvBuffer buffer = new CsvBuffer(client.getEncoding());
+        CsvBuffer buffer = new CsvBuffer();
         if (lines.readLine(buffer) && buffer.hasStatement()) {
             if (header) {
                 columns = buffer.nextStatement();
@@ -117,7 +117,7 @@ class CsvLoader extends FileLoader
             else {
                 mid = start + (end - start) / nsegments;
             }
-            mid = lines.splitParse(mid, new CsvBuffer(client.getEncoding()));
+            mid = lines.splitParse(mid, new CsvBuffer());
             segments.add(new CsvSegmentLoader(start, mid));
             if (mid >= (end - 1))
                 return segments;
@@ -153,7 +153,7 @@ class CsvLoader extends FileLoader
                                        start, end);
                 connection = client.getConnection(false);
                 stmt = new StatementHelper(connection);
-                CsvBuffer buffer = new CsvBuffer(client.getEncoding());
+                CsvBuffer buffer = new CsvBuffer();
                 while (true) {
                     if (!lines.readLine(buffer)) {
                         break;
