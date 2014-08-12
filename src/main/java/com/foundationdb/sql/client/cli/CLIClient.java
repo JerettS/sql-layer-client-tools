@@ -17,7 +17,7 @@ package com.foundationdb.sql.client.cli;
 
 // jansi-native is bundled with jline
 import org.fusesource.jansi.internal.CLibrary;
-import org.postgresql.util.PSQLState;
+import com.foundationdb.sql.jdbc.util.PSQLState;
 
 import com.foundationdb.sql.client.cli.CLIClientOptions.OnErrorStatus;
 import com.foundationdb.sql.client.cli.CLIClientOptions.OnErrorType;

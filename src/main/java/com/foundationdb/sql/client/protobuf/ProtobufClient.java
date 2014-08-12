@@ -15,7 +15,7 @@
 
 package com.foundationdb.sql.client.protobuf;
 
-import org.postgresql.copy.CopyManager;
+import com.foundationdb.sql.jdbc.copy.CopyManager;
 
 import java.io.*;
 import java.sql.*;
@@ -119,7 +119,7 @@ public class ProtobufClient
     protected void openConnection() throws Exception {
         String url = options.getURL(options.schema);
         connection = DriverManager.getConnection(url, options.user, options.password);
-        copyManager = new CopyManager((org.postgresql.core.BaseConnection)connection);
+        copyManager = new CopyManager((com.foundationdb.sql.jdbc.core.BaseConnection)connection);
     }
 
     protected void closeConnection() {

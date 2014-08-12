@@ -16,7 +16,7 @@
 package com.foundationdb.sql.client.dump;
 
 import com.foundationdb.sql.client.StatementHelper;
-import org.postgresql.copy.CopyManager;
+import com.foundationdb.sql.jdbc.copy.CopyManager;
 
 import java.io.*;
 import java.sql.*;
@@ -1116,7 +1116,7 @@ public class DumpClient
             stmtHelper.executeQuery("SET transactionPeriodicallyCommit TO 'true'");
         }
         if (dumpData)
-            copyManager = new CopyManager((org.postgresql.core.BaseConnection)connection);
+            copyManager = new CopyManager((com.foundationdb.sql.jdbc.core.BaseConnection)connection);
     }
 
     protected void close() {
