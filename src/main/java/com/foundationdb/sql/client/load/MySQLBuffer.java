@@ -118,7 +118,7 @@ public class MySQLBuffer
     public Query nextQuery() {
         return query;
     }
-    
+
     public boolean hasQuery(boolean endOfFile) throws IOException, ParseException {
         if (hasQuery()) {
             return true;
@@ -143,276 +143,318 @@ public class MySQLBuffer
             }
             switch (state) {
             case STATEMENT_START:
-                if ((c == cr) || (c == nl) || (c == ';')) {
-                    continue;
-                }
-                else if (c == '-') {
-                    state = State.LINE_COMMENT_START;
-                    continue;
-                } else if (c == '/') {
-                    state = State.AFTER_FORWARD_SLASH;
-                    continue;
-                } else if (Character.isLetter(c)) {
-                    clearCurrentField();
-                    currentField.append(c);
-                    state = State.STATEMENT_VERB;
-                    continue;
-                } else {
-                    throw new UnexpectedTokenException("a statement start", 'c');
-                }
+                handleStatementStart(c);
+                break;
             case LINE_COMMENT_START:
                 if (c == '-') {
                     state = State.SINGLE_LINE_COMMENT;
-                    continue;
                 } else {
                     throw new UnexpectedTokenException('-', c);
                 }
+                break;
             case SINGLE_LINE_COMMENT:
                 if (c == nl) {
                     state = State.STATEMENT_START;
-                    continue;
                 } // else ignore
                 break;
             case AFTER_FORWARD_SLASH:
                 if (c == '*') {
                     state = State.DELIMITED_COMMENT;
-                    continue;
                 } else {
                     throw new UnexpectedTokenException('*',c);
                 }
+                break;
             case DELIMITED_COMMENT:
                 if (c == '*') {
                     state = State.FINISHING_DELIMITED_COMMENT;
-                    continue;
                 } // else ignore
                 break;
             case FINISHING_DELIMITED_COMMENT:
-                if (c == '/') {
-                    state = State.STATEMENT_START;
-                    continue;
-                } else {
-                    // back to comment
-                    state = State.DELIMITED_COMMENT;
-                    continue;
-                }
+                handleFinishingDelimitedComment(c);
+                break;
             case STATEMENT_VERB:
-                if (readKeyword(c)) {
-                    String s = currentField.toString();
-                    if (s.equalsIgnoreCase("lock") || s.equalsIgnoreCase("unlock")) {
-                        state = State.IGNORED_STATEMENT;
-                        continue;
-                    } else if (s.equalsIgnoreCase("insert")) {
-                        swallowWhitespace = true;
-                        state = State.INSERT;
-                        clearCurrentField();
-                        continue;
-                    } else {
-                        throw new UnexpectedKeyword("INSERT", currentField.toString());
-                    }
-                }
+                handleStatementVerb(c);
                 break;
             case IGNORED_STATEMENT:
-                if (c == ';') {
-                    clearCurrentField();
-                    swallowWhitespace = true;
-                    state = State.STATEMENT_START;
-                    continue;
-                } else if (isQuote(c)) {
-                    quoteChar = c;
-                    state = State.IGNORED_STATEMENT_QUOTE;
-                    continue;
-                } else {
-                    // ignored character
-                    continue;
-                }
+                handleIgnoredStatement(c);
+                break;
             case IGNORED_STATEMENT_QUOTE:
-                if (escapedChar) {
-                    escapedChar = false;
-                    continue;
-                } else if (c == quoteChar) {
-                    state = State.IGNORED_STATEMENT;
-                    continue;
-                } else if (c == '\\') {
-                    escapedChar = true;
-                    continue;
-                } else {
-                    // ignored character
-                    continue;
-                }
+                handleIgnoredStatementQuote(c);
+                break;
             case INSERT:
-                if (readKeyword(c)) {
-                    String s = currentField.toString();
-                    if (s.equalsIgnoreCase("into")) {
-                        swallowWhitespace = true;
-                        state = State.INSERT_TABLE_NAME;
-                        preparedStatement.append("INSERT INTO ");
-                        clearCurrentField();
-                        continue;
-                    } else {
-                        throw new UnexpectedKeyword("INTO", currentField.toString());
-                    }
-                }
+                handleInsert(c);
                 break;
             case INSERT_TABLE_NAME:
-                if (isQuote(c)) {
-                    quoteChar = c;
-                    state = State.INSERT_TABLE_QUOTED;
-                    continue;
-                } else if (isIdentifierCharacter(c)) {
-                    currentField.append(c);
-                    continue;
-                } else if (c == ' ') {
-                    setTableName();
-                    swallowWhitespace = true;
-                    state = State.INSERT_VALUES_KEYWORD;
-                    continue;
-                } else {
-                    throw new UnexpectedTokenException("a valid identifier character", c);
-                }
+                handleInsertTableName(c);
+                break;
             case INSERT_TABLE_QUOTED:
-                if (escapedChar) {
-                    currentField.append(c);
-                    escapedChar = false;
-                    continue;
-                } else if (c == quoteChar) {
-                    setTableName();
-                    swallowWhitespace = true;
-                    state = State.INSERT_VALUES_KEYWORD;
-                    continue;
-                } else if (c == '\\') {
-                    escapedChar = true;
-                    continue;
-                } else {
-                    currentField.append(c);
-                    continue;
-                }
+                handleInsertTableQuoted(c);
+                break;
             case INSERT_VALUES_KEYWORD:
-                if (readKeyword(c)) {
-                    String s = currentField.toString();
-                    if (s.equalsIgnoreCase("values")) {
-                        state = State.ROW_START;
-                        preparedStatement.append("VALUES ");
-                        continue;
-                    } else {
-                        throw new UnexpectedKeyword("VALUES", s);
-                    }
-                }
+                handleValuesKeyword(c);
                 break;
             case ROW_START:
-                if (c == '(') {
-                    addRow();
-                    state = State.FIELD_START;
-                    continue;
-                } else {
-                    throw new UnexpectedTokenException('(', c);
-                }
+                handleRowStart(c);
+                break;
             case AFTER_ROW:
-                if (c == ',') {
-                    swallowWhitespace = true;
-                    state = State.ROW_START;
-                    continue;
-                } else if (c == ';') {
-                    if (values.size() == 0) {
-                        throw new UnexpectedTokenException("a row", ';');
-                    } else {
-                        state = State.STATEMENT_START;
-                        reset(currentIndex);
-                        return true;
-                    }
-                } else {
-                    throw new UnexpectedTokenException("a ',' or ';'", c);
+                if (handleAfterRow(c)) {
+                    return true;
                 }
+                break;
             case FIELD_START:
-                clearCurrentField();
-                if (isQuote(c)) {
-                    quoteChar = c;
-                    clearCurrentField();
-                    state = State.QUOTED_FIELD;
-                    continue;
-                } else {
-                    currentField.append(c);
-                    state = State.FIELD;
-                    continue;
-                }
+                handleFieldStart(c);
+                break;
             case FIELD:
-                if (c == ')') {
-                    addField();
-                    endRow();
-                    swallowWhitespace = true;
-                    state = State.AFTER_ROW;
-                    continue;
-                } else if (c == ',') {
-                    addField();
-                    swallowWhitespace = true;
-                    state = State.FIELD_START;
-                    continue;
-                } else if (isQuote(c)) {
-                    throw new UnexpectedTokenException("a literal character", '\'');
-                } else {
-                    currentField.append(c);
-                    break;
-                }
+                handleField(c);
+                break;
             case QUOTED_FIELD:
-                if (escapedChar) {
-                    escapedChar = false;
-                    switch (c) {
-                    case '0':
-                        currentField.append('\000');
-                        break;
-                    case 'b':
-                        currentField.append('\b');
-                        break;
-                    case 'n':
-                        currentField.append('\n');
-                        break;
-                    case 'r':
-                        currentField.append('\r');
-                        break;
-                    case 't':
-                        currentField.append('\t');
-                        break;
-                    case 'Z':
-                        // The ASCII 26 character can be encoded as “\Z” to enable you to work
-                        //  around the problem that ASCII 26 stands for END-OF-FILE on Windows.
-                        //  ASCII 26 within a file causes problems if you try to use mysql db_name < file_name.
-                        currentField.append('\u001A');
-                        break;
-                    default:
-                        currentField.append(c);
-                        break;
-                    }
-                    continue;
-                } else if (c == quoteChar) {
-                    swallowWhitespace = true;
-                    state = State.AFTER_QUOTED_FIELD;
-                    continue;
-                } else if (c == '\\') {
-                    escapedChar = true;
-                    continue;
-                } else {
-                    currentField.append(c);
-                    continue;
-                }
+                handleQuotedField(c);
+                break;
             case AFTER_QUOTED_FIELD:
-                if (c == quoteChar) {
-                    currentField.append(c);
-                    state = State.QUOTED_FIELD;
-                    continue;
-                } else if (c == ',') {
-                    addField();
-                    swallowWhitespace = true;
-                    state = State.FIELD_START;
-                    continue;
-                } else if (c == ')') {
-                    addField();
-                    swallowWhitespace = true;
-                    endRow();
-                    state = State.AFTER_ROW;
-                    continue;
-                } else {
-                    throw new UnexpectedTokenException("',' or ')'", c);
-                }
+                handleAfterQuotedField(c);
+                break;
             }
+        }
+        return false;
+    }
+
+    private void handleStatementStart(char c) throws UnexpectedTokenException {
+        if ((c == cr) || (c == nl) || (c == ';')) {
+            return;
+        }
+        else if (c == '-') {
+            state = State.LINE_COMMENT_START;
+        } else if (c == '/') {
+            state = State.AFTER_FORWARD_SLASH;
+        } else if (Character.isLetter(c)) {
+            clearCurrentField();
+            currentField.append(c);
+            state = State.STATEMENT_VERB;
+        } else {
+            throw new UnexpectedTokenException("a statement start", 'c');
+        }
+    }
+
+    private void handleStatementVerb(char c) throws UnexpectedTokenException, UnexpectedKeyword {
+        if (readKeyword(c)) {
+            String s = currentField.toString();
+            if (s.equalsIgnoreCase("lock") || s.equalsIgnoreCase("unlock")) {
+                state = State.IGNORED_STATEMENT;
+            } else if (s.equalsIgnoreCase("insert")) {
+                swallowWhitespace = true;
+                state = State.INSERT;
+                clearCurrentField();
+            } else {
+                throw new UnexpectedKeyword("INSERT", currentField.toString());
+            }
+        }
+    }
+
+    private void handleFinishingDelimitedComment(char c) {
+        if (c == '/') {
+            state = State.STATEMENT_START;
+        } else {
+            // back to comment
+            state = State.DELIMITED_COMMENT;
+        }
+    }
+
+    private void handleIgnoredStatement(char c) {
+        if (c == ';') {
+            clearCurrentField();
+            swallowWhitespace = true;
+            state = State.STATEMENT_START;
+        } else if (isQuote(c)) {
+            quoteChar = c;
+            state = State.IGNORED_STATEMENT_QUOTE;
+        } else {
+            // ignored character
+        }
+    }
+
+    private void handleIgnoredStatementQuote(char c) {
+        if (escapedChar) {
+            escapedChar = false;
+        } else if (c == quoteChar) {
+            state = State.IGNORED_STATEMENT;
+        } else if (c == '\\') {
+            escapedChar = true;
+        } else {
+            // ignored character
+        }
+    }
+
+    private void handleInsert(char c) throws UnexpectedTokenException, UnexpectedKeyword {
+        if (readKeyword(c)) {
+            String s = currentField.toString();
+            if (s.equalsIgnoreCase("into")) {
+                swallowWhitespace = true;
+                state = State.INSERT_TABLE_NAME;
+                preparedStatement.append("INSERT INTO ");
+                clearCurrentField();
+            } else {
+                throw new UnexpectedKeyword("INTO", currentField.toString());
+            }
+        }
+    }
+
+    private void handleInsertTableName(char c) throws UnexpectedTokenException {
+        if (isQuote(c)) {
+            quoteChar = c;
+            state = State.INSERT_TABLE_QUOTED;
+        } else if (isIdentifierCharacter(c)) {
+            currentField.append(c);
+        } else if (c == ' ') {
+            setTableName();
+            swallowWhitespace = true;
+            state = State.INSERT_VALUES_KEYWORD;
+        } else {
+            throw new UnexpectedTokenException("a valid identifier character", c);
+        }
+    }
+
+    private void handleInsertTableQuoted(char c) {
+        if (escapedChar) {
+            currentField.append(c);
+            escapedChar = false;
+        } else if (c == quoteChar) {
+            setTableName();
+            swallowWhitespace = true;
+            state = State.INSERT_VALUES_KEYWORD;
+        } else if (c == '\\') {
+            escapedChar = true;
+        } else {
+            currentField.append(c);
+        }
+    }
+
+    private void handleValuesKeyword(char c) throws UnexpectedTokenException, UnexpectedKeyword {
+        if (readKeyword(c)) {
+            String s = currentField.toString();
+            if (s.equalsIgnoreCase("values")) {
+                state = State.ROW_START;
+                preparedStatement.append("VALUES ");
+            } else {
+                throw new UnexpectedKeyword("VALUES", s);
+            }
+        }
+    }
+
+    private void handleRowStart(char c) throws UnexpectedTokenException {
+        if (c == '(') {
+            firstField = true;
+            if (firstRow) {
+                preparedStatement.append("(");
+                firstRow = false;
+            } else {
+                preparedStatement.append(", (");
+            }
+            state = State.FIELD_START;
+        } else {
+            throw new UnexpectedTokenException('(', c);
+        }
+    }
+
+    private void handleFieldStart(char c) {
+        clearCurrentField();
+        if (isQuote(c)) {
+            quoteChar = c;
+            clearCurrentField();
+            state = State.QUOTED_FIELD;
+        } else {
+            currentField.append(c);
+            state = State.FIELD;
+        }
+    }
+
+    private void handleField(char c) throws UnexpectedTokenException {
+        if (c == ')') {
+            addField();
+            endRow();
+            swallowWhitespace = true;
+            state = State.AFTER_ROW;
+        } else if (c == ',') {
+            addField();
+            swallowWhitespace = true;
+            state = State.FIELD_START;
+        } else if (isQuote(c)) {
+            throw new UnexpectedTokenException("a literal character", '\'');
+        } else {
+            currentField.append(c);
+        }
+    }
+
+    private void handleQuotedField(char c) {
+        if (escapedChar) {
+            escapedChar = false;
+            switch (c) {
+            case '0':
+                currentField.append('\000');
+                break;
+            case 'b':
+                currentField.append('\b');
+                break;
+            case 'n':
+                currentField.append('\n');
+                break;
+            case 'r':
+                currentField.append('\r');
+                break;
+            case 't':
+                currentField.append('\t');
+                break;
+            case 'Z':
+                // The ASCII 26 character can be encoded as “\Z” to enable you to work
+                //  around the problem that ASCII 26 stands for END-OF-FILE on Windows.
+                //  ASCII 26 within a file causes problems if you try to use mysql db_name < file_name.
+                currentField.append('\u001A');
+                break;
+            default:
+                currentField.append(c);
+                break;
+            }
+        } else if (c == quoteChar) {
+            swallowWhitespace = true;
+            state = State.AFTER_QUOTED_FIELD;
+        } else if (c == '\\') {
+            escapedChar = true;
+        } else {
+            currentField.append(c);
+        }
+    }
+
+    private void handleAfterQuotedField(char c) throws UnexpectedTokenException {
+        if (c == quoteChar) {
+            currentField.append(c);
+            state = State.QUOTED_FIELD;
+        } else if (c == ',') {
+            addField();
+            swallowWhitespace = true;
+            state = State.FIELD_START;
+        } else if (c == ')') {
+            addField();
+            swallowWhitespace = true;
+            endRow();
+            state = State.AFTER_ROW;
+        } else {
+            throw new UnexpectedTokenException("',' or ')'", c);
+        }
+    }
+
+    private boolean handleAfterRow(char c) throws UnexpectedTokenException {
+        if (c == ',') {
+            swallowWhitespace = true;
+            state = State.ROW_START;
+        } else if (c == ';') {
+            if (values.size() == 0) {
+                throw new UnexpectedTokenException("a row", ';');
+            } else {
+                state = State.STATEMENT_START;
+                reset(currentIndex);
+                return true;
+            }
+        } else {
+            throw new UnexpectedTokenException("a ',' or ';'", c);
         }
         return false;
     }
@@ -450,16 +492,6 @@ public class MySQLBuffer
         preparedStatement.append('"');
         preparedStatement.append(' ');
         clearCurrentField();
-    }
-
-    private void addRow() {
-        firstField = true;
-        if (firstRow) {
-            preparedStatement.append("(");
-            firstRow = false;
-        } else {
-            preparedStatement.append(", (");
-        }
     }
 
     private void endRow() {
