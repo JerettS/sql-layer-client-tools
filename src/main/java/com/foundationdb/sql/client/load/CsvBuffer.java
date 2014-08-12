@@ -24,7 +24,7 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CsvBuffer
+public class CsvBuffer implements StatementBuffer<List<String>>
 {
     private static final int UNSET = -1;
     private final int delim, quote, escape, nl, cr;
@@ -89,7 +89,7 @@ public class CsvBuffer
         rowBuffer.append(c);
     }
 
-    public List<String> nextRow() {
+    public List<String> nextStatement() {
         if (endIndex == UNSET) {
             throw new IllegalArgumentException("No Row Present");
         }
@@ -98,7 +98,14 @@ public class CsvBuffer
         return values;
     }
 
-    public boolean hasRow() throws IOException {
+    public boolean hasStatement(boolean endOfFile) throws IOException {
+        if (endOfFile && !isEmpty()) {
+            append('\n'); // replace the \n
+        }
+        return hasStatement();
+    }
+
+    public boolean hasStatement() throws IOException {
         while (currentIndex < rowBuffer.length()) {
             char b = rowBuffer.charAt(currentIndex++);
             switch (state) {

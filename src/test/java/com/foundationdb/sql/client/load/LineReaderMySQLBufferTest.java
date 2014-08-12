@@ -16,9 +16,6 @@ package com.foundationdb.sql.client.load;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -344,7 +341,7 @@ public class LineReaderMySQLBufferTest {
             MySQLBuffer buffer = new MySQLBuffer(encoding);
             try {
                 while (lines.readLine(buffer)) {
-                    buffer.nextQuery();
+                    buffer.nextStatement();
                 }
                 assertEquals("an Exception to be thrown", "not thrown");
             } catch (Exception e) {
@@ -358,10 +355,10 @@ public class LineReaderMySQLBufferTest {
         throw new RuntimeException("returnException is broken");
     }
 
-    private static void assertRows(List<MySQLBuffer.Query> expected, MySQLBuffer buffer, LineReader lines) throws Exception,MySQLBuffer.ParseException {
+    private static void assertRows(List<MySQLBuffer.Query> expected, MySQLBuffer buffer, LineReader lines) throws Exception {
         List<MySQLBuffer.Query> actual = new ArrayList<>();
         while (lines.readLine(buffer)) {
-            actual.add(buffer.nextQuery());
+            actual.add(buffer.nextStatement());
         }
         assertArrayEquals(expected.toArray(), actual.toArray());
     }

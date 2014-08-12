@@ -16,10 +16,8 @@ package com.foundationdb.sql.client.load;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -147,7 +145,7 @@ public class LineReaderCsvBufferTest {
     private static void assertRows(List<List<String>> expected, CsvBuffer buffer, LineReader lines) throws IOException {
         List<List<String>> actual = new ArrayList<>();
         while (lines.readLine(buffer)) {
-            actual.add(buffer.nextRow());
+            actual.add(buffer.nextStatement());
         }
         assertArrayEquals(expected.toArray(), actual.toArray());
     }

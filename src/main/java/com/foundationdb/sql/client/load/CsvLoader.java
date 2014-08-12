@@ -18,7 +18,6 @@ package com.foundationdb.sql.client.load;
 import com.foundationdb.sql.client.StatementHelper;
 
 import java.io.IOException;
-import java.lang.UnsupportedOperationException;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -50,12 +49,12 @@ class CsvLoader extends FileLoader
         int columnCount = 0;
         LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
         CsvBuffer buffer = new CsvBuffer(client.getEncoding());
-        if (lines.readLine(buffer) && buffer.hasRow()) {
+        if (lines.readLine(buffer) && buffer.hasStatement()) {
             if (header) {
-                columns = buffer.nextRow();
+                columns = buffer.nextStatement();
                 columnCount = columns.size();
             } else {
-                columnCount = buffer.nextRow().size();
+                columnCount = buffer.nextStatement().size();
             }
         } else {
             throw new IndexOutOfBoundsException("Csv file is empty");
@@ -159,7 +158,7 @@ class CsvLoader extends FileLoader
                     if (!lines.readLine(buffer)) {
                         break;
                     }
-                    List<String> values = buffer.nextRow();
+                    List<String> values = buffer.nextStatement();
                     try {
                         String[] valuesArray = values.toArray(emptyStringArray);
                         uncommittedStatements.add(valuesArray);

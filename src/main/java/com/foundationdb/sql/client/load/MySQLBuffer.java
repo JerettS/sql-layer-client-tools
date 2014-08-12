@@ -28,8 +28,7 @@ import java.util.List;
  * <p>Backslash queries consume up to a newline, or end of buffer, and are found with optional whitespace preceding a backslash.</p>
  * <p>Semi-colon delimited splits on un-quoted (', " or `) semi-colons with any trailing remaining in buffer.</p>
  */
-public class MySQLBuffer
-{
+public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     private static final int UNSET = -1;
     private final int delim, quote, escape, nl, cr, statementEnd;
     private final String encoding;
@@ -111,16 +110,19 @@ public class MySQLBuffer
         rowBuffer.append(string);
     }
 
+    @Override
     public void append(char c) {
         rowBuffer.append(c);
     }
 
-    public Query nextQuery() {
+    @Override
+    public Query nextStatement() {
         return query;
     }
 
-    public boolean hasQuery(boolean endOfFile) throws IOException, ParseException {
-        if (hasQuery()) {
+    @Override
+    public boolean hasStatement(boolean endOfFile) throws IOException, ParseException {
+        if (hasStatement()) {
             return true;
         } else if (endOfFile && state != State.STATEMENT_START) {
             throw new UnexpectedEndOfFileException();
@@ -128,7 +130,7 @@ public class MySQLBuffer
         return false;
     }
 
-    public boolean hasQuery() throws IOException, ParseException {
+    public boolean hasStatement() throws IOException, ParseException {
         while (currentIndex < rowBuffer.length()) {
             // DO NOT increment currentIndex within the switch
             // because we may be on the last character in the buffer

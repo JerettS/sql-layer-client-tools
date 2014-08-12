@@ -128,7 +128,7 @@ public class LineReader
 
     // TODO At some point we should remove/reduce all this triple buffering stuff
     // at that point, combine these all into one.
-    public boolean readLine (MySQLBuffer into) throws IOException,MySQLBuffer.ParseException {
+    public boolean readLine (StatementBuffer into) throws IOException,ParseException {
         boolean eol = false;
         while (true) {
             while (chars.hasRemaining()) {
@@ -143,10 +143,10 @@ public class LineReader
 
             if (eol) {
                 eol = false;
-                if (into.hasQuery()) return true;
+                if (into.hasStatement(false)) return true;
             } else {
                 if (!refillCharsBuffer()) {
-                    return into.hasQuery(true);
+                    return into.hasStatement(true);
                 }
             }
         }
@@ -167,14 +167,10 @@ public class LineReader
 
             if (eol) {
                 eol = false;
-                if (into.hasRow()) return true;
+                if (into.hasStatement(false)) return true;
             } else {
                 if (!refillCharsBuffer()) {
-                    if (!into.isEmpty()) {
-                        into.append('\n'); // replace the \n
-                        return into.hasRow();
-                    }
-                    return false;
+                    return into.hasStatement(true);
                 }
             }
         }
@@ -243,7 +239,7 @@ public class LineReader
         }
     }
 
-    public long splitParseMySQL(long point, MySQLBuffer buffer) throws IOException, MySQLBuffer.ParseException {
+    public long splitParseMySQL(long point, MySQLBuffer buffer) throws IOException, ParseException {
         long before = -1;
         long after = -1;
         decoder.reset();

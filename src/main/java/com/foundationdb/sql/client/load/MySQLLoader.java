@@ -117,7 +117,7 @@ class MySQLLoader extends FileLoader
                      if (!lines.readLine(buffer)) {
                          break;
                      }
-                     MySQLBuffer.Query query = buffer.nextQuery();
+                     MySQLBuffer.Query query = buffer.nextStatement();
                      try {
                          uncommittedStatements.add(query);
                          status.pending += stmt.executeUpdatePrepared(query.getPreparedStatement(), query.getValues());
