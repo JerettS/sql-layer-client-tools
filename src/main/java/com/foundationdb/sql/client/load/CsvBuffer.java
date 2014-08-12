@@ -58,10 +58,6 @@ public class CsvBuffer implements StatementBuffer<List<String>>
         return rowBuffer.length() == 0;
     }
 
-    public void append(String string) {
-        rowBuffer.append(string);
-    }
-
     public void append(char c) {
         rowBuffer.append(c);
     }
