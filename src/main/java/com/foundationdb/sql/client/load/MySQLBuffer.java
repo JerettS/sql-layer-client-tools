@@ -30,7 +30,8 @@ import java.util.List;
  */
 public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     private static final int UNSET = -1;
-    private final int delim, quote, escape, nl, cr, statementEnd;
+    private final int nl;
+    private final int cr;
     private final String encoding;
 
     private List<String> values;
@@ -52,10 +53,6 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
 
     public MySQLBuffer(String encoding) {
         this.encoding = encoding;
-        this.statementEnd = getSingleByte(";");
-        this.delim = getSingleByte(",");
-        this.quote = getSingleByte("\"");
-        this.escape = quote;
         this.nl = getSingleByte("\n");
         this.cr = getSingleByte("\r");
         this.rowBuffer = new StringBuilder();
