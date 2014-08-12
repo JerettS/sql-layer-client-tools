@@ -52,17 +52,13 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
 
     public MySQLBuffer() {
         this.rowBuffer = new StringBuilder();
-        reset();
-    }
-
-    public void reset() {
         this.values = new ArrayList();
         this.currentIndex = 0;
         rowBuffer.setLength(0);
         reset(UNSET);
     }
 
-    public void reset(int endIndex) {
+    private void reset(int endIndex) {
         query = new Query(preparedStatement.toString(), values.toArray(emptyStringForToArray));
         if (endIndex >= 0) {
             rowBuffer.delete(0,endIndex);
@@ -75,10 +71,6 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
         swallowWhitespace = true;
         this.state = State.STATEMENT_START;
         this.currentField.setLength(0);
-    }
-
-    public boolean isEmpty() {
-        return rowBuffer.length() == 0;
     }
 
     @Override
@@ -451,17 +443,13 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
         }
     }
 
-    private static String escapeIdentifier(String identifier) {
-        return identifier.replaceAll("\"","\"\"");
-    }
-
     private void clearCurrentField() {
         currentField.setLength(0);
     }
 
     private void setTableName() {
         preparedStatement.append('"');
-        preparedStatement.append(escapeIdentifier(currentField.toString()));
+        preparedStatement.append(currentField.toString().replaceAll("\"", "\"\""));
         preparedStatement.append('"');
         preparedStatement.append(' ');
         clearCurrentField();
