@@ -28,8 +28,10 @@ import java.util.List;
  */
 public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     private static final int UNSET = -1;
+    private static final char END_OF_STATEMENT = ';';
     private static final char NEWLINE = '\n';
     private static final char CARRIAGE_RETURN = '\r';
+    private static final char ESCAPE = '\\';
 
     private List<String> values;
     private int currentIndex;
@@ -190,7 +192,7 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     }
 
     private void handleStatementStart(char c) throws UnexpectedTokenException {
-        if ((c == CARRIAGE_RETURN) || (c == NEWLINE) || (c == ';')) {
+        if ((c == CARRIAGE_RETURN) || (c == NEWLINE) || (c == END_OF_STATEMENT)) {
             return;
         }
         else if (c == '-') {
@@ -231,7 +233,7 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     }
 
     private void handleIgnoredStatement(char c) {
-        if (c == ';') {
+        if (c == END_OF_STATEMENT) {
             clearCurrentField();
             swallowWhitespace = true;
             state = State.STATEMENT_START;
@@ -248,7 +250,7 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
             escapedChar = false;
         } else if (c == quoteChar) {
             state = State.IGNORED_STATEMENT;
-        } else if (c == '\\') {
+        } else if (c == ESCAPE) {
             escapedChar = true;
         } else {
             // ignored character
@@ -292,7 +294,7 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
             setTableName();
             swallowWhitespace = true;
             state = State.INSERT_VALUES_KEYWORD;
-        } else if (c == '\\') {
+        } else if (c == ESCAPE) {
             escapedChar = true;
         } else {
             currentField.append(c);
@@ -416,7 +418,7 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
         if (c == ',') {
             swallowWhitespace = true;
             state = State.ROW_START;
-        } else if (c == ';') {
+        } else if (c == END_OF_STATEMENT) {
             if (values.size() == 0) {
                 throw new UnexpectedTokenException("a row", ';');
             } else {
