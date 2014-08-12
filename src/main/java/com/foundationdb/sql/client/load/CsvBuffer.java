@@ -18,8 +18,6 @@
 package com.foundationdb.sql.client.load;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,7 +43,7 @@ public class CsvBuffer implements StatementBuffer<List<String>>
         reset();
     }
 
-    public void reset() {
+    private void reset() {
         this.endIndex = UNSET;
         this.values = new ArrayList();
         this.currentIndex = 0;
@@ -54,14 +52,12 @@ public class CsvBuffer implements StatementBuffer<List<String>>
         rowBuffer.setLength(0);
     }
 
-    public boolean isEmpty() {
-        return rowBuffer.length() == 0;
-    }
-
+    @Override
     public void append(char c) {
         rowBuffer.append(c);
     }
 
+    @Override
     public List<String> nextStatement() {
         if (endIndex == UNSET) {
             throw new IllegalArgumentException("No Row Present");
@@ -71,14 +67,15 @@ public class CsvBuffer implements StatementBuffer<List<String>>
         return values;
     }
 
-    public boolean hasStatement(boolean endOfFile) throws IOException {
-        if (endOfFile && !isEmpty()) {
+    @Override
+    public boolean hasStatement(boolean endOfFile) throws IOException, LineReader.ParseException {
+        if (endOfFile && !(rowBuffer.length() == 0)) {
             append(NEWLINE); // replace the \n
         }
         return hasStatement();
     }
 
-    public boolean hasStatement() throws IOException {
+    private boolean hasStatement() throws IOException, LineReader.ParseException {
         while (currentIndex < rowBuffer.length()) {
             char ch = rowBuffer.charAt(currentIndex++);
             switch (state) {
@@ -143,7 +140,7 @@ public class CsvBuffer implements StatementBuffer<List<String>>
         }
     }
 
-    private void handleInField(char b) {
+    private void handleInField(char b) throws LineReader.ParseException {
         if ((b == CARRIAGE_RETURN) || (b == NEWLINE)) {
             values.add(currentField.toString());
             currentField.setLength(0);
@@ -156,7 +153,7 @@ public class CsvBuffer implements StatementBuffer<List<String>>
             state = State.FIELD_START;
         }
         else if (b == QUOTE) {
-            throw new UnsupportedOperationException(
+            throw new LineReader.ParseException(
                     "CSV File contains QUOTE in the middle of a field and cannot be fast loaded : " + rowBuffer);
         }
         else {
@@ -173,7 +170,7 @@ public class CsvBuffer implements StatementBuffer<List<String>>
         }
     }
 
-    private void handleAfterQuote(char b) {
+    private void handleAfterQuote(char b) throws LineReader.ParseException {
         if ((b == CARRIAGE_RETURN) || (b == NEWLINE)) {
             values.add(currentField.toString());
             currentField.setLength(0);
@@ -190,7 +187,7 @@ public class CsvBuffer implements StatementBuffer<List<String>>
             state = State.IN_QUOTE;
         }
         else {
-            throw new UnsupportedOperationException(
+            throw new LineReader.ParseException(
                     "CSV File contains junk after quoted field and cannot be fast loaded : " + rowBuffer);
         }
     }
