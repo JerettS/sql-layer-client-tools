@@ -23,7 +23,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.postgresql.copy.CopyIn;
+import com.foundationdb.sql.jdbc.copy.CopyIn;
 
 class CopyLoader extends SegmentLoader
 {
