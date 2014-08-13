@@ -70,38 +70,13 @@ class DumpLoader extends FileLoader
         }
         
         @Override
-        public void run() {
-            try {
-                count += executeSegmentQuery (start, end, startLineNo);
-            } catch (Exception ex) {
-                if (ex instanceof DumpLoaderException) {
-                    System.err.println("ERROR: During query that ends on line " + ((DumpLoaderException) ex).getLineNo() + ", starting with:" );
-                    System.err.println("       " + getPartialQuery( ((DumpLoaderException)ex).getQuery(), 160) );
-                    ex = ((DumpLoaderException) ex).getEx();
-                }
-                System.err.println(ex.getMessage());
-                if (ex instanceof SQLException) {
-                    // unwrap SQLException
-                    if (ex.getCause() instanceof SQLException) {
-                        ex = (SQLException)ex.getCause();
-                        System.err.println(ex.getMessage());
-                    }
-                    
-                    if (StatementHelper.shouldRetry((SQLException)ex, true)) {
-                        System.err.println("NOTE: In case of past version exception try flags: --commit=auto --retry=3");
-                    }
-                    System.err.println("NOTE: You can drop the partially loaded schema by doing: fdbsqlcli -c “DROP SCHEMA [schema_name] CASCADE\"");
-                }
-            }
+        public void runSegment() throws SQLException, IOException, DumpLoaderException {
+            count += executeSegmentQuery (start, end, startLineNo);
         }
-    }
-    
-    private String getPartialQuery(String query, int maxLength){
-        return query.length() > maxLength ? (query.substring(0, maxLength) + " ...") : query;
     }
 
     protected long executeSegmentQuery (long start, long end, long startLineNo)
-        throws SQLException, IOException {
+            throws SQLException, IOException, DumpLoaderException {
         String sql = null;
         LineReader lines = new LineReader(channel, client.getEncoding(),
                 BUFFER_SIZE, BUFFER_SIZE,

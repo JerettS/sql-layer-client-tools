@@ -24,6 +24,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.foundationdb.sql.client.StringUtils.joinList;
+
 class CsvLoader extends FileLoader
 {
     private final String targetTable;
@@ -49,7 +51,7 @@ class CsvLoader extends FileLoader
         int columnCount = 0;
         LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
         CsvBuffer buffer = new CsvBuffer();
-        if (lines.readLine(buffer) && buffer.hasStatement()) {
+        if (lines.readLine(buffer) && buffer.hasStatement(false)) {
             if (header) {
                 columns = buffer.nextStatement();
                 columnCount = columns.size();
@@ -140,25 +142,23 @@ class CsvLoader extends FileLoader
         }
 
         @Override
-        public void run(){
+        public void runSegment() throws DumpLoaderException, IOException, SQLException{
             boolean success = false;
-            Connection connection = null;
+            Connection connection = client.getConnection(false);
             CommitStatus status = new CommitStatus();
-            StatementHelper stmt = null;
+            StatementHelper stmt = new StatementHelper(connection);
             List<String[]> uncommittedStatements = new ArrayList<>();
-            LineReader lines = null;
+            LineReader lines = new LineReader(channel, client.getEncoding(),
+                    BUFFER_SIZE, BUFFER_SIZE,
+                    start, end);
+            List<String> values = null;
             try {
-                lines = new LineReader(channel, client.getEncoding(),
-                                       BUFFER_SIZE, BUFFER_SIZE,
-                                       start, end);
-                connection = client.getConnection(false);
-                stmt = new StatementHelper(connection);
                 CsvBuffer buffer = new CsvBuffer();
                 while (true) {
                     if (!lines.readLine(buffer)) {
                         break;
                     }
-                    List<String> values = buffer.nextStatement();
+                    values = buffer.nextStatement();
                     try {
                         String[] valuesArray = values.toArray(new String[values.size()]);
                         uncommittedStatements.add(valuesArray);
@@ -192,7 +192,8 @@ class CsvLoader extends FileLoader
                 success = true;
             }
             catch (Exception ex) {
-                ex.printStackTrace();
+                // TODO + startLineNo
+                throw new DumpLoaderException(lines.getLineCounter(), joinList(values), ex);
             }
             finally {
                 if (stmt != null) {

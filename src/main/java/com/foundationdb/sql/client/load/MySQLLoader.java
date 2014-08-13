@@ -99,25 +99,23 @@ class MySQLLoader extends FileLoader
         }
 
         @Override
-        public void run() {
+        public void runSegment() throws DumpLoaderException, IOException, SQLException {
             boolean success = false;
-            Connection connection = null;
+            Connection connection = client.getConnection(false);
             CommitStatus status = new CommitStatus();
-            StatementHelper stmt = null;
+            StatementHelper stmt = new StatementHelper(connection);
             List<MySQLBuffer.Query> uncommittedStatements = new ArrayList<>();
-            LineReader lines = null;
+            LineReader lines = new LineReader(channel, client.getEncoding(),
+                    BUFFER_SIZE, BUFFER_SIZE,
+                    start, end);
+            MySQLBuffer.Query query = null;
             try {
-                 lines = new LineReader(channel, client.getEncoding(),
-                         BUFFER_SIZE, BUFFER_SIZE,
-                         start, end);
-                 connection = client.getConnection(false);
-                 stmt = new StatementHelper(connection);
                  MySQLBuffer buffer = new MySQLBuffer();
                  while (true) {
                      if (!lines.readLine(buffer)) {
                          break;
                      }
-                     MySQLBuffer.Query query = buffer.nextStatement();
+                     query = buffer.nextStatement();
                      try {
                          uncommittedStatements.add(query);
                          status.pending += stmt.executeUpdatePrepared(query.getPreparedStatement(), query.getValues());
@@ -150,7 +148,8 @@ class MySQLLoader extends FileLoader
                  success = true;
             }
             catch (Exception ex) {
-                 ex.printStackTrace();
+                // todo startLineNo
+                throw new DumpLoaderException(lines.getLineCounter(), query == null ? null : query.toString(), ex);
             }
             finally {
                  if (stmt != null) {
