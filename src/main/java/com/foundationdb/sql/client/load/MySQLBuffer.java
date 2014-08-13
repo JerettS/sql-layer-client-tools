@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Input accumulator for mysql dumps.
@@ -489,8 +490,8 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
         public boolean equals(Object other) {
             if (other instanceof Query) {
                 Query otherQuery = (Query)other;
-                return equalStrings(preparedStatement,otherQuery.preparedStatement) &&
-                    equalArrays(values, otherQuery.values);
+                return Objects.equals(preparedStatement, otherQuery.preparedStatement) &&
+                        Arrays.equals(values, otherQuery.values);
             } else {
                 return false;
             }
@@ -501,26 +502,6 @@ public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
             return preparedStatement + "; " + Arrays.toString(values);
         }
 
-        private boolean equalStrings(String a, String b) {
-            if (a == null) {
-                return b == null;
-            } else {
-                return a.equals(b);
-            }
-        }
-
-        private boolean equalArrays(String[] as, String[] bs) {
-            if (as.length != bs.length) {
-                return false;
-            } else {
-                for (int i=0; i<as.length; i++) {
-                    if (!equalStrings(as[i],bs[i])) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-        }
     }
 
     public static class ParseException extends LineReader.ParseException {
