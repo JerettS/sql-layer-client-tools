@@ -76,6 +76,7 @@ class CsvLoader extends FileLoader
         sb.append(escapeIdentifier(targetTable));
         sb.append("\" ");
         if (columns != null) {
+            assert columnCount == columns.size();
             sb.append("(\"");
             for (int i=0; i<columns.size()-1; i++) {
                 sb.append(escapeIdentifier(columns.get(i)));
