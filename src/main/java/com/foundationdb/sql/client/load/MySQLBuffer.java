@@ -21,10 +21,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Input accumulator and simple parser for two query types, backslash and semi-colon delimited.
+ * Input accumulator for mysql dumps.
  *
- * <p>Backslash queries consume up to a newline, or end of buffer, and are found with optional whitespace preceding a backslash.</p>
- * <p>Semi-colon delimited splits on un-quoted (', " or `) semi-colons with any trailing remaining in buffer.</p>
  */
 public class MySQLBuffer implements StatementBuffer<MySQLBuffer.Query> {
     private static final int UNSET = -1;
