@@ -147,7 +147,6 @@ class CsvLoader extends FileLoader
             StatementHelper stmt = null;
             List<String[]> uncommittedStatements = new ArrayList<>();
             LineReader lines = null;
-            String[] emptyStringArray = new String[0];
             try {
                 lines = new LineReader(channel, client.getEncoding(),
                                        BUFFER_SIZE, BUFFER_SIZE,
@@ -161,7 +160,7 @@ class CsvLoader extends FileLoader
                     }
                     List<String> values = buffer.nextStatement();
                     try {
-                        String[] valuesArray = values.toArray(emptyStringArray);
+                        String[] valuesArray = values.toArray(new String[values.size()]);
                         uncommittedStatements.add(valuesArray);
                         status.pending += stmt.executeUpdatePrepared(preparedStatement, valuesArray);
                         if (status.pending == 0) { // successful commit
