@@ -43,7 +43,7 @@ class CsvLoader extends FileLoader
         long start = 0;
         long end = channel.size();
         start = createPreparedStatement();
-        return new CsvSegmentLoader(start,end);
+        return new CsvSegmentLoader(start, end, 0);
     }
 
     private long createPreparedStatement() throws IOException, LineReader.ParseException {
@@ -121,20 +121,20 @@ class CsvLoader extends FileLoader
                 mid = start + (end - start) / nsegments;
             }
             mid = lines.splitParse(mid, new CsvBuffer());
-            segments.add(new CsvSegmentLoader(start, mid));
+            segments.add(new CsvSegmentLoader(start, mid, lines.getLineCounter()));
             if (mid >= (end - 1))
                 return segments;
             start = mid;
             lines.position(mid);
             nsegments--;
         }
-        segments.add(new CsvSegmentLoader(start, end));
+        segments.add(new CsvSegmentLoader(start, end, lines.getLineCounter()));
         return segments;
     }
 
     protected class CsvSegmentLoader extends SegmentLoader {
-        public CsvSegmentLoader(long start, long end) {
-            super(CsvLoader.this.client, CsvLoader.this.channel, start, end);
+        public CsvSegmentLoader(long start, long end, long startLineNo) {
+            super(CsvLoader.this.client, CsvLoader.this.channel, start, end, startLineNo);
         }
 
         @Override

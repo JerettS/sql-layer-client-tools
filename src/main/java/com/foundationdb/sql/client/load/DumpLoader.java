@@ -58,11 +58,9 @@ class DumpLoader extends FileLoader
     }
 
     protected class DumpSegmentQueryLoader extends SegmentLoader {
-        private long startLineNo;
         
         public DumpSegmentQueryLoader(long start, long end, long startLineNo) {            
-            super(DumpLoader.this.client, DumpLoader.this.channel, start, end);
-            this.startLineNo = startLineNo;
+            super(DumpLoader.this.client, DumpLoader.this.channel, start, end, startLineNo);
         }
         
         @Override

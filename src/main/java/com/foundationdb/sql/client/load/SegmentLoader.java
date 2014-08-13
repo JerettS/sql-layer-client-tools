@@ -25,13 +25,17 @@ abstract class SegmentLoader implements Runnable
 {
     protected final LoadClient client;
     protected final FileChannel channel;
-    protected long start, end, count;
+    protected final long start;
+    protected final long end;
+    protected final long startLineNo;
+    protected long count;
 
-    protected SegmentLoader(LoadClient client, FileChannel channel, long start, long end) {
+    protected SegmentLoader(LoadClient client, FileChannel channel, long start, long end, long startLineNo) {
         this.client = client;
         this.channel = channel;
         this.start = start;
         this.end = end;
+        this.startLineNo = startLineNo;
     }
 
     /** This is called in the main thread before spawning multiple

@@ -58,7 +58,7 @@ class MySQLLoader extends FileLoader
     public SegmentLoader wholeFile() throws IOException {
         long start = 0;
         long end = channel.size();
-        return new MySQLSegmentLoader(start,end);
+        return new MySQLSegmentLoader(start,end,0);
     }
 
     public List<? extends SegmentLoader> split(int nsegments) throws IOException, LineReader.ParseException {
@@ -78,20 +78,20 @@ class MySQLLoader extends FileLoader
                 mid = start + (end - start) / nsegments;
             }
             mid = lines.splitParse(mid, new MySQLBuffer());
-            segments.add(new MySQLSegmentLoader(start, mid));
+            segments.add(new MySQLSegmentLoader(start, mid, lines.getLineCounter()));
             if (mid >= (end - 1))
                 return segments;
             start = mid;
             lines.position(mid);
             nsegments--;
         }
-        segments.add(new MySQLSegmentLoader(start, end));
+        segments.add(new MySQLSegmentLoader(start, end, lines.getLineCounter()));
         return segments;
     }
 
     protected class MySQLSegmentLoader extends SegmentLoader {
-        public MySQLSegmentLoader(long start, long end) {
-            super(MySQLLoader.this.client, MySQLLoader.this.channel, start, end);
+        public MySQLSegmentLoader(long start, long end, long startLineNo) {
+            super(MySQLLoader.this.client, MySQLLoader.this.channel, start, end, startLineNo);
         }
 
         @Override
