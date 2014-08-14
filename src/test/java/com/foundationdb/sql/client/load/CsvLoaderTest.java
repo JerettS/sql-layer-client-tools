@@ -258,7 +258,7 @@ public class CsvLoaderTest extends LoaderTestBase
     @Test
     public void testDateTime() throws Exception {
         testDataType("DATETIME", Arrays.asList("1970-01-30 03:24:56", "2003-11-27 23:04:16", "2024-08-28 12:59:05"),
-                     timestamp(1970,1,30,3,24,56), timestamp(2003,11,27,23,4,16), timestamp(2024,8,28,12,59,05));
+                     timestamp(1970,1,30,3,24,56), timestamp(2003,11,27,23,4,16), timestamp(2024,8,28,12,59,5));
     }
 
     @Test
@@ -332,7 +332,7 @@ public class CsvLoaderTest extends LoaderTestBase
         checkQuery("SELECT * FROM states ORDER BY abbrev", Arrays.asList(listO("Al", "Jen"), listO("Bo", "Suzie"), listO("a", "b"), listO("c", "d"), listO("e", "f"), listO("u", "v"), listO("x", "y")));
     }
 
-    private <T> void testBadDataType(String dataType, List<String> inputs) throws Exception
+    private void testBadDataType(String dataType, List<String> inputs) throws Exception
     {
         expectsErrorOutput = true;
         loadDDL("DROP TABLE IF EXISTS states",
@@ -343,7 +343,7 @@ public class CsvLoaderTest extends LoaderTestBase
         }
     }
 
-    private <T> void testDataType(String dataType, List<String> inputs, T... values) throws Exception
+    private void testDataType(String dataType, List<String> inputs, Object... values) throws Exception
     {
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(key CHAR(4) PRIMARY KEY, value " + dataType + ")");
@@ -352,7 +352,7 @@ public class CsvLoaderTest extends LoaderTestBase
         List<List<Object>> expected = new ArrayList<>();
         for (int i=0; i<inputs.size(); i++) {
             rows[i] = String.format("A%03d,%s",i,inputs.get(i));
-            expected.add(Arrays.asList((Object) String.format("A%03d", i), values[i]));
+            expected.add(Arrays.asList(String.format("A%03d", i), values[i]));
         }
         assertLoad(values.length, rows);
         checkQuery("SELECT * FROM states ORDER BY key", expected);

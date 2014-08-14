@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.hamcrest.collection.IsArrayContainingInOrder.arrayContaining;
@@ -164,7 +163,7 @@ public class MySQLLoaderTest extends LoaderTestBase
     @Test
     public void testDatetime() throws Exception {
         testDataType("DATETIME", Arrays.asList("'2045-04-17 08:43:56'", "'1970-04-17 13:43:56'"),
-                     timestamp(2045, 04, 17, 8, 43, 56), timestamp(1970, 04, 17, 13, 43, 56));
+                     timestamp(2045, 4, 17, 8, 43, 56), timestamp(1970, 4, 17, 13, 43, 56));
     }
 
     // don't worry mysql doesn't dump the microseconds if it has them.
@@ -274,7 +273,7 @@ public class MySQLLoaderTest extends LoaderTestBase
     }
 
 
-    private <T> void testDataType(String dataType, List<String> inputs, T... values) throws Exception
+    private void testDataType(String dataType, List<String> inputs, Object... values) throws Exception
     {
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(key CHAR(4) PRIMARY KEY, value " + dataType + ")");
