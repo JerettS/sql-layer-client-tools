@@ -22,9 +22,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -40,7 +40,7 @@ public class MySQLLoaderTest extends LoaderTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(x int PRIMARY KEY, y int)");
         assertLoad(1, "INSERT INTO `states` VALUES (1, 348);");
-        checkQuery("SELECT * FROM states", list(listO(1, 348)));
+        checkQuery("SELECT * FROM states", Arrays.asList(listO(1, 348)));
     }
 
     @Test
@@ -48,7 +48,7 @@ public class MySQLLoaderTest extends LoaderTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(2), name VARCHAR(30), abbrev2 char(2))");
         assertLoad(1, "INSERT INTO states VALUES ('AB', 'boo is \\0 \\b \\n \\r \\t \\Z cool', \"XY\");");
-        checkQuery("SELECT * FROM states", list(listO("AB", "boo is \u0000 \b \n \r \t \u001A cool", "XY")));
+        checkQuery("SELECT * FROM states", Arrays.asList(listO("AB", "boo is \u0000 \b \n \r \t \u001A cool", "XY")));
     }
 
     @Test
@@ -82,7 +82,7 @@ public class MySQLLoaderTest extends LoaderTestBase
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(2, "INSERT INTO `states` VALUES (AL,Birmingham);",
                    "INSERT INTO `states` VALUES (MA,Boston);");
-        checkQuery("SELECT * FROM states", list(listO("AL","Birmingham"), listO("MA","Boston")));
+        checkQuery("SELECT * FROM states", Arrays.asList(listO("AL", "Birmingham"), listO("MA", "Boston")));
     }
 
 
@@ -92,8 +92,7 @@ public class MySQLLoaderTest extends LoaderTestBase
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(4, "INSERT INTO `states` VALUES (AL,Birmingham),(TX, Austin);",
                    "INSERT INTO `states` VALUES (MA,Boston),(AK,Denali);");
-        checkQuery("SELECT * FROM states", list(listO("AK", "Denali"), listO("AL","Birmingham"),
-                                                listO("MA","Boston"), listO("TX", "Austin")));
+        checkQuery("SELECT * FROM states", Arrays.asList(listO("AK", "Denali"), listO("AL", "Birmingham"), listO("MA", "Boston"), listO("TX", "Austin")));
     }
 
     // NOTE: mysqldump does not include the schema, so we don't need to worry about that.
@@ -109,7 +108,7 @@ public class MySQLLoaderTest extends LoaderTestBase
                 "CREATE TABLE " + escapedTable + " (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(2, "INSERT INTO " + mysqlTable + " VALUES (AL,Birmingham);",
                    "INSERT INTO " + mysqlTable + " VALUES (MA,Boston);");
-        checkQuery("SELECT * FROM " + escapedTable, list(listO("AL","Birmingham"), listO("MA", "Boston")));
+        checkQuery("SELECT * FROM " + escapedTable, Arrays.asList(listO("AL", "Birmingham"), listO("MA", "Boston")));
     }
 
     @Test
@@ -117,7 +116,7 @@ public class MySQLLoaderTest extends LoaderTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(x int PRIMARY KEY, y int)");
         assertLoad(1, "insert into `states` values (1, 348);");
-        checkQuery("SELECT * FROM states", list(listO(1, 348)));
+        checkQuery("SELECT * FROM states", Arrays.asList(listO(1, 348)));
     }
 
     @Test
@@ -132,48 +131,48 @@ public class MySQLLoaderTest extends LoaderTestBase
 
     @Test
     public void testInt() throws Exception {
-        testDataType("INT", list("-47483648", "40283"),
+        testDataType("INT", Arrays.asList("-47483648", "40283"),
                      -47483648, 40283);
     }
 
     @Test
     public void testBigInt() throws Exception {
-        testDataType("BIGINT", list("-9223372036854775803"),
+        testDataType("BIGINT", Arrays.asList("-9223372036854775803"),
                      -9223372036854775803L);
     }
 
     @Test
     public void testDecimal() throws Exception {
-        testDataType("DECIMAL(5,2)", list("958.97"), new BigDecimal("958.97"));
+        testDataType("DECIMAL(5,2)", Arrays.asList("958.97"), new BigDecimal("958.97"));
     }
 
     @Test
     public void testNumeric() throws Exception {
-        testDataType("DECIMAL(17,3)", list("2983749.391"), new BigDecimal("2983749.391"));
+        testDataType("DECIMAL(17,3)", Arrays.asList("2983749.391"), new BigDecimal("2983749.391"));
     }
 
     @Test
     public void testDouble() throws Exception {
-        testDataType("DOUBLE", list("2.039e28"),
+        testDataType("DOUBLE", Arrays.asList("2.039e28"),
                      2.039E28);
     }
 
     @Test
     public void testDate() throws Exception {
-        testDataType("DATE", list("'1000-02-03'"),
+        testDataType("DATE", Arrays.asList("'1000-02-03'"),
                      date(1000,2,3));
     }
 
     @Test
     public void testDatetime() throws Exception {
-        testDataType("DATETIME", list("'2045-04-17 08:43:56'","'1970-04-17 13:43:56'"),
+        testDataType("DATETIME", Arrays.asList("'2045-04-17 08:43:56'", "'1970-04-17 13:43:56'"),
                      timestamp(2045, 04, 17, 8, 43, 56), timestamp(1970, 04, 17, 13, 43, 56));
     }
 
     // don't worry mysql doesn't dump the microseconds if it has them.
     @Test
     public void testTime() throws Exception {
-        testDataType("TIME", list("'15:22:58'"),
+        testDataType("TIME", Arrays.asList("'15:22:58'"),
                      time(15, 22, 58));
     }
 
@@ -183,7 +182,7 @@ public class MySQLLoaderTest extends LoaderTestBase
         // getString instead of getObject because jdbc doesn't support negative times
         // since we are also, most likely, not going to support negative times soon, I'm leaving
         // this as a mess with duplicated code.
-        List<String> inputs = list("'-15:22:58'");
+        List<String> inputs = Arrays.asList("'-15:22:58'");
         // So, just a little tidbit of information, time(-15, 22, 58) becomes 9:22:58
         String[] values = new String[] {"-15:22:58"};
         loadDDL("DROP TABLE IF EXISTS states",
@@ -234,7 +233,7 @@ public class MySQLLoaderTest extends LoaderTestBase
 
     @Test
     public void testVarchar() throws Exception {
-        testDataType("VARCHAR(17)", list("over there"),
+        testDataType("VARCHAR(17)", Arrays.asList("over there"),
                      "over there");
     }
 
@@ -242,7 +241,7 @@ public class MySQLLoaderTest extends LoaderTestBase
     public void testBinary() throws Exception {
         // in mysql this would be BINARY(19)
         // NOTE: \nnn is octal
-        testDataType("CHAR(19) FOR BIT DATA", list("'\004\037\123\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'"),
+        testDataType("CHAR(19) FOR BIT DATA", Arrays.asList("'\004\037\123\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'"),
                      bytes(04,037,0123,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0));
     }
 
@@ -251,14 +250,14 @@ public class MySQLLoaderTest extends LoaderTestBase
         // in mysql this would be varbinary(19) or blob
         // NOTE: \nnn is octal
         // TODO figure out real binary data story, so that you can get those high bytes (e.g. \234)
-        testDataType("VARCHAR(19) FOR BIT DATA", list("'\\''","'\\\"'","'b\000\007\037'","'\077\024'"),
+        testDataType("VARCHAR(19) FOR BIT DATA", Arrays.asList("'\\''", "'\\\"'", "'b\000\007\037'", "'\077\024'"),
                      bytes(0x27), bytes(0x22), bytes(0x62,0x0,0x7,037),bytes(077,024));
     }
 
     @Test
     public void testIntZerofill() throws Exception {
         // in mysql this would be INT(5) ZEROFILL
-        testDataType("INT", list("00017"), 17);
+        testDataType("INT", Arrays.asList("00017"), 17);
     }
 
     @Test
@@ -273,10 +272,7 @@ public class MySQLLoaderTest extends LoaderTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(7, line1, line2, line3);
-        checkQuery("SELECT * FROM states ORDER BY abbrev", list(
-                                                listO("Al","Jen"), listO("Bo","Suzie"),
-                                                listO("a","b"), listO("c","d"), listO("e","f"),
-                                                listO("u","v"), listO("x","y")));
+        checkQuery("SELECT * FROM states ORDER BY abbrev", Arrays.asList(listO("Al", "Jen"), listO("Bo", "Suzie"), listO("a", "b"), listO("c", "d"), listO("e", "f"), listO("u", "v"), listO("x", "y")));
     }
 
 

@@ -27,13 +27,13 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
 import static org.hamcrest.collection.IsArrayContainingInOrder.arrayContaining;
 import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
@@ -108,7 +108,7 @@ public class LoaderTestBase extends ClientTestBase{
     }
 
     protected List<Object> listO(Object... objects) {
-        return list(objects);
+        return Arrays.asList(objects);
     }
 
     protected void assertLoad(int expectedCount, String... rows) throws Exception {

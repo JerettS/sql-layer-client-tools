@@ -15,31 +15,17 @@
 
 package com.foundationdb.sql.client.load;
 
-import com.foundationdb.sql.client.ClientTestBase;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import org.postgresql.util.PSQLException;
 
-import java.io.PrintStream;
-import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.Locale;
-import java.util.TimeZone;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
-import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -59,7 +45,7 @@ public class CsvLoaderTest extends LoaderTestBase
         loadDDL("DROP TABLE IF EXISTS states",
                 "CREATE TABLE states(abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(2, "AL,Birmingham","MA,Boston");
-        checkQuery("SELECT * FROM states", list(list((Object) "AL", "Birmingham"), list((Object) "MA", "Boston")));
+        checkQuery("SELECT * FROM states", Arrays.asList(Arrays.asList((Object) "AL", "Birmingham"), Arrays.asList((Object) "MA", "Boston")));
     }
 
     @Test
@@ -69,7 +55,7 @@ public class CsvLoaderTest extends LoaderTestBase
                 "CREATE TABLE " + escapedTable + " (abbrev CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         options.target = "the ; , \" bad ; , ? ? states";
         assertLoad(2, "AL,Birmingham","MA,Boston");
-        checkQuery("SELECT * FROM " + escapedTable, list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+        checkQuery("SELECT * FROM " + escapedTable, Arrays.asList(Arrays.asList((Object) "AL", "Birmingham"), Arrays.asList((Object) "MA", "Boston")));
     }
 
     @Test
@@ -78,7 +64,7 @@ public class CsvLoaderTest extends LoaderTestBase
         loadDDL("DROP TABLE IF EXISTS states ",
                 "CREATE TABLE states (" + escapedColumnName + " CHAR(2) PRIMARY KEY, name VARCHAR(128))");
         assertLoad(2, "AL,Birmingham","MA,Boston");
-        checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+        checkQuery("SELECT * FROM states", Arrays.asList(Arrays.asList((Object) "AL", "Birmingham"), Arrays.asList((Object) "MA", "Boston")));
     }
 
     @Test
@@ -89,7 +75,7 @@ public class CsvLoaderTest extends LoaderTestBase
         options.format = Format.CSV_HEADER;
         // conveniently csv & sql escape in the same way for table/column names
         assertLoad(2, escapedColumnName + ",name", "AL,Birmingham","MA,Boston");
-        checkQuery("SELECT * FROM states", list(list((Object)"AL","Birmingham"), list((Object)"MA","Boston")));
+        checkQuery("SELECT * FROM states", Arrays.asList(Arrays.asList((Object) "AL", "Birmingham"), Arrays.asList((Object) "MA", "Boston")));
     }
 
     @Test
@@ -185,7 +171,7 @@ public class CsvLoaderTest extends LoaderTestBase
         List<List<Object>> expected = new ArrayList<>();
         for (int i=0; i<100; i++) {
             rows[i] = String.format("A%03d,named%d",i,i);
-            expected.add(list((Object)String.format("A%03d",i),"named" + i));
+            expected.add(Arrays.asList((Object) String.format("A%03d", i), "named" + i));
         }
         DdlRunner ddlRunner = new DdlRunner();
         Thread ddlThread = new Thread(ddlRunner);
@@ -203,31 +189,31 @@ public class CsvLoaderTest extends LoaderTestBase
 
     @Test
     public void testBigInt() throws Exception {
-        testDataType("BIGINT", list("-9223372036854775808", "-1", "0", "1", "9223372036854775807"),
+        testDataType("BIGINT", Arrays.asList("-9223372036854775808", "-1", "0", "1", "9223372036854775807"),
                      -9223372036854775808L, -1L, 0L, 1L, 9223372036854775807L);
     }
 
     @Test
     public void testBlob() throws Exception {
         // TODO figure out real binary encoding story
-        testDataType("BLOB", list("\000\003"),
+        testDataType("BLOB", Arrays.asList("\000\003"),
                      new byte[] {0,3});
     }
 
     @Test
     public void testBoolean() throws Exception {
-        testDataType("BOOLEAN", list("true", "TRUE", "false", "FALSE"),
+        testDataType("BOOLEAN", Arrays.asList("true", "TRUE", "false", "FALSE"),
                      true, true, false, false);
     }
 
     @Test
     public void testChar() throws Exception {
-        testDataType("CHAR", list("a", "X", "9"), "a", "X", "9");
+        testDataType("CHAR", Arrays.asList("a", "X", "9"), "a", "X", "9");
     }
 
     @Test
     public void testChar20() throws Exception {
-        testDataType("CHAR(3)", list("abx", "230"), "abx", "230");
+        testDataType("CHAR(3)", Arrays.asList("abx", "230"), "abx", "230");
     }
 
     /**
@@ -246,7 +232,7 @@ public class CsvLoaderTest extends LoaderTestBase
         // Note these are escape sequences, so \120 is the character: 'P'
         // our COPY command outputs the string "\120" (4 characters)g
         // TODO figure out real binary encoding story
-        testDataType("CHAR FOR BIT DATA", list("\000", "\120", "\177"),
+        testDataType("CHAR FOR BIT DATA", Arrays.asList("\000", "\120", "\177"),
                      new byte[] {0}, new byte[] {0120}, new byte[] {0177});
     }
 
@@ -255,77 +241,76 @@ public class CsvLoaderTest extends LoaderTestBase
         // Note these are escape sequences, so \120 is the character: 'P'
         // our COPY command outputs the string "\120" (4 characters)
         // TODO figure out real binary encoding story
-        testDataType("CHAR(5) FOR BIT DATA", list("\120\000\030\047\133"),
+        testDataType("CHAR(5) FOR BIT DATA", Arrays.asList("\120\000\030\047\133"),
                      new byte[] {0120, 0, 030, 047, 0133} );
     }
 
     @Test
     public void testClob() throws Exception {
-        List<String> strings = list("Here is my first large string",
-                                    "Lorem ipsum dolor sit amet consectetur adipiscing elit. " +
-                                    "Donec a diam lectus. Sed sit amet ipsum mauris. " +
-                                    "Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit.");
+        List<String> strings = Arrays.asList("Here is my first large string", "Lorem ipsum dolor sit amet consectetur adipiscing elit. " +
+                "Donec a diam lectus. Sed sit amet ipsum mauris. " +
+                "Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit.");
         testDataType("CLOB", strings, strings.toArray());
     }
 
     @Test
     public void testDate() throws Exception {
-        testDataType("DATE", list("1970-01-30", "2003-11-27", "2024-08-28"),
+        testDataType("DATE", Arrays.asList("1970-01-30", "2003-11-27", "2024-08-28"),
                      date(1970,1,30), date(2003,11,27), date(2024,8,28));
     }
 
     @Test
     public void testDateTime() throws Exception {
-        testDataType("DATETIME", list("1970-01-30 03:24:56", "2003-11-27 23:04:16", "2024-08-28 12:59:05"),
+        testDataType("DATETIME", Arrays.asList("1970-01-30 03:24:56", "2003-11-27 23:04:16", "2024-08-28 12:59:05"),
                      timestamp(1970,1,30,3,24,56), timestamp(2003,11,27,23,4,16), timestamp(2024,8,28,12,59,05));
     }
 
     @Test
     public void testDecimal() throws Exception {
-        testDataType("DECIMAL(10,2)", list("12345678.94", "333.33", "-407.74"),
+        testDataType("DECIMAL(10,2)", Arrays.asList("12345678.94", "333.33", "-407.74"),
                      new BigDecimal("12345678.94"), new BigDecimal("333.33"), new BigDecimal("-407.74"));
     }
 
     @Test
     public void testDouble() throws Exception {
-        testDataType("DOUBLE", list("34.29", "1.345E240", "-408.9", "9.42E-293"),
+        testDataType("DOUBLE", Arrays.asList("34.29", "1.345E240", "-408.9", "9.42E-293"),
                      34.29D, 1.345E240, -408.9, 9.42E-293);
     }
 
     @Test
     public void testGuid() throws Exception {
-        testDataType("GUID", list("64e79dec-ce47-4e06-85da-66a594786c6b", "d7c73255-b30d-4084-a8bd-b66b05b7e402"),
+        testDataType("GUID", Arrays.asList("64e79dec-ce47-4e06-85da-66a594786c6b", "d7c73255-b30d-4084-a8bd-b66b05b7e402"),
                      UUID.fromString("64e79dec-ce47-4e06-85da-66a594786c6b"), UUID.fromString("d7c73255-b30d-4084-a8bd-b66b05b7e402"));
     }
 
     @Test
     public void testXBadGuid() throws Exception {
-        testBadDataType("GUID", list("64e79dec-ce47-4e06-85da", "xxxxxxxx-b30d-4084-a8bd-b66b05b7e402"));
+        testBadDataType("GUID", Arrays.asList("64e79dec-ce47-4e06-85da", "xxxxxxxx-b30d-4084-a8bd-b66b05b7e402"));
         assertThat(errorStream.toString(),
                    containsString("Invalid UUID string: 64e79dec-ce47-4e06-85da"));
     }
 
     @Test
     public void testInt() throws Exception {
-        testDataType("INT", list("34", "-506"),
+        testDataType("INT", Arrays.asList("34", "-506"),
                      34, -506);
     }
 
     @Test
     public void testReal() throws Exception {
-        testDataType("REAL", list("22.978", "2.9483E24", "-408.9", "1.5E-33"),
+        testDataType("REAL", Arrays.asList("22.978", "2.9483E24", "-408.9", "1.5E-33"),
                      22.978F, 2.9483E24F, -408.9F, 1.5E-33F);
     }
 
     @Test
     public void testTime() throws Exception {
-        testDataType("TIME", list("04:25:48", "11:08:22", "23:58:09"),
+        testDataType("TIME", Arrays.asList("04:25:48", "11:08:22", "23:58:09"),
                      time(4,25,48), time(11,8,22), time(23,58,9));
     }
 
     @Test
     public void testVarchar10() throws Exception {
-        List<String> strings = list("123456789", "bobby");
+        List<String> strings = Arrays.asList("123456789", "bobby");
         testDataType("VARCHAR(10)", strings, strings.toArray());
     }
 
@@ -348,10 +333,7 @@ public class CsvLoaderTest extends LoaderTestBase
         assertLoad(7, "a,b", "c,d", "e,f",
                    "\"Bo\",\"Suzie\"", "\"Al\",\"Jen\"",
                    "x,y","u,v");
-        checkQuery("SELECT * FROM states ORDER BY abbrev", list(
-                                                listO("Al","Jen"), listO("Bo","Suzie"),
-                                                listO("a","b"), listO("c","d"), listO("e","f"),
-                                                listO("u","v"), listO("x","y")));
+        checkQuery("SELECT * FROM states ORDER BY abbrev", Arrays.asList(listO("Al", "Jen"), listO("Bo", "Suzie"), listO("a", "b"), listO("c", "d"), listO("e", "f"), listO("u", "v"), listO("x", "y")));
     }
 
     private <T> void testBadDataType(String dataType, List<String> inputs) throws Exception
@@ -374,7 +356,7 @@ public class CsvLoaderTest extends LoaderTestBase
         List<List<Object>> expected = new ArrayList<>();
         for (int i=0; i<inputs.size(); i++) {
             rows[i] = String.format("A%03d,%s",i,inputs.get(i));
-            expected.add(list((Object)String.format("A%03d",i),values[i]));
+            expected.add(Arrays.asList((Object) String.format("A%03d", i), values[i]));
         }
         assertLoad(values.length, rows);
         checkQuery("SELECT * FROM states ORDER BY key", expected);

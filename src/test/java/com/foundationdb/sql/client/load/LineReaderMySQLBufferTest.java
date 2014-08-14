@@ -17,12 +17,12 @@ package com.foundationdb.sql.client.load;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
 
 import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.tmpFileFrom;
-import static com.foundationdb.sql.client.load.LineReaderCsvBufferTest.list;
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
 
@@ -241,7 +241,7 @@ public class LineReaderMySQLBufferTest {
 
     @Test
     public void testEndOfFileNoNewline() throws Exception {
-        assertReadLines(false, list(query("INSERT INTO \"t\" VALUES (?)", "1")), "INSERT INTO t VALUES (1);");
+        assertReadLines(false, Arrays.asList(query("INSERT INTO \"t\" VALUES (?)", "1")), "INSERT INTO t VALUES (1);");
     }
 
     @Test(expected = MySQLBuffer.UnexpectedEndOfFileException.class)
@@ -275,13 +275,13 @@ public class LineReaderMySQLBufferTest {
             //assertEquals("Second splint", line1.length() + line2.length(), splitPoint2);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, splitPoint);
             MySQLBuffer mySQL = new MySQLBuffer();
-            assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?), (?, ?)","a","b","c","d","e","f")), mySQL, lines);
+            assertRows(Arrays.asList(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?), (?, ?)", "a", "b", "c", "d", "e", "f")), mySQL, lines);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint, splitPoint2);
             mySQL = new MySQLBuffer();
-            assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)","3","4","5","6")), mySQL, lines);
+            assertRows(Arrays.asList(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)", "3", "4", "5", "6")), mySQL, lines);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint2, istr.getChannel().size());
             mySQL = new MySQLBuffer();
-            assertRows(list(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)","x","y","u","v")), mySQL, lines);
+            assertRows(Arrays.asList(query("INSERT INTO \"states\" VALUES (?, ?), (?, ?)", "x", "y", "u", "v")), mySQL, lines);
         } finally {
             if (istr != null) {
                 istr.close();
@@ -298,7 +298,7 @@ public class LineReaderMySQLBufferTest {
     }
 
     private static void assertReadLines(MySQLBuffer.Query expected, String... input) throws Exception {
-        assertReadLines(true, list(expected), input);
+        assertReadLines(true, Arrays.asList(expected), input);
     }
 
     private static void assertReadLines(List<MySQLBuffer.Query> expected, String... input) throws Exception {

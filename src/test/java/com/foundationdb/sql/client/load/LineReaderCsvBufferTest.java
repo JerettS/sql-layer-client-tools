@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
@@ -30,52 +31,52 @@ public class LineReaderCsvBufferTest {
 
     @Test
     public void simpleReadOneColumn() throws Exception {
-        assertReadLines(list(list("field1")), "field1");
+        assertReadLines(Arrays.asList(Arrays.asList("field1")), "field1");
     }
 
     @Test
     public void simpleRead() throws Exception {
-        assertReadLines(list(list("field1", "field2")), "field1,field2");
+        assertReadLines(Arrays.asList(Arrays.asList("field1", "field2")), "field1,field2");
     }
 
     @Test
     public void simpleReadMissingTrailingNewline() throws Exception {
-        assertReadLines(false, list(list("field1", "field2")), "field1,field2");
+        assertReadLines(false, Arrays.asList(Arrays.asList("field1", "field2")), "field1,field2");
     }
 
     @Test
     public void simpleReadTwoRows() throws Exception {
-        assertReadLines(list(list("field1", "field2"),list("field3", "field4")), "field1,field2","field3,field4");
+        assertReadLines(Arrays.asList(Arrays.asList("field1", "field2"), Arrays.asList("field3", "field4")), "field1,field2","field3,field4");
     }
 
     @Test
     public void simpleMissingTrailingNewlineReadTwoRows() throws Exception {
-        assertReadLines(false, list(list("field1", "field2"),list("field3", "field4")), "field1,field2\n","field3,field4");
+        assertReadLines(false, Arrays.asList(Arrays.asList("field1", "field2"), Arrays.asList("field3", "field4")), "field1,field2\n","field3,field4");
     }
 
     @Test
     public void simpleQuoted() throws Exception {
-        assertReadLines(list(list("a field", "field2")), "\"a field\",field2");
+        assertReadLines(Arrays.asList(Arrays.asList("a field", "field2")), "\"a field\",field2");
     }
 
     @Test
     public void simpleQuotedDelimiter() throws Exception {
-        assertReadLines(list(list("a,field", "field2")), "\"a,field\",field2");
+        assertReadLines(Arrays.asList(Arrays.asList("a,field", "field2")), "\"a,field\",field2");
     }
 
     @Test
     public void quotedNewline() throws Exception {
-        assertReadLines(list(list("a\nfield", "field2")), "\"a\nfield\",field2");
+        assertReadLines(Arrays.asList(Arrays.asList("a\nfield", "field2")), "\"a\nfield\",field2");
     }
 
     @Test
     public void quotedCarriageReturn() throws Exception {
-        assertReadLines(list(list("a\rfield", "field2")), "\"a\rfield\",field2");
+        assertReadLines(Arrays.asList(Arrays.asList("a\rfield", "field2")), "\"a\rfield\",field2");
     }
 
     @Test
     public void quotedQuote() throws Exception {
-        assertReadLines(list(list("a field", "the \"second\" field")), "a field,\"the \"\"second\"\" field\"");
+        assertReadLines(Arrays.asList(Arrays.asList("a field", "the \"second\" field")), "a field,\"the \"\"second\"\" field\"");
     }
 
     @Test
@@ -97,26 +98,18 @@ public class LineReaderCsvBufferTest {
             long splitPoint2 = lines.splitParse(split2, new CsvBuffer());
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, 0, splitPoint);
             CsvBuffer csv = new CsvBuffer();
-            assertRows(list(list("first row", "has the value", "3")), csv, lines);
+            assertRows(Arrays.asList(Arrays.asList("first row", "has the value", "3")), csv, lines);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint, splitPoint2);
             csv = new CsvBuffer();
-            assertRows(list(list("second row", "has the value", "17")), csv, lines);
+            assertRows(Arrays.asList(Arrays.asList("second row", "has the value", "17")), csv, lines);
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint2, istr.getChannel().size());
             csv = new CsvBuffer();
-            assertRows(list(list("third row", "has the value", "950")), csv, lines);
+            assertRows(Arrays.asList(Arrays.asList("third row", "has the value", "950")), csv, lines);
         } finally {
             if (istr != null) {
                 istr.close();
             }
         }
-    }
-
-    public static <T> List<T> list(T... values) {
-        List<T> result = new ArrayList<>();
-        for (T value : values) {
-            result.add(value);
-        }
-        return result;
     }
 
     private static void assertReadLines(List<List<String>> expected, String... input) throws Exception {
