@@ -89,9 +89,7 @@ public class LineReaderCsvBufferTest {
         int split2 = split1 * 2;
         assertNotEquals("Don't make it too easy", split1, line1.length());
         File file = tmpFileFrom(true, line1, line2, line3);
-        FileInputStream istr = null;
-        try {
-            istr = new FileInputStream(file);
+        try (FileInputStream istr = new FileInputStream(file)) {
             // NOTE: right now the char buffer size must be 1 for calling splitParse
             LineReader lines = new LineReader(istr.getChannel(), encoding, 1);
             long splitPoint = lines.splitParse(split1, new CsvBuffer());
@@ -105,10 +103,6 @@ public class LineReaderCsvBufferTest {
             lines = new LineReader(istr.getChannel(), encoding, FileLoader.SMALL_BUFFER_SIZE, 128, splitPoint2, istr.getChannel().size());
             csv = new CsvBuffer();
             assertRows(Arrays.asList(Arrays.asList("third row", "has the value", "950")), csv, lines);
-        } finally {
-            if (istr != null) {
-                istr.close();
-            }
         }
     }
 
