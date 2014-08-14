@@ -18,8 +18,6 @@ package com.foundationdb.sql.client.load;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.postgresql.util.PSQLException;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +27,6 @@ import java.util.UUID;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
 
 public class CsvLoaderTest extends LoaderTestBase
 {
@@ -80,7 +77,7 @@ public class CsvLoaderTest extends LoaderTestBase
 
     @Test
     public void testEmptyCsvWithoutHeader() throws Exception {
-        options.format = Format.CSV;
+        // Note: Exception will be caught by main() and the message will be printed out
         try {
             assertLoad(0, "");
             assertEquals("An exception to be thrown", "no exception was thrown");
@@ -91,7 +88,7 @@ public class CsvLoaderTest extends LoaderTestBase
 
     @Test
     public void testEmptyCsvWithHeader() throws Exception {
-        options.format = Format.CSV_HEADER;
+        // Note: Exception will be caught by main() and the message will be printed out
         try {
             assertLoad(0, "");
             assertEquals("An exception to be thrown", "no exception was thrown");
