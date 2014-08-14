@@ -27,6 +27,7 @@ import java.util.UUID;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 public class CsvLoaderTest extends LoaderTestBase
 {
@@ -80,7 +81,7 @@ public class CsvLoaderTest extends LoaderTestBase
         // Note: Exception will be caught by main() and the message will be printed out
         try {
             assertLoad(0, "");
-            assertEquals("An exception to be thrown", "no exception was thrown");
+            fail("No exception was thrown");
         } catch (IndexOutOfBoundsException e) {
             assertEquals("Csv file is empty", e.getMessage());
         }
@@ -91,7 +92,7 @@ public class CsvLoaderTest extends LoaderTestBase
         // Note: Exception will be caught by main() and the message will be printed out
         try {
             assertLoad(0, "");
-            assertEquals("An exception to be thrown", "no exception was thrown");
+            fail("No exception was thrown");
         } catch (IndexOutOfBoundsException e) {
             assertEquals("Csv file is empty", e.getMessage());
         }
