@@ -50,7 +50,7 @@ public class DumpClient
             dumpClient.dump();
         } 
         catch (SQLException sqle) {
-            if (StatementHelper.isPastVersion(sqle)) {
+            if (StatementHelper.isPastVersion(sqle) && (options.commitFrequency != options.COMMIT_AUTO)) {
                 System.err.println("ERROR: Failed to commit, as transaction took too long. " +
                         "There may be too much data to dump in a single commit." +
                         " Try add flag \"--commit=auto\", to split dump over multiple commits. If " +
