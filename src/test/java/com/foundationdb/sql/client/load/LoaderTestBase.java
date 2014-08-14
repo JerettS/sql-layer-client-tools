@@ -173,20 +173,17 @@ public class LoaderTestBase extends ClientTestBase{
         public boolean keepGoing = true;
         @Override
         public void run() {
-            int sleepTime = 1;
+            int timeSlept = 0;
             try {
                 while (keepGoing) {
-                    loadDDL("DROP TABLE IF EXISTS foo", "CREATE TABLE foo (abbrev CHAR(4))");
-                    Thread.sleep(sleepTime);
-                    // running the csv & mysql retry tests multiple times put this at about 3 retries
-                    // on my machine, which should give some leway on the server
-                    // 1, 4, 256, 4294967296 milliseconds
-                    // if we can't import 100 rows in 50 days, something's terribly wrong
-                    // if it takes 1 millisecond before we start importing (possible), and we import the
-                    // 100 rows before the 4 milliseconds we won't need to retry, then we can import 30
-                    // rows in the amount of time it takes to prep to import the first row (not including
-                    // DDL stuff).
-                    sleepTime *= 4 * sleepTime * sleepTime;
+                    // The goal is to get about 3 retries for the csv and mysql tests
+                    // Sleep 1ms at a time so that we can set keepGoing to false, and it will stop
+                    // within a millisecond, instead of sleeping for the next minute
+                    if (timeSlept == 5 || timeSlept == 18 || timeSlept == 256 || timeSlept == 1000) {
+                        loadDDL("DROP TABLE IF EXISTS foo", "CREATE TABLE foo (abbrev CHAR(4))");
+                    }
+                    Thread.sleep(1);
+                    timeSlept++;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
