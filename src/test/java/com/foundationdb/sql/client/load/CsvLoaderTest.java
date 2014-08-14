@@ -178,10 +178,8 @@ public class CsvLoaderTest extends LoaderTestBase
             assertLoad(100, rows);
         } finally {
             ddlRunner.keepGoing = false;
-            ddlThread.stop();
         }
-        // just to make sure the ddlThread is done.
-        Thread.sleep(4);
+        ddlThread.join();
         checkQuery("SELECT * FROM states ORDER BY abbrev", expected);
     }
 
