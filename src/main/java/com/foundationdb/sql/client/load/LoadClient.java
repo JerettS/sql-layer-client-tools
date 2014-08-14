@@ -15,7 +15,7 @@
 
 package com.foundationdb.sql.client.load;
 
-import org.postgresql.copy.CopyManager;
+import com.foundationdb.sql.jdbc.copy.CopyManager;
 
 import java.io.*;
 import java.nio.channels.FileChannel;
@@ -26,9 +26,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 public class LoadClient
 {
     private static final String PROGRAM_NAME = "fdbsqlload";
+    private static final String encoding = "UTF-8";
 
     private final LoadClientOptions options;
-    private final String encoding = "UTF-8";
     private final Deque<Connection> connections = new ConcurrentLinkedDeque<>();
     private final List<String> urls;
     private int urlsIterator = 0;
@@ -58,6 +58,14 @@ public class LoadClient
         assert !urls.isEmpty() : "No connection URLs";
         if(options.commitFrequency == null) {
             options.commitFrequency = 0L;
+        }
+        if(options.maxRetries == null) {
+            if (options.commitFrequency == 0) {
+                options.maxRetries = 1;
+            }
+            else {
+                options.maxRetries = 10;
+            }
         }
     }
 
@@ -217,6 +225,6 @@ public class LoadClient
     }
 
     protected CopyManager getCopyManager(Connection connection) throws SQLException {
-        return new CopyManager((org.postgresql.core.BaseConnection)connection);
+        return new CopyManager((com.foundationdb.sql.jdbc.core.BaseConnection)connection);
     }
 }
