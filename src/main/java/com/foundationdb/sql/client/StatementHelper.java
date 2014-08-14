@@ -28,6 +28,7 @@ import java.util.Map;
 public class StatementHelper implements Closeable
 {
     public final static String STALE_STATEMENT_CODE = "0A50A";
+    public final static String PAST_VERSION_CODE = "40004";
     public final static String ROLLBACK_PREFIX = "40";
     public final static boolean RETRY_ROLLBACK_DEFAULT = false;
 
@@ -124,5 +125,9 @@ public class StatementHelper implements Closeable
     public static boolean shouldRetry(SQLException e, boolean retryRollback) {
         return STALE_STATEMENT_CODE.equals(e.getSQLState()) ||
                (retryRollback && e.getSQLState().startsWith(ROLLBACK_PREFIX));
+    }
+    
+    public static boolean isPastVersion(SQLException e) {
+        return PAST_VERSION_CODE.equals(e.getSQLState());
     }
 }

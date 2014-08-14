@@ -48,7 +48,19 @@ public class DumpClient
         DumpClient dumpClient = new DumpClient(options);
         try {
             dumpClient.dump();
-        } catch (Exception e) {
+        } 
+        catch (SQLException sqle) {
+            if (StatementHelper.isPastVersion(sqle)) {
+                System.err.println("ERROR: Failed to commit, as transaction took too long. " +
+                        "There may be too much data to dump in a single commit." +
+                        " Try add flag \"--commit=auto\", to split dump over multiple commits. If " +
+                        "data is updated while dumping this may lead to inconsistencies.");
+            } else if (StatementHelper.shouldRetry(sqle, true)) {
+                System.err.println("ERROR: Failed to commit, retry dump");
+            }
+            throw sqle;
+        }
+        catch (Exception e) {
             System.err.println(e.getMessage());
             System.exit(1);
         }
