@@ -103,7 +103,7 @@ public class LoadClient
                     format = Format.CSV;
                 }
                 else if (name.endsWith(".sql")) {
-                    MySQLLoader loader = new MySQLLoader(this, channel, target);
+                    MySQLLoader loader = new MySQLLoader(this, channel);
                     if (loader.isMySQLDump())
                         format = Format.MYSQL_DUMP;
                     else
@@ -122,7 +122,11 @@ public class LoadClient
                                        target, (format == Format.CSV_HEADER));
                 break;
             case MYSQL_DUMP:
-                loader = new MySQLLoader(this, channel, target);
+                if (options.target != null) {
+                    System.err.println("MySQL import does not support the --into option");
+                    return -1;
+                }
+                loader = new MySQLLoader(this, channel);
                 break;
             case FDB_SQL:
                 loader = new DumpLoader(this, channel);

@@ -58,11 +58,9 @@ class DumpLoader extends FileLoader
     }
 
     protected class DumpSegmentQueryLoader extends SegmentLoader {
-        private long startLineNo;
         
         public DumpSegmentQueryLoader(long start, long end, long startLineNo) {            
-            super(DumpLoader.this.client, DumpLoader.this.channel, start, end);
-            this.startLineNo = startLineNo;
+            super(DumpLoader.this.client, DumpLoader.this.channel, start, end, startLineNo);
         }
         
         @Override
@@ -70,38 +68,13 @@ class DumpLoader extends FileLoader
         }
         
         @Override
-        public void run() {
-            try {
-                count += executeSegmentQuery (start, end, startLineNo);
-            } catch (Exception ex) {
-                if (ex instanceof DumpLoaderException) {
-                    System.err.println("ERROR: During query that ends on line " + ((DumpLoaderException) ex).getLineNo() + ", starting with:" );
-                    System.err.println("       " + getPartialQuery( ((DumpLoaderException)ex).getQuery(), 160) );
-                    ex = ((DumpLoaderException) ex).getEx();
-                }
-                System.err.println(ex.getMessage());
-                if (ex instanceof SQLException) {
-                    // unwrap SQLException
-                    if (ex.getCause() instanceof SQLException) {
-                        ex = (SQLException)ex.getCause();
-                        System.err.println(ex.getMessage());
-                    }
-                    
-                    if (StatementHelper.shouldRetry((SQLException)ex, true)) {
-                        System.err.println("NOTE: In case of past version exception try flags: --commit=auto --retry=3");
-                    }
-                    System.err.println("NOTE: You can drop the partially loaded schema by doing: fdbsqlcli -c “DROP SCHEMA [schema_name] CASCADE\"");
-                }
-            }
+        public void runSegment() throws SQLException, IOException, DumpLoaderException {
+            count += executeSegmentQuery (start, end, startLineNo);
         }
-    }
-    
-    private String getPartialQuery(String query, int maxLength){
-        return query.length() > maxLength ? (query.substring(0, maxLength) + " ...") : query;
     }
 
     protected long executeSegmentQuery (long start, long end, long startLineNo)
-        throws SQLException, IOException {
+            throws SQLException, IOException, DumpLoaderException {
         String sql = null;
         LineReader lines = new LineReader(channel, client.getEncoding(),
                 BUFFER_SIZE, BUFFER_SIZE,
@@ -160,8 +133,8 @@ class DumpLoader extends FileLoader
         return status.count;
     }
 
-    private void retry(Connection conn, StatementHelper stmt,
-            CommitStatus status, List<String> uncommittedStatements, SQLException e) throws SQLException {
+    protected void retry(Connection conn, StatementHelper stmt,
+                         CommitStatus status, List<String> uncommittedStatements, SQLException e) throws SQLException {
         for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
             status.pending = 0;
             try {
@@ -185,7 +158,7 @@ class DumpLoader extends FileLoader
         throw(new SQLException("Maximum number of retries met", e));
     }
 
-    private void executeSQL (Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
+    void executeSQL(Connection conn, StatementHelper helper, String sql, CommitStatus status ) throws SQLException {
         if (sql.startsWith("INSERT INTO ")) {
             if (hasDDL && conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
@@ -205,19 +178,6 @@ class DumpLoader extends FileLoader
             conn.setAutoCommit(true);
             hasDDL = true; // Just in case.
             helper.execute(sql);
-        }
-    }
-    
-    private class CommitStatus {
-        public int pending;
-        public long count;
-        public CommitStatus() {
-            pending = 0;
-            count = 0;
-        }
-        public void commit() {
-            count += pending;
-            pending = 0;
         }
     }
     

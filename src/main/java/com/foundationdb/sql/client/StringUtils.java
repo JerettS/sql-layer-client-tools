@@ -13,28 +13,25 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.foundationdb.sql.client.load;
+package com.foundationdb.sql.client;
 
-public class DumpLoaderException extends Exception {
-    private Exception exception;
-    private long lineNo;
-    private String query;
-    
-    public DumpLoaderException(long lineNo, String query, Exception exception) {
-        this.exception = exception;
-        this.lineNo = lineNo;
-        this.query = query == null ? "" : query;
-    }
+import java.util.List;
 
-    public long getLineNo()  {
-        return lineNo;
-    }
-    
-    public String getQuery() {
-        return query;
-    }
-    
-    public Exception getEx() {
-        return exception;
+public class StringUtils {
+    public static String joinList(List list) {
+        if (list == null) {
+            return "null";
+        }
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append('[');
+        if (list.size() > 0) {
+            stringBuilder.append(list.get(0));
+            for (int i = 1; i < list.size(); i++) {
+                stringBuilder.append(',');
+                stringBuilder.append(list.get(i));
+            }
+        }
+        stringBuilder.append(']');
+        return stringBuilder.toString();
     }
 }

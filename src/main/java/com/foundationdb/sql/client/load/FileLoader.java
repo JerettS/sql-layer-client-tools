@@ -15,6 +15,8 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.sql.Connection;
@@ -37,9 +39,9 @@ abstract class FileLoader
     public void checkFormat() throws IOException {
     }
 
-    abstract SegmentLoader wholeFile() throws IOException;
+    abstract SegmentLoader wholeFile() throws IOException, LineReader.ParseException;
 
-    abstract List<? extends SegmentLoader> split(int nsegments) throws IOException;
+    abstract List<? extends SegmentLoader> split(int nsegments) throws IOException, LineReader.ParseException;
 
     protected Connection getConnection(boolean autoCommit) throws SQLException {
         return client.getConnection(autoCommit);
@@ -51,5 +53,18 @@ abstract class FileLoader
             client.returnConnection(connection);
         else
             connection.close();
+    }
+
+    protected class CommitStatus {
+        public int pending;
+        public long count;
+        public CommitStatus() {
+            pending = 0;
+            count = 0;
+        }
+        public void commit() {
+            count += pending;
+            pending = 0;
+        }
     }
 }

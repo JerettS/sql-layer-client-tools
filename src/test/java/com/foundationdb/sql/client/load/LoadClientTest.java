@@ -114,6 +114,9 @@ public class LoadClientTest extends ClientTestBase
                 options.hosts.clear();
                 options.hosts.addAll(Arrays.asList(value.split(" ")));
             }
+            else if ("target".equals(key)) {
+                options.target = value;
+            }
             else
                 throw new Exception("Unknown property: " + key);
         }

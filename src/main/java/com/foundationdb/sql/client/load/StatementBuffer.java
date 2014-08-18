@@ -15,26 +15,12 @@
 
 package com.foundationdb.sql.client.load;
 
-public class DumpLoaderException extends Exception {
-    private Exception exception;
-    private long lineNo;
-    private String query;
-    
-    public DumpLoaderException(long lineNo, String query, Exception exception) {
-        this.exception = exception;
-        this.lineNo = lineNo;
-        this.query = query == null ? "" : query;
-    }
+import java.io.IOException;
 
-    public long getLineNo()  {
-        return lineNo;
-    }
-    
-    public String getQuery() {
-        return query;
-    }
-    
-    public Exception getEx() {
-        return exception;
-    }
+public interface StatementBuffer<T> {
+    void append(char c);
+
+    T nextStatement();
+
+    boolean hasStatement(boolean endOfFile) throws IOException, LineReader.ParseException;
 }

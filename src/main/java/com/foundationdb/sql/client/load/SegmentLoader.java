@@ -15,20 +15,27 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.sql.SQLException;
 
 abstract class SegmentLoader implements Runnable
 {
     protected final LoadClient client;
     protected final FileChannel channel;
-    protected long start, end, count;
+    protected final long start;
+    protected final long end;
+    protected final long startLineNo;
+    protected long count;
 
-    protected SegmentLoader(LoadClient client, FileChannel channel, long start, long end) {
+    protected SegmentLoader(LoadClient client, FileChannel channel, long start, long end, long startLineNo) {
         this.client = client;
         this.channel = channel;
         this.start = start;
         this.end = end;
+        this.startLineNo = startLineNo;
     }
 
     /** This is called in the main thread before spawning multiple
@@ -39,4 +46,37 @@ abstract class SegmentLoader implements Runnable
     public void prepare() throws IOException {
     }
 
+    protected abstract void runSegment() throws SQLException, IOException, DumpLoaderException;
+
+    @Override
+    public final void run() {
+        try {
+            runSegment();
+        } catch (Exception ex) {
+            if (ex instanceof DumpLoaderException) {
+                System.err.println("ERROR: During query that ends on line " +
+                        ((DumpLoaderException) ex).getLineNo() + ", starting with:");
+                System.err.println("       " + getPartialQuery(((DumpLoaderException) ex).getQuery(), 160));
+                ex = ((DumpLoaderException) ex).getEx();
+            }
+            System.err.println(ex.getMessage());
+            if (ex instanceof SQLException) {
+                // unwrap SQLException
+                if (ex.getCause() instanceof SQLException) {
+                    ex = (SQLException) ex.getCause();
+                    System.err.println(ex.getMessage());
+                }
+
+                if (StatementHelper.shouldRetry((SQLException) ex, true)) {
+                    System.err.println("NOTE: In case of past version exception try flags: --commit=auto --retry=3");
+                }
+                System.err.println("NOTE: You can drop the partially loaded schema by doing: fdbsqlcli -c " +
+                        "\"DROP SCHEMA [schema_name] CASCADE\"");
+            }
+        }
+    }
+
+    protected String getPartialQuery(String query, int maxLength){
+        return query.length() > maxLength ? (query.substring(0, maxLength) + " ...") : query;
+    }
 }

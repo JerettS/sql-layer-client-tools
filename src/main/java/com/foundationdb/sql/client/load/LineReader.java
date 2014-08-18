@@ -91,7 +91,6 @@ public class LineReader
             return null;
         return str.toString();
     }
-
     
     public boolean readLine (QueryBuffer into) throws IOException {
         into.setStripDashQuote();
@@ -126,7 +125,33 @@ public class LineReader
             }
         }
     }
-    
+
+    // TODO At some point we should remove/reduce all this triple buffering stuff
+    // at that point, combine these all into one.
+    public boolean readLine (StatementBuffer into) throws IOException,ParseException {
+        boolean eol = false;
+        while (true) {
+            while (chars.hasRemaining()) {
+                char ch = chars.get();
+                into.append(ch);
+                if (ch == '\n') {
+                    eol = true;
+                    lineCounter++;
+                    break;
+                }
+            }
+
+            if (eol) {
+                eol = false;
+                if (into.hasStatement(false)) return true;
+            } else {
+                if (!refillCharsBuffer()) {
+                    return into.hasStatement(true);
+                }
+            }
+        }
+    }
+
     public boolean readLine(StringBuilder into) throws IOException {
         while (true) {
             while (chars.hasRemaining()) {
@@ -183,6 +208,24 @@ public class LineReader
             after = position;
         }
         
+        if (before < after) {
+            return after;
+        } else {
+            return before;
+        }
+    }
+
+    public long splitParse(long point, StatementBuffer buffer) throws IOException, ParseException {
+        long before = -1;
+        long after = -1;
+        decoder.reset();
+
+        while (position < point) {
+            before = position;
+            readLine(buffer);
+            after = position;
+        }
+
         if (before < after) {
             return after;
         } else {
@@ -271,4 +314,9 @@ public class LineReader
             return after;
     }
 
+    public static class ParseException extends Exception {
+        public ParseException(String message) {
+            super(message);
+        }
+    }
 }

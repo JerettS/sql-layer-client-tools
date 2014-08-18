@@ -15,52 +15,222 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+
+import static com.foundationdb.sql.client.StringUtils.joinList;
 
 class CsvLoader extends FileLoader
 {
-    private final String target;
+    private final String targetTable;
     private final boolean header;
+    private String preparedStatement;
 
     public CsvLoader(LoadClient client, FileChannel channel, 
-                     String target, boolean header) {
+                     String targetTable, boolean header) {
         super(client, channel);
-        this.target = target;
+        this.targetTable = targetTable;
         this.header = header;
     }
 
-    public SegmentLoader wholeFile() throws IOException {
-        return getCopyLoader();
-    }
-
-    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
-        return getCopyLoader().splitByLines(nsegments);
-    }
-
-    protected CopyLoader getCopyLoader() throws IOException {
+    public SegmentLoader wholeFile() throws IOException, LineReader.ParseException {
         long start = 0;
         long end = channel.size();
-        String headerLine = null;
-        if (header) {
-            LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
-            headerLine = lines.readLine();
-            start = lines.position();
+        start = createPreparedStatement();
+        return new CsvSegmentLoader(start, end, 0);
+    }
+
+    private long createPreparedStatement() throws IOException, LineReader.ParseException {
+        long start;List<String> columns = null;
+        int columnCount = 0;
+        LineReader lines = new LineReader(channel, client.getEncoding(), 1); // Need accurate position.
+        CsvBuffer buffer = new CsvBuffer();
+        if (lines.readLine(buffer) && buffer.hasStatement(false)) {
+            if (header) {
+                columns = buffer.nextStatement();
+                columnCount = columns.size();
+            } else {
+                columnCount = buffer.nextStatement().size();
+            }
+        } else {
+            throw new IndexOutOfBoundsException("Csv file is empty");
         }
-        StringBuilder sql = new StringBuilder();
-        sql.append("COPY ").append(target);
-        if ((headerLine != null) && (target.indexOf('(') < 0))
-            sql.append("(").append(headerLine).append(")");
-        sql.append(" FROM STDIN WITH (ENCODING '") .append(client.getEncoding())
-           .append("', FORMAT CSV");
-        // TODO: DELIMITER, QUOTE, ESCAPE, ...?
-        if (client.getCommitFrequency() > 0)
-            sql.append(", COMMIT ").append(client.getCommitFrequency());
-        if (client.getMaxRetries() > 1)
-            sql.append(", RETRY ").append(client.getMaxRetries());
-        sql.append(")");
-        return new CopyLoader(client, channel, sql.toString(), start, end);
+        if (header) {
+            // since CsvBuffer will always end a row at the end of a line, the position must be the end of a line.
+            // Well, so long as the character buffer size is 1 above
+            start = lines.position();
+        } else {
+            start = 0;
+        }
+        preparedStatement = createPreparedStatement(targetTable, columns, columnCount);
+        return start;
+    }
+
+    private static String createPreparedStatement(String targetTable, List<String> columns, int columnCount) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("INSERT INTO \"");
+        sb.append(escapeIdentifier(targetTable));
+        sb.append("\" ");
+        if (columns != null) {
+            assert columnCount == columns.size();
+            sb.append("(\"");
+            for (int i=0; i<columns.size()-1; i++) {
+                sb.append(escapeIdentifier(columns.get(i)));
+                sb.append("\",\"");
+            }
+            sb.append(escapeIdentifier(columns.get(columns.size()-1)));
+            sb.append("\") ");
+        }
+        sb.append("VALUES (");
+        for (int i=0; i<columnCount-1; i++) {
+            sb.append("?, ");
+        }
+        if (columnCount > 0) {
+            sb.append("?)");
+        } else {
+            sb.append(")");
+        }
+        return sb.toString();
+    }
+
+    private static String escapeIdentifier(String identifier) {
+        return identifier.replaceAll("\"","\"\"");
+    }
+
+    public List<? extends SegmentLoader> split(int nsegments) throws IOException, LineReader.ParseException {
+        List<CsvSegmentLoader> segments = new ArrayList<>(nsegments);
+        long start = 0;
+        long end = channel.size();
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                                          FileLoader.SMALL_BUFFER_SIZE, 1,
+                                          start, end);
+        start = createPreparedStatement();
+        long mid;
+        while (nsegments > 1) {
+            if ( ((end - start) < nsegments) && ((end - start) > 0)) {
+                mid = start + 1;
+                nsegments = (int)(end - start);
+            }
+            else {
+                mid = start + (end - start) / nsegments;
+            }
+            mid = lines.splitParse(mid, new CsvBuffer());
+            segments.add(new CsvSegmentLoader(start, mid, lines.getLineCounter()));
+            if (mid >= (end - 1))
+                return segments;
+            start = mid;
+            lines.position(mid);
+            nsegments--;
+        }
+        segments.add(new CsvSegmentLoader(start, end, lines.getLineCounter()));
+        return segments;
+    }
+
+    protected class CsvSegmentLoader extends SegmentLoader {
+        public CsvSegmentLoader(long start, long end, long startLineNo) {
+            super(CsvLoader.this.client, CsvLoader.this.channel, start, end, startLineNo);
+        }
+
+        @Override
+        public void prepare() throws IOException {
+        }
+
+        @Override
+        public void runSegment() throws DumpLoaderException, IOException, SQLException{
+            boolean success = false;
+            Connection connection = client.getConnection(false);
+            CommitStatus status = new CommitStatus();
+            StatementHelper stmt = new StatementHelper(connection);
+            List<String[]> uncommittedStatements = new ArrayList<>();
+            LineReader lines = new LineReader(channel, client.getEncoding(),
+                    BUFFER_SIZE, BUFFER_SIZE,
+                    start, end);
+            List<String> values = null;
+            try {
+                CsvBuffer buffer = new CsvBuffer();
+                while (true) {
+                    if (!lines.readLine(buffer)) {
+                        break;
+                    }
+                    values = buffer.nextStatement();
+                    try {
+                        String[] valuesArray = values.toArray(new String[values.size()]);
+                        uncommittedStatements.add(valuesArray);
+                        status.pending += stmt.executeUpdatePrepared(preparedStatement, valuesArray);
+                        if (status.pending == 0) { // successful commit
+                            uncommittedStatements.clear();
+                        }
+                    } catch (SQLException e) {
+                        if (!connection.getAutoCommit()) connection.rollback();
+                        if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                            retry(connection, stmt, status, uncommittedStatements, e);
+                        } else {
+                            throw(e);
+                        }
+                    }
+
+                }
+                if (status.pending > 0) {
+                    try {
+                        connection.commit();
+                        status.commit();
+                    } catch (SQLException e) {
+                        if (!connection.getAutoCommit()) connection.rollback();
+                        if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                            retry(connection, stmt, status, uncommittedStatements, e);
+                        } else {
+                            throw(e);
+                        }
+                    }
+                }
+                success = true;
+            }
+            catch (Exception ex) {
+                // TODO + startLineNo
+                throw new DumpLoaderException(lines.getLineCounter(), joinList(values), ex);
+            }
+            finally {
+                if (stmt != null) {
+                    stmt.close();
+                }
+                try {
+                    returnConnection(connection, success);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            count += status.count;
+        }
+
+        private void retry(Connection connection, StatementHelper stmt, CommitStatus status,
+                           List<String[]> uncommittedStatements, SQLException e) throws SQLException {
+            for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
+                status.pending = 0;
+                try {
+                    for (String[] values : uncommittedStatements) {
+                        status.pending += stmt.executeUpdatePrepared(preparedStatement, values);
+                    }
+                    if (status.pending > 0) {
+                        connection.commit();
+                        status.commit();
+                    }
+                    uncommittedStatements.clear();
+                    return;
+                } catch (SQLException newE) {
+                    if (!connection.getAutoCommit()) connection.rollback();
+                    if (!StatementHelper.shouldRetry(newE, true)) {
+                        throw(newE);
+                    }
+                    e = newE;
+                }
+            }
+            throw(new SQLException("Maximum number of retries met", e));
+        }
     }
 }

@@ -15,40 +15,19 @@
 
 package com.foundationdb.sql.client.load;
 
+import com.foundationdb.sql.client.StatementHelper;
+
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 class MySQLLoader extends FileLoader
 {
-    private final String target;
-
-    public MySQLLoader(LoadClient client, FileChannel channel, String target) {
+    public MySQLLoader(LoadClient client, FileChannel channel) {
         super(client, channel);
-        this.target = target;
-    }
-
-    public SegmentLoader wholeFile() throws IOException {
-        return getCopyLoader();
-    }
-
-    public List<? extends SegmentLoader> split(int nsegments) throws IOException {
-        return getCopyLoader().splitByLines(nsegments);
-    }
-
-    protected CopyLoader getCopyLoader() throws IOException {
-        long start = 0;
-        long end = channel.size();
-        StringBuilder sql = new StringBuilder();
-        sql.append("COPY ").append(target);
-        sql.append(" FROM STDIN WITH (FORMAT MYSQL_DUMP");
-        if (client.getCommitFrequency() > 0)
-            sql.append(", COMMIT ").append(client.getCommitFrequency());
-        if (client.getMaxRetries() > 1)
-            sql.append(", RETRY ").append(client.getMaxRetries());
-        sql.append(")");
-        return new CopyLoader(client, channel, sql.toString(), start, end);
     }
 
     /** Is this .sql file really a MySQL dump file? */
@@ -62,16 +41,152 @@ class MySQLLoader extends FileLoader
     public void checkFormat() throws IOException {
         LineReader lines = new LineReader(channel, client.getEncoding());
         while (true) {
-            String line = lines.readLine();
+            String line = lines.readLine().toLowerCase();
             if (line == null) break;
             if ((line.length() == 0) ||
                 line.startsWith("--") ||
                 line.startsWith("/*"))
                 continue;
-            if (line.startsWith("LOCK ") ||
-                line.startsWith("INSERT INTO "))
+            if (line.startsWith("lock ") ||
+                line.startsWith("insert into "))
                 return;         // Good.
             throw new UnsupportedOperationException("File contains " + line + " and can only be loaded by MySQL. Try mysqldump --no-create-info.");
+        }
+    }
+
+
+    public SegmentLoader wholeFile() throws IOException {
+        long start = 0;
+        long end = channel.size();
+        return new MySQLSegmentLoader(start,end,0);
+    }
+
+    public List<? extends SegmentLoader> split(int nsegments) throws IOException, LineReader.ParseException {
+        List<MySQLSegmentLoader> segments = new ArrayList<>(nsegments);
+        long start = 0;
+        long end = channel.size();
+        LineReader lines = new LineReader(channel, client.getEncoding(),
+                FileLoader.SMALL_BUFFER_SIZE, 1,
+                start, end);
+        long mid;
+        while (nsegments > 1) {
+            if ( ((end - start) < nsegments) && ((end - start) > 0)) {
+                mid = start + 1;
+                nsegments = (int)(end - start);
+            }
+            else {
+                mid = start + (end - start) / nsegments;
+            }
+            mid = lines.splitParse(mid, new MySQLBuffer());
+            segments.add(new MySQLSegmentLoader(start, mid, lines.getLineCounter()));
+            if (mid >= (end - 1))
+                return segments;
+            start = mid;
+            lines.position(mid);
+            nsegments--;
+        }
+        segments.add(new MySQLSegmentLoader(start, end, lines.getLineCounter()));
+        return segments;
+    }
+
+    protected class MySQLSegmentLoader extends SegmentLoader {
+        public MySQLSegmentLoader(long start, long end, long startLineNo) {
+            super(MySQLLoader.this.client, MySQLLoader.this.channel, start, end, startLineNo);
+        }
+
+        @Override
+        public void prepare() throws IOException {
+        }
+
+        @Override
+        public void runSegment() throws DumpLoaderException, IOException, SQLException {
+            boolean success = false;
+            Connection connection = client.getConnection(false);
+            CommitStatus status = new CommitStatus();
+            StatementHelper stmt = new StatementHelper(connection);
+            List<MySQLBuffer.Query> uncommittedStatements = new ArrayList<>();
+            LineReader lines = new LineReader(channel, client.getEncoding(),
+                    BUFFER_SIZE, BUFFER_SIZE,
+                    start, end);
+            MySQLBuffer.Query query = null;
+            try {
+                 MySQLBuffer buffer = new MySQLBuffer();
+                 while (true) {
+                     if (!lines.readLine(buffer)) {
+                         break;
+                     }
+                     query = buffer.nextStatement();
+                     try {
+                         uncommittedStatements.add(query);
+                         status.pending += stmt.executeUpdatePrepared(query.getPreparedStatement(), query.getValues());
+                         if (status.pending == 0) { // successful commit
+                             uncommittedStatements.clear();
+                         }
+                     } catch (SQLException e) {
+                         if (!connection.getAutoCommit()) connection.rollback();
+                         if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                             retry(connection, stmt, status, uncommittedStatements, e);
+                         } else {
+                             throw(e);
+                         }
+                     }
+
+                 }
+                 if (status.pending > 0) {
+                     try {
+                         connection.commit();
+                         status.commit();
+                     } catch (SQLException e) {
+                         if (!connection.getAutoCommit()) connection.rollback();
+                         if (StatementHelper.shouldRetry(e, client.getMaxRetries() > 0)) {
+                             retry(connection, stmt, status, uncommittedStatements, e);
+                         } else {
+                             throw(e);
+                         }
+                     }
+                 }
+                 success = true;
+            }
+            catch (Exception ex) {
+                // todo startLineNo
+                throw new DumpLoaderException(lines.getLineCounter(), query == null ? null : query.toString(), ex);
+            }
+            finally {
+                 if (stmt != null) {
+                     stmt.close();
+                 }
+                 try {
+                     returnConnection(connection, success);
+                 } catch (SQLException e) {
+                     e.printStackTrace();
+                 }
+            }
+            count += status.count;
+        }
+
+        private void retry(Connection connection, StatementHelper stmt, CommitStatus status,
+                           List<MySQLBuffer.Query> uncommittedStatements, SQLException e) throws SQLException {
+            for (int i = 0; StatementHelper.shouldRetry(e, i < client.getMaxRetries()); i++) {
+                status.pending = 0;
+                try {
+                    for (MySQLBuffer.Query query : uncommittedStatements) {
+                        status.pending += stmt.executeUpdatePrepared(query.getPreparedStatement(), query.getValues());
+                    }
+                    if (status.pending > 0) {
+                        connection.commit();
+                        status.commit();
+                    }
+                    uncommittedStatements.clear();
+                    return;
+                } catch (SQLException newE) {
+                    if (!connection.getAutoCommit()) connection.rollback();
+                    if (!StatementHelper.shouldRetry(newE, true)) {
+                        throw(newE);
+                    }
+                    e = newE;
+                }
+            }
+            throw(new SQLException("Maximum number of retries met", e));
         }
     }
 }
